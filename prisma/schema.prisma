@@ -1,0 +1,113 @@
+
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Permiso {
+  id          String       @id @default(uuid())
+  nombre      String       @unique
+  descripcion String
+  createAt    DateTime     @default(now())
+  updateAt    DateTime     @updatedAt
+  activo      Boolean
+  roles       RolPermiso[]
+}
+
+model RolPermiso {
+  id        String   @id @default(uuid())
+  rolId     String
+  permisoId String
+  createAt  DateTime @default(now())
+
+  permiso Permiso @relation(fields: [permisoId], references: [id])
+  rol     Rol     @relation(fields: [rolId], references: [id])
+
+  @@unique([rolId, permisoId])
+  @@index([permisoId], map: "RolPermiso_permisoId_fkey")
+}
+
+model Rol {
+  id          String       @id @default(uuid())
+  nombre      String       @unique
+  descripcion String
+  createAt    DateTime     @default(now())
+  updateAt    DateTime     @updatedAt
+  activo      Boolean
+  permisos    RolPermiso[]
+  usuarios    Usuarios[]
+}
+
+
+model Empleados {
+  id        String  @id @default(uuid()) @db.VarChar(36)
+  puesto_id String  @db.VarChar(36)
+
+  identidad  String    @db.VarChar(50)
+  nombre                String    @db.VarChar(100)
+  apellido              String    @db.VarChar(100)
+  correo                String    @db.LongText
+  FechaNacimiento       DateTime? @db.DateTime(6)
+  fechaIngreso          DateTime? @db.DateTime(6)
+  telefono              String?   @db.VarChar(20)
+
+  // Campos existentes
+  Vacaciones Int
+  genero     String?  @db.VarChar(20)
+  activo     Boolean  @db.Bit(1)
+  createAt   DateTime @default(now())
+  updateAt   DateTime @updatedAt
+
+  // Relaciones
+  Puesto                      Puesto                        @relation(fields: [puesto_id], references: [Id], onDelete: Cascade, onUpdate: NoAction)
+  Usuarios                    Usuarios?
+  
+  @@index([puesto_id])
+}
+
+model Puesto {
+  Id                      String                    @id @db.VarChar(36)
+  Nombre                  String                    @db.VarChar(100)
+  Descripcion             String                    @db.VarChar(100)
+  Activo                  Boolean                   @db.Bit(1)
+  createAt                DateTime                  @default(now())
+  updateAt                DateTime                  @updatedAt
+  Empleados               Empleados[]
+}
+
+model Usuarios {
+  id                  String               @id @db.VarChar(36)
+  empleado_id         String               @unique(map: "IX_Usuarios_empleado_id") @db.VarChar(36)
+  usuario             String               @db.VarChar(50)
+  contrasena          String               @db.LongText
+  DebeCambiarPassword Boolean?
+  createAt            DateTime             @default(now())
+  updateAt            DateTime             @updatedAt
+  rol_id              String               @db.VarChar(36)
+  activo              Boolean              @db.Bit(1)
+  Empleados           Empleados            @relation(fields: [empleado_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Usuarios_Empleados_empleado_id")
+  rol                 Rol                  @relation(fields: [rol_id], references: [id])
+  PasswordResetToken  PasswordResetToken[]
+
+  @@index([rol_id], map: "IX_Usuarios_rol_id")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  userId    String   @db.VarChar(36)
+  token     String   @unique @db.VarChar(128)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  Usuario Usuarios @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "IX_PasswordResetToken_userId")
+}
+
+

@@ -2,14 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+body {
+  font-family: var(--font-Poppins-mono), sans-serif;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
 }
 
+@media print {
+  body * {
+    visibility: hidden;
+  }
 
+  .print\:mx-auto,
+  .print\:mx-auto * {
+    visibility: visible;
+  }
 
+  .print\:mx-auto {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+}
 
 @layer base {
   :root {
@@ -32,7 +50,7 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+    --radius: 0.75rem;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -45,17 +63,24 @@
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 173.4 80.4% 40%;
+    --card: hsl(210 50% 90%);
+    /* azul claro en modo claro */
+    --card-foreground: hsl(210 30% 10%);
+    /* texto oscuro */
   }
 
   .dark {
     --background: 222.2 84% 4.9%;
+    --card: hsl(210 50% 90%);
+    /* mismo azul claro incluso en modo oscuro */
+    --card-foreground: hsl(210 30% 10%);
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
+    --primary: 173.4 80.4% 40%;
     --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -80,17 +105,26 @@
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 173.4 80.4% 40%;
   }
 }
 
-
-
 @layer base {
   * {
-    @apply border-collapse;
+    @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .bg-card {
+    background-color: hsl(var(--card));
+  }
+
+  .text-card-foreground {
+    color: hsl(var(--card-foreground));
   }
 }
