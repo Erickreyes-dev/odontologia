@@ -159,41 +159,49 @@ model Profesion {
   medicos     Medico[]
 }
 
-model Medico {
-  idEmpleado  String    @id @db.VarChar(36)
+model Servicio {
+  id          String     @id @default(uuid()) @db.VarChar(36)
+  nombre      String     @db.VarChar(150)
+  descripcion String?    @db.VarChar(255)
+  precioBase  Decimal    @db.Decimal(10, 2)
+  duracionMin Int
+  activo      Boolean    @db.Bit(1)
+  createAt    DateTime   @default(now())
+  updateAt    DateTime   @updatedAt
 
-  // relación 1-1 con Empleados
-  empleado    Empleados @relation(fields: [idEmpleado], references: [id], onDelete: Cascade)
+  // Relación muchos a muchos con Medico
+  medicosServicios MedicoServicio[]
 
-  profesionId String    @db.VarChar(36)
-  profesion   Profesion @relation(fields: [profesionId], references: [id])
-
-  activo      Boolean   @db.Bit(1)
-  createAt    DateTime  @default(now())
-  updateAt    DateTime  @updatedAt
-
-  // Relaciones
-  servicios   Servicio[]
-
-  @@index([profesionId])
+  @@map("Servicios")
 }
 
+model Medico {
+  idEmpleado  String     @id @db.VarChar(36)
+  empleado    Empleados   @relation(fields: [idEmpleado], references: [id], onDelete: Cascade)
+  profesionId String     @db.VarChar(36)
+  profesion   Profesion  @relation(fields: [profesionId], references: [id])
+  activo      Boolean    @db.Bit(1)
+  createAt    DateTime   @default(now())
+  updateAt    DateTime   @updatedAt
 
-model Servicio {
-  id          String   @id @default(uuid()) @db.VarChar(36)
-  nombre      String   @db.VarChar(150)
-  descripcion String?  @db.VarChar(255)
-  precioBase  Decimal  @db.Decimal(10, 2)
-  duracionMin Int
+  // Relación muchos a muchos con Servicio
+  serviciosMedicos MedicoServicio[]
 
-  medicoId    String?  @db.VarChar(36)
-  medico      Medico?  @relation(fields: [medicoId], references: [idEmpleado])
+  @@map("Medicos")
+}
 
-  activo      Boolean  @db.Bit(1)
+model MedicoServicio {
+  id          String   @id @default(uuid())
+  medicoId    String   @db.VarChar(36)
+  servicioId  String   @db.VarChar(36)
   createAt    DateTime @default(now())
-  updateAt    DateTime @updatedAt
 
-  @@index([medicoId])
+  medico    Medico    @relation(fields: [medicoId], references: [idEmpleado])
+  servicio  Servicio  @relation(fields: [servicioId], references: [id])
+
+  @@unique([medicoId, servicioId])
+  @@index([servicioId])
+  @@map("Medicos_Servicios") // nombre de tabla intermedia
 }
 
 

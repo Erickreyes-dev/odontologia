@@ -26,19 +26,19 @@ export async function getMedicos(): Promise<Medico[]> {
       // Solo incluyo los campos mínimos de empleado y profesion
       empleado: r.empleado
         ? {
-            id: r.empleado.id,
-            nombre: r.empleado.nombre,
-            apellido: r.empleado.apellido,
-            activo: r.empleado.activo,
-          }
+          id: r.empleado.id,
+          nombre: r.empleado.nombre,
+          apellido: r.empleado.apellido,
+          activo: r.empleado.activo,
+        }
         : undefined,
       profesion: r.profesion
         ? {
-            id: r.profesion.id,
-            nombre: r.profesion.nombre,
-            descripcion: r.profesion.descripcion ?? "",
-            activo: r.profesion.activo,
-          }
+          id: r.profesion.id,
+          nombre: r.profesion.nombre,
+          descripcion: r.profesion.descripcion ?? "",
+          activo: r.profesion.activo,
+        }
         : undefined,
     }));
   } catch (error) {
@@ -62,6 +62,23 @@ export async function getMedicosActivos(): Promise<Medico[]> {
       activo: r.activo,
       createAt: r.createAt,
       updateAt: r.updateAt,
+      // Solo incluyo los campos mínimos de empleado y profesion
+      empleado: r.empleado
+        ? {
+          id: r.empleado.id,
+          nombre: r.empleado.nombre,
+          apellido: r.empleado.apellido,
+          activo: r.empleado.activo,
+        }
+        : undefined,
+      profesion: r.profesion
+        ? {
+          id: r.profesion.id,
+          nombre: r.profesion.nombre,
+          descripcion: r.profesion.descripcion ?? "",
+          activo: r.profesion.activo,
+        }
+        : undefined,
     }));
   } catch (error) {
     console.error("Error al obtener médicos activos:", error);

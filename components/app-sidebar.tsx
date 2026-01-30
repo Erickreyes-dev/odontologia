@@ -88,10 +88,10 @@ const items = [
     permiso: "ver_medicos",
   },
   {
-    title: "Voucher de Pago",
-    url: "/voucher-pago",
-    icon: File,
-    permiso: "ver_voucher_pago",
+    title: "Servicios",
+    url: "/servicios",
+    icon: Package,
+    permiso: "ver_servicios",
   },
   {
     title: "Notas",

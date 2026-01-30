@@ -56,6 +56,11 @@ async function main() {
     { nombre: "ver_medicos", descripcion: "Permiso para ver medicos" },
     { nombre: "crear_medicos", descripcion: "Permiso para crear medicos" },
     { nombre: "editar_medicos", descripcion: "Permiso para editar medicos" },
+
+    // permisos servicios
+    { nombre: "ver_servicios", descripcion: "Permiso para ver servicios" },
+    { nombre: "crear_servicios", descripcion: "Permiso para crear servicios" },
+    { nombre: "editar_servicios", descripcion: "Permiso para editar servicios" },
   ];
 
   const permisoIds: string[] = [];
@@ -155,6 +160,32 @@ async function main() {
     });
     console.log("Usuario creado: " + usuario.usuario);
   }
+  // 8. Crear Profesion
+let profesion = await prisma.profesion.findFirst({ where: { nombre: "Odontólogo General" } });
+if (!profesion) {
+  profesion = await prisma.profesion.create({
+    data: {
+      id: randomUUID(),
+      nombre: "Odontólogo General",
+      descripcion: "Medico especialista en odontología general",
+      activo: true,
+    },
+  });
+  console.log("Profesión creada: " + profesion.nombre);
+}
+
+// 9. Crear Medico y asociarlo al Empleado y Profesion
+let medico = await prisma.medico.findFirst({ where: { idEmpleado: empleado.id } });
+if (!medico) {
+  medico = await prisma.medico.create({
+    data: {
+      idEmpleado: empleado.id,
+      profesionId: profesion.id,
+      activo: true,
+    },
+  });
+  console.log("Medico creado para el empleado: " + empleado.nombre);
+}
 
   console.log("Seed completado exitosamente");
 }
