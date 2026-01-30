@@ -102,3 +102,28 @@ export const formatTimeRange = (start?: Date | null, end?: Date | null, todoDia?
 // -------------------- EMPLOYEES --------------------
 export const getEmployeeStatus = (isActive: boolean): { label: string; variant: "default" | "secondary" | "destructive" } =>
   isActive ? { label: "Activo", variant: "default" } : { label: "Inactivo", variant: "secondary" };
+
+
+export const calcularEdadColumns = (birthDate: Date): number => {
+  const today = new Date();
+
+  const birthYear = birthDate.getFullYear();
+  const birthMonth = birthDate.getMonth();
+  const birthDay = birthDate.getDate();
+
+  const todayYear = today.getFullYear();
+  const todayMonth = today.getMonth();
+  const todayDay = today.getDate();
+
+  let age = todayYear - birthYear;
+
+  // Si no ha cumplido aún este año, restamos 1
+  if (
+    todayMonth < birthMonth ||
+    (todayMonth === birthMonth && todayDay < birthDay)
+  ) {
+    age--;
+  }
+
+  return age;
+};
