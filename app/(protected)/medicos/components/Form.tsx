@@ -10,11 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { createSeguro, updateSeguro } from "../actions"; // Tu función para enviar datos
-import { SeguroSchema } from "../schema"; // Tu esquema de Zod para seguros
+
 import { Field, FieldContent, FieldDescription, FieldLabel, FieldError } from "@/components/ui/field";
 import { Controller, useForm } from "react-hook-form";
 import { Switch } from "@/components/ui/switch";
+import { SeguroSchema } from "../../seguros/schema";
+import { createSeguro, updateSeguro } from "../../seguros/actions";
 export function SeguroFormulario({
   isUpdate,
   initialData,
