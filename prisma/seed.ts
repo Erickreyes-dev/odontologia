@@ -35,6 +35,12 @@ async function main() {
     { nombre: "crear_puestos", descripcion: "Permiso para crear puestos" },
     { nombre: "editar_puestos", descripcion: "Permiso para editar puestos" },
     { nombre: "ver_profile", descripcion: "Permiso para ver el perfil" },
+    
+    // permisos seguro
+    
+    { nombre: "ver_seguros", descripcion: "Permiso para ver seguros" },
+    { nombre: "crear_seguros", descripcion: "Permiso para crear seguros" },
+    { nombre: "editar_seguros", descripcion: "Permiso para editar seguros" },
   ];
 
   const permisoIds: string[] = [];

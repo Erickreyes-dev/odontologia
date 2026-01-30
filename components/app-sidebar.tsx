@@ -15,7 +15,7 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { Calculator, ChevronDown, ChevronUp, File, FileCheck2, Files, LayersIcon, LucideFilePen, MessageCircleMore, Package, Settings, UserIcon, UserRoundCheck, UsersIcon } from 'lucide-react';
+import { Calculator, ChevronDown, ChevronUp, File, FileCheck2, LayersIcon, LucideFilePen, MessageCircleMore, Package, Settings, ShieldPlus, UserIcon, UserRoundCheck, UsersIcon } from 'lucide-react';
 import Link from "next/link";
 import { NavUser } from "./nav-user";
 import { ModeToggle } from "./buton-theme";
@@ -63,10 +63,10 @@ const mantenimientoItems = [
 const items = [
 
   {
-    title: "Solicitudes",
-    url: "/solicitudes",
-    icon: Files,
-    permiso: "ver_solicitudes",
+    title: "Seguros",
+    url: "/seguros",
+    icon: ShieldPlus,
+    permiso: "ver_seguros",
   },
 
   {

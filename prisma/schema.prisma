@@ -50,26 +50,29 @@ model Empleados {
   puesto_id String  @db.VarChar(36)
 
   identidad  String    @db.VarChar(50)
-  nombre                String    @db.VarChar(100)
-  apellido              String    @db.VarChar(100)
-  correo                String    @db.LongText
-  FechaNacimiento       DateTime? @db.DateTime(6)
-  fechaIngreso          DateTime? @db.DateTime(6)
-  telefono              String?   @db.VarChar(20)
+  nombre     String    @db.VarChar(100)
+  apellido   String    @db.VarChar(100)
+  correo     String    @db.LongText
+  FechaNacimiento DateTime? @db.DateTime(6)
+  fechaIngreso     DateTime? @db.DateTime(6)
+  telefono         String?   @db.VarChar(20)
 
-  // Campos existentes
   Vacaciones Int
   genero     String?  @db.VarChar(20)
   activo     Boolean  @db.Bit(1)
   createAt   DateTime @default(now())
   updateAt   DateTime @updatedAt
 
-  // Relaciones
-  Puesto                      Puesto                        @relation(fields: [puesto_id], references: [Id], onDelete: Cascade, onUpdate: NoAction)
-  Usuarios                    Usuarios?
-  
+  // Relaciones existentes
+  Puesto   Puesto   @relation(fields: [puesto_id], references: [Id], onDelete: Cascade, onUpdate: NoAction)
+  Usuarios Usuarios?
+
+  // NUEVA relación opcional 1-1
+  Medico   Medico?
+
   @@index([puesto_id])
 }
+
 
 model Puesto {
   Id                      String                    @id @db.VarChar(36)
@@ -109,5 +112,90 @@ model PasswordResetToken {
 
   @@index([userId], map: "IX_PasswordResetToken_userId")
 }
+
+model Seguro {
+  id          String    @id @default(uuid()) @db.VarChar(36)
+  nombre      String    @db.VarChar(100)
+  descripcion String?   @db.VarChar(255)
+  activo      Boolean   @db.Bit(1)
+  createAt    DateTime  @default(now())
+  updateAt    DateTime  @updatedAt
+
+  // Relaciones
+  pacientes   Paciente[]
+}
+
+model Paciente {
+  id              String    @id @default(uuid()) @db.VarChar(36)
+  identidad       String    @unique @db.VarChar(50)
+  nombre          String    @db.VarChar(100)
+  apellido        String    @db.VarChar(100)
+  fechaNacimiento DateTime? @db.DateTime(6)
+  genero          String?   @db.VarChar(20)
+  telefono        String?   @db.VarChar(20)
+  correo          String?   @db.VarChar(150)
+  direccion       String?   @db.VarChar(255)
+
+  // Seguro opcional
+  seguroId        String?   @db.VarChar(36)
+  seguro          Seguro?   @relation(fields: [seguroId], references: [id])
+
+  activo          Boolean   @db.Bit(1)
+  createAt        DateTime  @default(now())
+  updateAt        DateTime  @updatedAt
+
+  @@index([seguroId])
+}
+
+model Profesion {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  nombre      String   @unique @db.VarChar(100) // Ej: Odontólogo, Médico General
+  descripcion String?  @db.VarChar(255)
+  activo      Boolean  @db.Bit(1)
+  createAt    DateTime @default(now())
+  updateAt    DateTime @updatedAt
+
+  // Relaciones
+  medicos     Medico[]
+}
+
+model Medico {
+  idEmpleado  String    @id @db.VarChar(36)
+
+  // relación 1-1 con Empleados
+  empleado    Empleados @relation(fields: [idEmpleado], references: [id], onDelete: Cascade)
+
+  profesionId String    @db.VarChar(36)
+  profesion   Profesion @relation(fields: [profesionId], references: [id])
+
+  activo      Boolean   @db.Bit(1)
+  createAt    DateTime  @default(now())
+  updateAt    DateTime  @updatedAt
+
+  // Relaciones
+  servicios   Servicio[]
+
+  @@index([profesionId])
+}
+
+
+model Servicio {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  nombre      String   @db.VarChar(150)
+  descripcion String?  @db.VarChar(255)
+  precioBase  Decimal  @db.Decimal(10, 2)
+  duracionMin Int
+
+  medicoId    String?  @db.VarChar(36)
+  medico      Medico?  @relation(fields: [medicoId], references: [idEmpleado])
+
+  activo      Boolean  @db.Bit(1)
+  createAt    DateTime @default(now())
+  updateAt    DateTime @updatedAt
+
+  @@index([medicoId])
+}
+
+
 
 
