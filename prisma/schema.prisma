@@ -144,6 +144,8 @@ model Paciente {
   createAt        DateTime  @default(now())
   updateAt        DateTime  @updatedAt
 
+  citas           Cita[]
+
   @@index([seguroId])
 }
 
@@ -171,6 +173,8 @@ model Servicio {
 
   // Relación muchos a muchos con Medico
   medicosServicios MedicoServicio[]
+  consultasServicios ConsultaServicio[]
+
 
   @@map("Servicios")
 }
@@ -186,6 +190,9 @@ model Medico {
 
   // Relación muchos a muchos con Servicio
   serviciosMedicos MedicoServicio[]
+
+  citas Cita[]
+
 
   @@map("Medicos")
 }
@@ -204,6 +211,71 @@ model MedicoServicio {
   @@map("Medicos_Servicios") // nombre de tabla intermedia
 }
 
+model Consultorio {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  nombre    String   @db.VarChar(50)  // Ej: "Consultorio 1", "Dental A"
+  ubicacion String?  @db.VarChar(150)
+  activo    Boolean  @db.Bit(1)
+  createAt  DateTime @default(now())
+  updateAt  DateTime @updatedAt
 
+  citas     Cita[]
+}
 
+model Cita {
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  pacienteId    String   @db.VarChar(36)
+  medicoId      String   @db.VarChar(36)
+  consultorioId String   @db.VarChar(36)
 
+  fechaHora     DateTime @db.DateTime(6)
+  estado        String   @db.VarChar(20) // programada, atendida, cancelada
+
+  motivo        String?  @db.VarChar(255)
+  observacion   String?  @db.VarChar(255)
+
+  createAt      DateTime @default(now())
+  updateAt      DateTime @updatedAt
+
+  paciente    Paciente    @relation(fields: [pacienteId], references: [id])
+  medico      Medico      @relation(fields: [medicoId], references: [idEmpleado])
+  consultorio Consultorio @relation(fields: [consultorioId], references: [id])
+
+  consulta    Consulta?
+
+  @@index([pacienteId])
+  @@index([medicoId])
+  @@index([consultorioId])
+}
+
+model Consulta {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  citaId    String   @unique @db.VarChar(36)
+
+  diagnostico String? @db.VarChar(255)
+  notas       String? @db.Text
+
+  createAt  DateTime @default(now())
+  updateAt  DateTime @updatedAt
+
+  cita      Cita     @relation(fields: [citaId], references: [id], onDelete: Cascade)
+
+  detalles  ConsultaServicio[]
+}
+
+model ConsultaServicio {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  consultaId  String   @db.VarChar(36)
+  servicioId  String   @db.VarChar(36)
+
+  precioAplicado Decimal @db.Decimal(10,2)
+  cantidad       Int     @default(1)
+
+  createAt    DateTime @default(now())
+
+  consulta Consulta @relation(fields: [consultaId], references: [id], onDelete: Cascade)
+  servicio Servicio @relation(fields: [servicioId], references: [id])
+
+  @@index([consultaId])
+  @@index([servicioId])
+}
