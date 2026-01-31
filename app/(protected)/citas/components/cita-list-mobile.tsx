@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { getCitas, cambiarEstadoCita, deleteCita } from "../actions";
 import { Cita, ESTADOS_CITA } from "../schema";
-import { Info, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Info, Pencil, Plus, Search, Trash2, Stethoscope } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -255,6 +255,17 @@ export default function CitaListMobile({
                   </div>
 
                   <div className="flex items-center gap-1">
+                    <Link href={`/citas/${c.id}/consulta`}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full"
+                        title="Consulta"
+                      >
+                        <Stethoscope className="h-4 w-4" />
+                        <span className="sr-only">Consulta</span>
+                      </Button>
+                    </Link>
                     <Link href={`/citas/${c.id}/edit`}>
                       <Button
                         variant="ghost"

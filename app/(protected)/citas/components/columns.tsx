@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Stethoscope } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -221,6 +221,12 @@ function ActionsCell({ cita }: { cita: Cita }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+          <Link href={`/citas/${cita.id}/consulta`}>
+            <DropdownMenuItem>
+              <Stethoscope className="h-4 w-4 mr-2" />
+              Consulta
+            </DropdownMenuItem>
+          </Link>
           <Link href={`/citas/${cita.id}/edit`}>
             <DropdownMenuItem>Editar</DropdownMenuItem>
           </Link>
