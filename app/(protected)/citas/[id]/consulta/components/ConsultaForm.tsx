@@ -2,25 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
+import { Controller, useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { format, differenceInYears } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, Trash2, Save, ArrowLeft, User, Calendar, Stethoscope, FileText, DollarSign } from "lucide-react";
+import { Plus, Trash2, User, Calendar, Stethoscope, FileText, DollarSign, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -39,9 +38,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
-import { ConsultaSchema, Consulta, ConsultaServicio } from "../schema";
+import { ConsultaSchema, Consulta } from "../schema";
 import { upsertConsulta } from "../actions";
-import Link from "next/link";
 
 interface ServicioDisponible {
   id: string;
@@ -151,7 +149,7 @@ export function ConsultaForm({ cita, consulta, servicios }: ConsultaFormProps) {
           description: result.error || "No se pudo guardar la consulta.",
         });
       }
-    } catch (error) {
+    } catch {
       toast.error("Error", {
         description: "Ocurrio un error inesperado.",
       });
@@ -271,227 +269,231 @@ export function ConsultaForm({ cita, consulta, servicios }: ConsultaFormProps) {
       <Separator />
 
       {/* Formulario de Consulta */}
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* Diagnostico y Notas */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Diagnostico y Observaciones
-              </CardTitle>
-              <CardDescription>
-                Ingrese el diagnostico y las notas relevantes de la consulta
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="diagnostico"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Diagnostico</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Escriba el diagnostico del paciente..."
-                        className="min-h-[100px] resize-y"
-                        {...field}
-                        value={field.value || ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Diagnostico y Notas */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Diagnostico y Observaciones
+            </CardTitle>
+            <CardDescription>
+              Ingrese el diagnostico y las notas relevantes de la consulta
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Controller
+              name="diagnostico"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Diagnostico</FieldLabel>
+                  <FieldContent>
+                    <Textarea
+                      id={field.name}
+                      placeholder="Escriba el diagnostico del paciente..."
+                      className="min-h-[100px] resize-y"
+                      {...field}
+                      value={field.value || ""}
+                    />
+                  </FieldContent>
+                  <FieldDescription>
+                    Describa el diagnostico del paciente basado en la evaluacion realizada.
+                  </FieldDescription>
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name="notas"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notas / Observaciones</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Notas adicionales, recomendaciones, tratamiento..."
-                        className="min-h-[120px] resize-y"
-                        {...field}
-                        value={field.value || ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+            <Controller
+              name="notas"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Notas / Observaciones</FieldLabel>
+                  <FieldContent>
+                    <Textarea
+                      id={field.name}
+                      placeholder="Notas adicionales, recomendaciones, tratamiento..."
+                      className="min-h-[120px] resize-y"
+                      {...field}
+                      value={field.value || ""}
+                    />
+                  </FieldContent>
+                  <FieldDescription>
+                    Incluya notas sobre el tratamiento, recomendaciones o informacion adicional.
+                  </FieldDescription>
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+          </CardContent>
+        </Card>
 
-          {/* Servicios Realizados */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5" />
-                    Servicios Realizados
-                  </CardTitle>
-                  <CardDescription>
-                    Agregue los servicios que se realizaron durante la consulta
-                  </CardDescription>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddServicio}
-                  className="flex items-center gap-1"
-                >
-                  <Plus className="h-4 w-4" />
-                  Agregar Servicio
-                </Button>
+        {/* Servicios Realizados */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Servicios Realizados
+                </CardTitle>
+                <CardDescription>
+                  Agregue los servicios que se realizaron durante la consulta
+                </CardDescription>
               </div>
-            </CardHeader>
-            <CardContent>
-              {fields.length > 0 ? (
-                <div className="space-y-4">
-                  {/* Desktop Table */}
-                  <div className="hidden md:block rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[40%]">Servicio</TableHead>
-                          <TableHead className="w-[20%]">Precio Unitario</TableHead>
-                          <TableHead className="w-[15%]">Cantidad</TableHead>
-                          <TableHead className="w-[15%]">Subtotal</TableHead>
-                          <TableHead className="w-[10%]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {fields.map((field, index) => {
-                          const detalle = watchDetalles[index];
-                          const subtotal = (detalle?.precioAplicado || 0) * (detalle?.cantidad || 1);
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddServicio}
+                className="flex items-center gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                Agregar Servicio
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {fields.length > 0 ? (
+              <div className="space-y-4">
+                {/* Desktop Table */}
+                <div className="hidden md:block rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[40%]">Servicio</TableHead>
+                        <TableHead className="w-[20%]">Precio Unitario</TableHead>
+                        <TableHead className="w-[15%]">Cantidad</TableHead>
+                        <TableHead className="w-[15%]">Subtotal</TableHead>
+                        <TableHead className="w-[10%]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {fields.map((field, index) => {
+                        const detalle = watchDetalles[index];
+                        const subtotal = (detalle?.precioAplicado || 0) * (detalle?.cantidad || 1);
 
-                          return (
-                            <TableRow key={field.id}>
-                              <TableCell>
-                                <FormField
-                                  control={form.control}
-                                  name={`detalles.${index}.servicioId`}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <Select
-                                        onValueChange={(value) => {
-                                          field.onChange(value);
-                                          handleServicioChange(index, value);
-                                        }}
-                                        value={field.value}
-                                      >
-                                        <FormControl>
-                                          <SelectTrigger>
-                                            <SelectValue placeholder="Seleccione un servicio" />
-                                          </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                          {servicios.map((servicio) => (
-                                            <SelectItem key={servicio.id} value={servicio.id}>
-                                              {servicio.nombre} - L. {servicio.precioBase.toFixed(2)}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <FormField
-                                  control={form.control}
-                                  name={`detalles.${index}.precioAplicado`}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormControl>
-                                        <Input
-                                          type="number"
-                                          step="0.01"
-                                          min="0"
-                                          {...field}
-                                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                        />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <FormField
-                                  control={form.control}
-                                  name={`detalles.${index}.cantidad`}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormControl>
-                                        <Input
-                                          type="number"
-                                          min="1"
-                                          {...field}
-                                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                                        />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <span className="font-medium">
-                                  L. {subtotal.toFixed(2)}
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => remove(index)}
-                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  {/* Mobile Cards */}
-                  <div className="md:hidden space-y-3">
-                    {fields.map((field, index) => {
-                      const detalle = watchDetalles[index];
-                      const subtotal = (detalle?.precioAplicado || 0) * (detalle?.cantidad || 1);
-
-                      return (
-                        <Card key={field.id} className="p-4">
-                          <div className="space-y-3">
-                            <FormField
-                              control={form.control}
-                              name={`detalles.${index}.servicioId`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Servicio</FormLabel>
+                        return (
+                          <TableRow key={field.id}>
+                            <TableCell>
+                              <Controller
+                                name={`detalles.${index}.servicioId`}
+                                control={form.control}
+                                render={({ field: selectField, fieldState }) => (
                                   <Select
                                     onValueChange={(value) => {
-                                      field.onChange(value);
+                                      selectField.onChange(value);
                                       handleServicioChange(index, value);
                                     }}
-                                    value={field.value}
+                                    value={selectField.value}
                                   >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Seleccione un servicio" />
-                                      </SelectTrigger>
-                                    </FormControl>
+                                    <SelectTrigger className={fieldState.invalid ? "border-destructive" : ""}>
+                                      <SelectValue placeholder="Seleccione un servicio" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {servicios.map((servicio) => (
+                                        <SelectItem key={servicio.id} value={servicio.id}>
+                                          {servicio.nombre} - L. {servicio.precioBase.toFixed(2)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Controller
+                                name={`detalles.${index}.precioAplicado`}
+                                control={form.control}
+                                render={({ field: inputField }) => (
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    {...inputField}
+                                    onChange={(e) => inputField.onChange(parseFloat(e.target.value) || 0)}
+                                  />
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Controller
+                                name={`detalles.${index}.cantidad`}
+                                control={form.control}
+                                render={({ field: inputField }) => (
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    {...inputField}
+                                    onChange={(e) => inputField.onChange(parseInt(e.target.value) || 1)}
+                                  />
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-medium">
+                                L. {subtotal.toFixed(2)}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => remove(index)}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden space-y-3">
+                  {fields.map((field, index) => {
+                    const detalle = watchDetalles[index];
+                    const subtotal = (detalle?.precioAplicado || 0) * (detalle?.cantidad || 1);
+
+                    return (
+                      <Card key={field.id} className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start">
+                            <span className="text-sm font-medium">Servicio {index + 1}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => remove(index)}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          
+                          <Controller
+                            name={`detalles.${index}.servicioId`}
+                            control={form.control}
+                            render={({ field: selectField, fieldState }) => (
+                              <Field data-invalid={fieldState.invalid}>
+                                <FieldLabel>Servicio</FieldLabel>
+                                <FieldContent>
+                                  <Select
+                                    onValueChange={(value) => {
+                                      selectField.onChange(value);
+                                      handleServicioChange(index, value);
+                                    }}
+                                    value={selectField.value}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Seleccione un servicio" />
+                                    </SelectTrigger>
                                     <SelectContent>
                                       {servicios.map((servicio) => (
                                         <SelectItem key={servicio.id} value={servicio.id}>
@@ -500,123 +502,104 @@ export function ConsultaForm({ cita, consulta, servicios }: ConsultaFormProps) {
                                       ))}
                                     </SelectContent>
                                   </Select>
-                                  <FormMessage />
-                                </FormItem>
+                                </FieldContent>
+                                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                              </Field>
+                            )}
+                          />
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <Controller
+                              name={`detalles.${index}.precioAplicado`}
+                              control={form.control}
+                              render={({ field: inputField, fieldState }) => (
+                                <Field data-invalid={fieldState.invalid}>
+                                  <FieldLabel>Precio</FieldLabel>
+                                  <FieldContent>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      {...inputField}
+                                      onChange={(e) => inputField.onChange(parseFloat(e.target.value) || 0)}
+                                    />
+                                  </FieldContent>
+                                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                </Field>
                               )}
                             />
-
-                            <div className="grid grid-cols-2 gap-3">
-                              <FormField
-                                control={form.control}
-                                name={`detalles.${index}.precioAplicado`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Precio</FormLabel>
-                                    <FormControl>
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        {...field}
-                                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-
-                              <FormField
-                                control={form.control}
-                                name={`detalles.${index}.cantidad`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Cantidad</FormLabel>
-                                    <FormControl>
-                                      <Input
-                                        type="number"
-                                        min="1"
-                                        {...field}
-                                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </div>
-
-                            <div className="flex items-center justify-between pt-2 border-t">
-                              <span className="font-medium">
-                                Subtotal: L. {subtotal.toFixed(2)}
-                              </span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => remove(index)}
-                                className="text-red-500 hover:text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Eliminar
-                              </Button>
-                            </div>
+                            <Controller
+                              name={`detalles.${index}.cantidad`}
+                              control={form.control}
+                              render={({ field: inputField, fieldState }) => (
+                                <Field data-invalid={fieldState.invalid}>
+                                  <FieldLabel>Cantidad</FieldLabel>
+                                  <FieldContent>
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      {...inputField}
+                                      onChange={(e) => inputField.onChange(parseInt(e.target.value) || 1)}
+                                    />
+                                  </FieldContent>
+                                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                </Field>
+                              )}
+                            />
                           </div>
-                        </Card>
-                      );
-                    })}
-                  </div>
 
-                  {/* Total */}
-                  <div className="flex justify-end pt-4 border-t">
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Total</p>
-                      <p className="text-2xl font-bold">
-                        L. {calcularTotal().toFixed(2)}
-                      </p>
-                    </div>
+                          <div className="flex justify-end pt-2 border-t">
+                            <span className="text-sm text-muted-foreground mr-2">Subtotal:</span>
+                            <span className="font-medium">L. {subtotal.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {/* Total */}
+                <div className="flex justify-end pt-4 border-t">
+                  <div className="bg-muted rounded-lg px-6 py-3">
+                    <span className="text-muted-foreground mr-2">Total:</span>
+                    <span className="text-xl font-bold">L. {calcularTotal().toFixed(2)}</span>
                   </div>
                 </div>
-              ) : (
-                <div className="text-center py-8 bg-muted/30 rounded-lg">
-                  <DollarSign className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">
-                    No se han agregado servicios a esta consulta.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAddServicio}
-                    className="mt-3"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Agregar Primer Servicio
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No hay servicios agregados</p>
+                <p className="text-sm">Haga clic en &quot;Agregar Servicio&quot; para comenzar</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-          {/* Botones de accion */}
-          <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
-            <Link href="/citas">
-              <Button type="button" variant="outline" className="w-full sm:w-auto">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver a Citas
-              </Button>
-            </Link>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full sm:w-auto"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {isSubmitting ? "Guardando..." : "Guardar Consulta"}
-            </Button>
-          </div>
-        </form>
-      </Form>
+        {/* Submit Button */}
+        <div className="flex justify-end gap-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+            disabled={isSubmitting}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Guardando...
+              </>
+            ) : consulta ? (
+              "Actualizar Consulta"
+            ) : (
+              "Registrar Consulta"
+            )}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }
