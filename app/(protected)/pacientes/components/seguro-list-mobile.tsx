@@ -4,7 +4,7 @@ import { useState } from "react";
 import { getPacientes } from "../actions";
 import { Paciente } from "../schema";
 import { calcularEdad } from "@/lib/utils";
-import { Info, Pencil, Plus, Search } from "lucide-react";
+import { Info, Pencil, Plus, Search, CalendarPlus, User } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,12 +106,26 @@ export default function PacienteListMobile({ initialData, initialPage, initialPa
                       </TooltipProvider>
                     </div>
 
-                    <Link href={`/pacientes/${p.id}/edit`} className="ml-2 flex-shrink-0">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                        <Pencil className="h-4 w-4" />
-                        <span className="sr-only">Editar paciente</span>
-                      </Button>
-                    </Link>
+                    <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                      <Link href={`/pacientes/${p.id}/perfil`}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                          <User className="h-4 w-4" />
+                          <span className="sr-only">Ver perfil</span>
+                        </Button>
+                      </Link>
+                      <Link href={`/pacientes/${p.id}/edit`}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                          <Pencil className="h-4 w-4" />
+                          <span className="sr-only">Editar paciente</span>
+                        </Button>
+                      </Link>
+                      <Link href={`/citas/create?pacienteId=${p.id}`}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                          <CalendarPlus className="h-4 w-4" />
+                          <span className="sr-only">Agendar cita</span>
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

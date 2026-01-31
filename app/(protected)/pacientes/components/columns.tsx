@@ -205,10 +205,15 @@ function ActionsCell({ paciente: paciente }: { paciente: Paciente }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+          <Link href={`/pacientes/${paciente.id}/perfil`}>
+            <DropdownMenuItem>Ver Perfil</DropdownMenuItem>
+          </Link>
           <Link href={`/pacientes/${paciente.id}/edit`}>
             <DropdownMenuItem>Editar</DropdownMenuItem>
           </Link>
-
+          <Link href={`/citas/create?pacienteId=${paciente.id}`}>
+            <DropdownMenuItem>Agendar Cita</DropdownMenuItem>
+          </Link>
         </DropdownMenuContent>
       </DropdownMenu>
 
