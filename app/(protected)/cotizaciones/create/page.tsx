@@ -6,8 +6,13 @@ import { CotizacionFormulario } from "../components/Form";
 import { getPacientesActivos } from "../../pacientes/actions";
 import { getServiciosActivos } from "../actions";
 
-export default async function Create() {
+interface CreatePageProps {
+  searchParams: Promise<{ pacienteId?: string }>;
+}
+
+export default async function Create({ searchParams }: CreatePageProps) {
   const permisos = await getSessionPermisos();
+  const { pacienteId } = await searchParams;
 
   if (!permisos?.includes("crear_cotizaciones")) {
     return <NoAcceso />;
@@ -29,6 +34,7 @@ export default async function Create() {
         isUpdate={false}
         pacientes={pacientes}
         servicios={servicios}
+        defaultPacienteId={pacienteId}
       />
     </div>
   );

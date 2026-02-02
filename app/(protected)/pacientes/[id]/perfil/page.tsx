@@ -5,6 +5,7 @@ import { User } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getPacienteById } from "../../actions";
 import { getCitasByPaciente } from "@/app/(protected)/citas/actions";
+import { getCotizacionesByPaciente } from "@/app/(protected)/cotizaciones/actions";
 import { PacientePerfil } from "./components/paciente-perfil";
 import { getSegurosActivos } from "@/app/(protected)/seguros/actions";
 
@@ -19,9 +20,10 @@ export default async function PacientePerfilPage({
     return <NoAcceso />;
   }
 
-  const [paciente, citas, seguros] = await Promise.all([
+  const [paciente, citas, cotizaciones, seguros] = await Promise.all([
     getPacienteById(params.id),
     getCitasByPaciente(params.id),
+    getCotizacionesByPaciente(params.id),
     getSegurosActivos(),
   ]);
 
@@ -44,6 +46,7 @@ export default async function PacientePerfilPage({
       <PacientePerfil 
         paciente={paciente} 
         citas={citas} 
+        cotizaciones={cotizaciones}
         seguroNombre={seguro?.nombre}
       />
     </div>
