@@ -36,12 +36,16 @@ import { calcularEdad } from "@/lib/utils";
 import { Paciente } from "../../../schema";
 import { Cita } from "@/app/(protected)/citas/schema";
 import { Cotizacion, ESTADOS_COTIZACION } from "@/app/(protected)/cotizaciones/schema";
+import { PlanTratamiento, ESTADOS_PLAN } from "@/app/(protected)/planes-tratamiento/schema";
+import { Progress } from "@/components/ui/progress";
 import { generateCotizacionPDF } from "@/lib/pdf/cotizacion-pdf";
+import { ClipboardList } from "lucide-react";
 
 interface PacientePerfilProps {
   paciente: Paciente;
   citas: Cita[];
   cotizaciones: Cotizacion[];
+  planes: PlanTratamiento[];
   seguroNombre?: string;
 }
 
@@ -119,10 +123,45 @@ const getEstadoCotizacionBadge = (estado: string) => {
   }
 };
 
+const getEstadoPlanBadge = (estado: string) => {
+  const estadoInfo = ESTADOS_PLAN.find((e) => e.value === estado);
+  const label = estadoInfo?.label || estado;
+
+  switch (estado) {
+    case "ACTIVO":
+      return (
+        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+          {label}
+        </Badge>
+      );
+    case "PAUSADO":
+      return (
+        <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+          {label}
+        </Badge>
+      );
+    case "COMPLETADO":
+      return (
+        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+          {label}
+        </Badge>
+      );
+    case "CANCELADO":
+      return (
+        <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
+          {label}
+        </Badge>
+      );
+    default:
+      return <Badge variant="outline">{label}</Badge>;
+  }
+};
+
 export function PacientePerfil({
   paciente,
   citas,
   cotizaciones,
+  planes,
   seguroNombre,
 }: PacientePerfilProps) {
   const initials = `${paciente.nombre?.charAt(0) ?? ""}${paciente.apellido?.charAt(0) ?? ""}`;
@@ -137,6 +176,9 @@ export function PacientePerfil({
   // Calcular totales de cotizaciones
   const totalCotizaciones = cotizaciones.reduce((acc, c) => acc + (c.total || 0), 0);
   const cotizacionesAceptadas = cotizaciones.filter((c) => c.estado === "aceptada");
+
+  // Calcular planes activos
+  const planesActivos = planes.filter((p) => p.estado === "ACTIVO");
 
   const handleDownloadPDF = (cotizacion: Cotizacion) => {
     generateCotizacionPDF(cotizacion, paciente);
@@ -282,7 +324,7 @@ export function PacientePerfil({
       </Card>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-6">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
@@ -348,6 +390,20 @@ export function PacientePerfil({
               <div>
                 <p className="text-2xl font-bold">{cotizaciones.length}</p>
                 <p className="text-sm text-muted-foreground">Cotizaciones</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-indigo-100 rounded-full">
+                <ClipboardList className="h-6 w-6 text-indigo-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{planesActivos.length}</p>
+                <p className="text-sm text-muted-foreground">Planes Activos</p>
               </div>
             </div>
           </CardContent>
@@ -631,6 +687,174 @@ export function PacientePerfil({
                 <Button variant="outline" className="mt-4">
                   <Plus className="h-4 w-4 mr-2" />
                   Crear Primera Cotizacion
+                </Button>
+              </Link>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Planes de Tratamiento */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Planes de Tratamiento
+            </span>
+            <Link href={`/planes-tratamiento/create?pacienteId=${paciente.id}`}>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo Plan
+              </Button>
+            </Link>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {planes.length > 0 ? (
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre del Plan</TableHead>
+                      <TableHead>Fecha Inicio</TableHead>
+                      <TableHead>Etapas</TableHead>
+                      <TableHead>Progreso</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {planes.map((plan) => {
+                      const total = plan.totalSeguimientos || 0;
+                      const completados = plan.seguimientosCompletados || 0;
+                      const porcentaje = total > 0 ? Math.round((completados / total) * 100) : 0;
+
+                      return (
+                        <TableRow key={plan.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{plan.nombre}</p>
+                              {plan.medicoNombre && (
+                                <p className="text-sm text-muted-foreground">
+                                  Dr. {plan.medicoNombre}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {plan.fechaInicio
+                              ? format(new Date(plan.fechaInicio), "PPP", {
+                                  locale: es,
+                                })
+                              : "-"}
+                          </TableCell>
+                          <TableCell>{plan.totalEtapas || 0}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2 min-w-[120px]">
+                              <Progress value={porcentaje} className="h-2 flex-1" />
+                              <span className="text-xs text-muted-foreground w-12">
+                                {completados}/{total}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{getEstadoPlanBadge(plan.estado)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Link href={`/planes-tratamiento/${plan.id}`}>
+                                <Button variant="ghost" size="icon" title="Ver detalle">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                              {plan.estado === "ACTIVO" && (
+                                <Link href={`/planes-tratamiento/${plan.id}/edit`}>
+                                  <Button variant="ghost" size="icon" title="Editar">
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-3">
+                {planes.map((plan) => {
+                  const total = plan.totalSeguimientos || 0;
+                  const completados = plan.seguimientosCompletados || 0;
+                  const porcentaje = total > 0 ? Math.round((completados / total) * 100) : 0;
+
+                  return (
+                    <Card key={plan.id}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium">{plan.nombre}</p>
+                              {getEstadoPlanBadge(plan.estado)}
+                            </div>
+                            {plan.medicoNombre && (
+                              <p className="text-sm text-muted-foreground">
+                                Dr. {plan.medicoNombre}
+                              </p>
+                            )}
+                            <p className="text-sm text-muted-foreground">
+                              Inicio:{" "}
+                              {plan.fechaInicio
+                                ? format(new Date(plan.fechaInicio), "PPP", {
+                                    locale: es,
+                                  })
+                                : "-"}
+                            </p>
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="text-muted-foreground">
+                                {plan.totalEtapas || 0} etapas
+                              </span>
+                              <span className="text-muted-foreground">|</span>
+                              <span className="text-muted-foreground">
+                                {completados}/{total} seguimientos
+                              </span>
+                            </div>
+                            <Progress value={porcentaje} className="h-2" />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <Link href={`/planes-tratamiento/${plan.id}`}>
+                              <Button variant="ghost" size="icon">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                            {plan.estado === "ACTIVO" && (
+                              <Link href={`/planes-tratamiento/${plan.id}/edit`}>
+                                <Button variant="ghost" size="icon">
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-10 bg-muted/30 rounded-lg">
+              <ClipboardList className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground">
+                Este paciente no tiene planes de tratamiento.
+              </p>
+              <Link href={`/planes-tratamiento/create?pacienteId=${paciente.id}`}>
+                <Button variant="outline" className="mt-4">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear Primer Plan
                 </Button>
               </Link>
             </div>

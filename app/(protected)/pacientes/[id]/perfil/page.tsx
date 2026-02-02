@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { getPacienteById } from "../../actions";
 import { getCitasByPaciente } from "@/app/(protected)/citas/actions";
 import { getCotizacionesByPaciente } from "@/app/(protected)/cotizaciones/actions";
+import { getPlanesByPaciente } from "@/app/(protected)/planes-tratamiento/actions";
 import { PacientePerfil } from "./components/paciente-perfil";
 import { getSegurosActivos } from "@/app/(protected)/seguros/actions";
 
@@ -20,10 +21,11 @@ export default async function PacientePerfilPage({
     return <NoAcceso />;
   }
 
-  const [paciente, citas, cotizaciones, seguros] = await Promise.all([
+  const [paciente, citas, cotizaciones, planes, seguros] = await Promise.all([
     getPacienteById(params.id),
     getCitasByPaciente(params.id),
     getCotizacionesByPaciente(params.id),
+    getPlanesByPaciente(params.id),
     getSegurosActivos(),
   ]);
 
@@ -47,6 +49,7 @@ export default async function PacientePerfilPage({
         paciente={paciente} 
         citas={citas} 
         cotizaciones={cotizaciones}
+        planes={planes}
         seguroNombre={seguro?.nombre}
       />
     </div>
