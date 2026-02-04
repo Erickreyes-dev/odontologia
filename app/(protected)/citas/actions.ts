@@ -100,29 +100,27 @@ export async function getCitas({
   }
 }
 
-function buildFechaRangeFilter(from?: string, to?: string): Prisma.CitaWhereInput | undefined {
+function buildFechaRangeFilter(
+  from?: string,
+  to?: string
+): Prisma.CitaWhereInput | undefined {
   if (!from && !to) return undefined;
 
   const fechaHora: Prisma.DateTimeFilter = {};
 
   if (from) {
-    const startLocal = new Date(from);
-    startLocal.setHours(0, 0, 0, 0);
-    fechaHora.gte = toUtcDate(startLocal);
+    const start = new Date(from + "T00:00:00.000");
+    fechaHora.gte = start;
   }
 
   if (to) {
-    const endLocal = new Date(to);
-    endLocal.setHours(23, 59, 59, 999);
-    fechaHora.lte = toUtcDate(endLocal);
+    const end = new Date(to + "T23:59:59.999");
+    fechaHora.lte = end;
   }
 
   return { fechaHora };
 }
 
-function toUtcDate(localDate: Date) {
-  return new Date(localDate.getTime() + localDate.getTimezoneOffset() * 60000);
-}
 
 /**
  * Obtiene citas para calendario en un rango sin paginacion

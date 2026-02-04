@@ -34,6 +34,7 @@ export function CitasFilters({ defaultFrom, defaultTo }: CitasFiltersProps) {
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     const params = new URLSearchParams(searchParams?.toString());
+    console.log("🚀 ~ handleSubmit ~ params:", params)
     if (range?.from) {
       params.set("from", format(range.from, "yyyy-MM-dd"));
     } else {
