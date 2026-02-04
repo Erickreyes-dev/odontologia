@@ -15,7 +15,7 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import {  Boxes, Calendar, ChevronDown, ChevronUp, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, Package, Settings, ShieldPlus, Stethoscope, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
+import {  Boxes, Calendar, ChevronDown, ChevronUp, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, Package, Receipt, Settings, ShieldPlus, Stethoscope, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
 import Link from "next/link";
 import { NavUser } from "./nav-user";
 import { ModeToggle } from "./buton-theme";
@@ -127,6 +127,12 @@ const items = [
     title: "Pagos",
     url: "/pagos",
     icon: DollarSign,
+    permiso: "ver_pagos",
+  },
+  {
+    title: "Ordenes de Cobro",
+    url: "/ordenes-cobro",
+    icon: Receipt,
     permiso: "ver_pagos",
   }
 ];

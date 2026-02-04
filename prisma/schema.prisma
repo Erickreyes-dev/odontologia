@@ -145,9 +145,9 @@ model Paciente {
   planTratamientos PlanTratamiento[]
   seguimientos     Seguimiento[]
 
-  // ---- ADICIONES (pagos/financiamientos) ----
-  pagos           Pago[]
+  // ---- ADICIONES (pagos/financiamientos/ordenes) ----
   financiamientos Financiamiento[]
+  ordenesCobro    OrdenDeCobro[]
 
   @@index([seguroId])
 }
@@ -261,8 +261,10 @@ model Consulta {
   id     String @id @default(uuid()) @db.VarChar(36)
   citaId String @unique @db.VarChar(36)
 
+  fechaConsulta DateTime? @db.DateTime(6)
   diagnostico String? @db.VarChar(255)
   notas       String? @db.Text
+  observacionesClinicas String? @db.Text
 
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
@@ -273,9 +275,7 @@ model Consulta {
   productos ConsultaProducto[]
 
   planEtapas PlanEtapa[]
-
-  // ---- ADICION (pagos ligados a consulta) ----
-  pagos Pago[]
+  ordenesCobro OrdenDeCobro[]
 }
 
 model ConsultaServicio {
@@ -343,8 +343,7 @@ model Cotizacion {
   paciente Paciente             @relation(fields: [pacienteId], references: [id])
   detalles CotizacionServicio[]
 
-  // ---- ADICIONES (pagos/financiamientos ligados a cotización) ----
-  pagos           Pago[]
+  // ---- ADICIONES (financiamientos ligados a cotización) ----
   financiamientos Financiamiento[]
 
   @@index([pacienteId])
@@ -376,10 +375,8 @@ enum PlanEstado {
 }
 
 enum SeguimientoEstado {
-  PROGRAMADO
+  PENDIENTE
   REALIZADO
-  CANCELADO
-  NO_ASISTIO
 }
 
 model PlanTratamiento {
@@ -400,9 +397,9 @@ model PlanTratamiento {
   medicoResponsable Medico?     @relation(fields: [medicoResponsableId], references: [idEmpleado])
   etapas            PlanEtapa[]
 
-  // ---- ADICIONES (financiamientos y pagos ligados a plan) ----
+  // ---- ADICIONES (financiamientos y ordenes ligados a plan) ----
   financiamientos Financiamiento[]
-  pagos           Pago[]
+  ordenesCobro    OrdenDeCobro[]
 
   @@index([pacienteId])
   @@index([medicoResponsableId])
@@ -445,7 +442,7 @@ model Seguimiento {
   pacienteId      String            @db.VarChar(36)
   fechaProgramada DateTime          @db.DateTime(6)
   fechaRealizada  DateTime?         @db.DateTime(6)
-  estado          SeguimientoEstado @default(PROGRAMADO)
+  estado          SeguimientoEstado @default(PENDIENTE)
   nota            String?           @db.VarChar(255)
   citaId          String?           @db.VarChar(36) // si se creó una cita vinculada
   creadoPorId     String?           @db.VarChar(36) // usuario que creó el seguimiento
@@ -456,6 +453,7 @@ model Seguimiento {
   etapa    PlanEtapa @relation(fields: [etapaId], references: [id], onDelete: Cascade)
   paciente Paciente  @relation(fields: [pacienteId], references: [id])
   cita     Cita?     @relation(fields: [citaId], references: [id])
+  ordenesCobro OrdenDeCobro[]
 
   @@index([etapaId])
   @@index([pacienteId])
@@ -495,6 +493,7 @@ enum FinanciamientoEstado {
 
 model Pago {
   id         String     @id @default(uuid()) @db.VarChar(36)
+  ordenCobroId String   @unique @db.VarChar(36)
   monto      Decimal    @db.Decimal(10, 2)
   metodo     MetodoPago
   referencia String?    @db.VarChar(100)
@@ -502,20 +501,8 @@ model Pago {
   estado     PagoEstado @default(REGISTRADO)
   comentario String?    @db.VarChar(255)
 
-  // Orígenes opcionales (Pago "pertenece" a uno de estos o ninguno)
-  usuarioId         String? @db.VarChar(36)
-  pacienteId        String? @db.VarChar(36)
-  consultaId        String? @db.VarChar(36)
-  cotizacionId      String? @db.VarChar(36)
-  planTratamientoId String? @db.VarChar(36)
-  financiamientoId  String? @db.VarChar(36)
-
-  // Relaciones (Pago define las FK hacia los orígenes)
-  paciente        Paciente?        @relation(fields: [pacienteId], references: [id], onDelete: SetNull)
-  consulta        Consulta?        @relation(fields: [consultaId], references: [id], onDelete: SetNull)
-  cotizacion      Cotizacion?      @relation(fields: [cotizacionId], references: [id], onDelete: SetNull)
-  planTratamiento PlanTratamiento? @relation(fields: [planTratamientoId], references: [id], onDelete: SetNull)
-  financiamiento  Financiamiento?  @relation(fields: [financiamientoId], references: [id], onDelete: SetNull)
+  // Relación obligatoria: siempre se paga a través de una orden de cobro
+  ordenCobro OrdenDeCobro @relation(fields: [ordenCobroId], references: [id], onDelete: Cascade)
 
   // Relación pasiva: una colección de cuotas puede apuntar a este pago (una pago puede cubrir varias cuotas)
   cuotas CuotaFinanciamiento[]
@@ -523,11 +510,7 @@ model Pago {
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
 
-  @@index([pacienteId])
-  @@index([consultaId])
-  @@index([cotizacionId])
-  @@index([planTratamientoId])
-  @@index([financiamientoId])
+  @@index([ordenCobroId])
 }
 
 model Financiamiento {
@@ -551,13 +534,45 @@ model Financiamiento {
   planTratamiento PlanTratamiento? @relation(fields: [planTratamientoId], references: [id])
 
   cuotasFinanciamiento CuotaFinanciamiento[]
-  pagos                Pago[] // pagos asociados al financiamiento (ej. anticipo, abonos)
+  ordenesCobro          OrdenDeCobro[]
 
   @@index([pacienteId])
   @@index([cotizacionId])
   @@index([planTratamientoId])
 }
 
+enum OrdenCobroEstado {
+  PENDIENTE
+  PAGADA
+  ANULADA
+}
+
+model OrdenDeCobro {
+  id                String           @id @default(uuid()) @db.VarChar(36)
+  pacienteId        String           @db.VarChar(36)
+  planTratamientoId String?          @db.VarChar(36)
+  financiamientoId  String?          @db.VarChar(36)
+  consultaId        String?          @db.VarChar(36)
+  seguimientoId     String?          @db.VarChar(36)
+  monto             Decimal          @db.Decimal(10, 2)
+  concepto          String           @db.VarChar(255)
+  estado            OrdenCobroEstado @default(PENDIENTE)
+  fechaEmision      DateTime         @default(now()) @db.DateTime(6)
+  fechaPago         DateTime?        @db.DateTime(6)
+
+  paciente        Paciente        @relation(fields: [pacienteId], references: [id])
+  planTratamiento PlanTratamiento? @relation(fields: [planTratamientoId], references: [id])
+  financiamiento  Financiamiento?  @relation(fields: [financiamientoId], references: [id])
+  consulta        Consulta?        @relation(fields: [consultaId], references: [id])
+  seguimiento     Seguimiento?     @relation(fields: [seguimientoId], references: [id])
+  pago            Pago?
+
+  @@index([pacienteId])
+  @@index([planTratamientoId])
+  @@index([financiamientoId])
+  @@index([consultaId])
+  @@index([seguimientoId])
+}
 model CuotaFinanciamiento {
   id               String    @id @default(uuid()) @db.VarChar(36)
   financiamientoId String    @db.VarChar(36)

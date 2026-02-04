@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CreditCard, DollarSign } from "lucide-react";
@@ -15,25 +15,26 @@ import { revertPago } from "../actions";
 import { toast } from "sonner";
 import type { PagoWithRelations } from "../schema";
 import type { FinanciamientoDetalle } from "../schema";
+import type { OrdenCobroWithRelations } from "@/app/(protected)/ordenes-cobro/schema";
 
 interface PagosPageClientProps {
   pagos: PagoWithRelations[];
   financiamientos: FinanciamientoDetalle[];
   pacientes: { id: string; nombre: string; apellido: string }[];
-  // Se agregó pacienteId a las interfaces de cotizaciones y planes
-  cotizaciones: { 
-    id: string; 
-    total: number; 
-    pacienteNombre: string; 
-    pacienteId: string; // Requerido para el filtrado en los modales
-    numero?: string; 
+  cotizaciones: {
+    id: string;
+    total: number;
+    pacienteNombre: string;
+    pacienteId: string;
+    numero?: string;
   }[];
-  planes: { 
-    id: string; 
-    nombre: string; 
-    pacienteNombre: string; 
-    pacienteId: string; // Requerido para el filtrado en los modales
+  planes: {
+    id: string;
+    nombre: string;
+    pacienteNombre: string;
+    pacienteId: string;
   }[];
+  ordenesCobro: OrdenCobroWithRelations[];
   defaultPacienteId?: string;
 }
 
@@ -43,6 +44,7 @@ export function PagosPageClient({
   pacientes,
   cotizaciones,
   planes,
+  ordenesCobro,
   defaultPacienteId,
 }: PagosPageClientProps) {
   const router = useRouter();
@@ -69,17 +71,25 @@ export function PagosPageClient({
 
   const refresh = () => router.refresh();
 
-  // Aseguramos que los financiamientos tengan la estructura que espera el modal
   const financiamientosParaModal = financiamientos.map((f) => ({
     ...f,
     pacienteId: f.pacienteId,
     cuotasLista: f.cuotasLista ?? [],
   }));
 
+  const ordenesPendientes = useMemo(() => {
+    return defaultPacienteId
+      ? ordenesCobro.filter((o) => o.pacienteId === defaultPacienteId)
+      : ordenesCobro;
+  }, [ordenesCobro, defaultPacienteId]);
+
   return (
     <>
       <div className="flex flex-wrap gap-2 mb-4">
-        <Button onClick={() => setPagoModalOpen(true)}>
+        <Button
+          onClick={() => setPagoModalOpen(true)}
+          disabled={ordenesPendientes.length === 0}
+        >
           <DollarSign className="h-4 w-4 mr-2" />
           Nuevo Pago
         </Button>
@@ -89,7 +99,6 @@ export function PagosPageClient({
         </Button>
       </div>
 
-      {/* Desktop */}
       <div className="hidden md:block space-y-6">
         <section>
           <h2 className="text-lg font-semibold mb-3">Historial de Pagos</h2>
@@ -113,7 +122,6 @@ export function PagosPageClient({
         </section>
       </div>
 
-      {/* Mobile */}
       <div className="md:hidden space-y-6">
         <section>
           <h2 className="text-lg font-semibold mb-3">Pagos Recientes</h2>
@@ -137,13 +145,15 @@ export function PagosPageClient({
         </section>
       </div>
 
-      {/* Modales con datos completos para filtrado */}
       <PagoFormModal
         open={pagoModalOpen}
         onOpenChange={setPagoModalOpen}
-        pacienteId={defaultPacienteId}
-        pacientes={pacientes}
-        cotizaciones={cotizaciones}
+        ordenesCobro={ordenesPendientes.map((orden) => ({
+          id: orden.id,
+          pacienteNombre: orden.pacienteNombre ?? "",
+          monto: orden.monto,
+          financiamientoId: orden.financiamientoId,
+        }))}
         financiamientos={financiamientosParaModal as any}
         onSuccess={refresh}
       />

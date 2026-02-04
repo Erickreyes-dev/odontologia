@@ -10,10 +10,8 @@ export const ESTADOS_PLAN = [
 
 // Estados del seguimiento
 export const ESTADOS_SEGUIMIENTO = [
-  { value: "PROGRAMADO", label: "Programado" },
+  { value: "PENDIENTE", label: "Pendiente" },
   { value: "REALIZADO", label: "Realizado" },
-  { value: "CANCELADO", label: "Cancelado" },
-  { value: "NO_ASISTIO", label: "No Asistió" },
 ] as const;
 
 // Schema para etapas del plan
@@ -44,7 +42,7 @@ export const SeguimientoSchema = z.object({
     invalid_type_error: "La fecha debe ser válida",
   }),
   fechaRealizada: z.date().optional().nullable(),
-  estado: z.string().default("PROGRAMADO"),
+  estado: z.string().default("PENDIENTE"),
   nota: z.string().max(255).optional().nullable(),
   citaId: z.string().optional().nullable(),
   creadoPorId: z.string().optional().nullable(),

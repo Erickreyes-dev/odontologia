@@ -36,17 +36,19 @@ interface PagoFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   monto?: number;
-  pacienteId?: string;
-  consultaId?: string;
-  cotizacionId?: string;
-  planTratamientoId?: string;
-  financiamientoId?: string;
-  cuotaId?: string;
-  pacientes: { id: string; nombre: string; apellido: string }[];
-  // AGREGA ESTA LÍNEA:
-  cotizaciones?: { id: string; total: number; pacienteNombre: string; pacienteId: string; numero?: string }[];
-  // ACTUALIZA ESTA LÍNEA (agregando pacienteId):
-  financiamientos?: { id: string; pacienteId: string; pacienteNombre: string; cuotasLista?: { id: string; numero: number; monto: number; pagada: boolean }[] }[];
+  ordenCobroId?: string;
+  ordenesCobro: {
+    id: string;
+    pacienteNombre: string;
+    monto: number;
+    financiamientoId?: string | null;
+  }[];
+  financiamientos?: {
+    id: string;
+    pacienteId: string;
+    pacienteNombre: string;
+    cuotasLista?: { id: string; numero: number; monto: number; pagada: boolean }[];
+  }[];
   onSuccess?: () => void;
 }
 
@@ -54,13 +56,8 @@ export function PagoFormModal({
   open,
   onOpenChange,
   monto: defaultMonto,
-  pacienteId: defaultPacienteId,
-  consultaId,
-  cotizacionId,
-  planTratamientoId,
-  financiamientoId: defaultFinanciamientoId,
-  cuotaId: defaultCuotaId,
-  pacientes,
+  ordenCobroId: defaultOrdenCobroId,
+  ordenesCobro,
   financiamientos = [],
   onSuccess,
 }: PagoFormModalProps) {
@@ -71,12 +68,8 @@ export function PagoFormModal({
       metodo: "EFECTIVO",
       referencia: "",
       comentario: "",
-      pacienteId: defaultPacienteId ?? "",
-      consultaId: consultaId ?? "",
-      cotizacionId: cotizacionId ?? "",
-      planTratamientoId: planTratamientoId ?? "",
-      financiamientoId: defaultFinanciamientoId ?? "",
-      cuotaId: defaultCuotaId ?? "",
+      ordenCobroId: defaultOrdenCobroId ?? "",
+      cuotaId: "",
     },
   });
 
@@ -87,31 +80,32 @@ export function PagoFormModal({
         metodo: "EFECTIVO",
         referencia: "",
         comentario: "",
-        pacienteId: defaultPacienteId ?? "",
-        consultaId: consultaId ?? "",
-        cotizacionId: cotizacionId ?? "",
-        planTratamientoId: planTratamientoId ?? "",
-        financiamientoId: defaultFinanciamientoId ?? "",
-        cuotaId: defaultCuotaId ?? "",
+        ordenCobroId: defaultOrdenCobroId ?? "",
+        cuotaId: "",
       });
     }
-  }, [open, defaultMonto, defaultPacienteId, consultaId, cotizacionId, planTratamientoId, defaultFinanciamientoId, defaultCuotaId, form]);
+  }, [open, defaultMonto, defaultOrdenCobroId, form]);
 
-  const selectedFinanciamientoId = form.watch("financiamientoId");
-  const cuotasDisponibles =
-    financiamientos.find((f) => f.id === selectedFinanciamientoId)?.cuotasLista?.filter(
-      (c) => !c.pagada
-    ) ?? [];
+  const selectedOrdenId = form.watch("ordenCobroId");
+  const selectedOrden = ordenesCobro.find((orden) => orden.id === selectedOrdenId);
+
+  useEffect(() => {
+    if (selectedOrden && !defaultMonto) {
+      form.setValue("monto", selectedOrden.monto);
+    }
+  }, [selectedOrden, defaultMonto, form]);
+
+  const cuotasDisponibles = selectedOrden?.financiamientoId
+    ? financiamientos
+        .find((f) => f.id === selectedOrden.financiamientoId)
+        ?.cuotasLista?.filter((c) => !c.pagada) ?? []
+    : [];
 
   const onSubmit = async (data: CreatePagoInput) => {
     const payload = {
       ...data,
       monto: Number(data.monto),
-      pacienteId: data.pacienteId || null,
-      consultaId: data.consultaId || null,
-      cotizacionId: data.cotizacionId || null,
-      planTratamientoId: data.planTratamientoId || null,
-      financiamientoId: data.financiamientoId || null,
+      ordenCobroId: data.ordenCobroId,
       cuotaId: data.cuotaId || null,
       referencia: data.referencia || null,
       comentario: data.comentario || null,
@@ -135,6 +129,30 @@ export function PagoFormModal({
           <DialogTitle>Registrar Pago</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <Field data-invalid={!!form.formState.errors.ordenCobroId}>
+            <FieldLabel>Orden de cobro</FieldLabel>
+            <FieldContent>
+              <Select
+                value={form.watch("ordenCobroId")}
+                onValueChange={(value) => form.setValue("ordenCobroId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione una orden" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ordenesCobro.map((orden) => (
+                    <SelectItem key={orden.id} value={orden.id}>
+                      {orden.pacienteNombre} · Orden #{orden.id.slice(0, 8)} · L {orden.monto.toFixed(2)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FieldContent>
+            {form.formState.errors.ordenCobroId && (
+              <FieldError errors={[form.formState.errors.ordenCobroId]} />
+            )}
+          </Field>
+
           <Field data-invalid={!!form.formState.errors.monto}>
             <FieldLabel>Monto (L)</FieldLabel>
             <FieldContent>
@@ -182,81 +200,30 @@ export function PagoFormModal({
             </FieldContent>
           </Field>
 
-          {!defaultPacienteId && (
+          {cuotasDisponibles.length > 0 && (
             <Field>
-              <FieldLabel>Paciente</FieldLabel>
+              <FieldLabel>Cuota específica (opcional)</FieldLabel>
+              <FieldDescription>
+                Deje vacío para aplicar al siguiente pendiente
+              </FieldDescription>
               <FieldContent>
                 <Select
-                  value={form.watch("pacienteId") || ""}
-                  onValueChange={(v) => form.setValue("pacienteId", v || null)}
+                  value={form.watch("cuotaId") || ""}
+                  onValueChange={(v) => form.setValue("cuotaId", v || null)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar paciente" />
+                    <SelectValue placeholder="Todas las pendientes" />
                   </SelectTrigger>
                   <SelectContent>
-                    {pacientes.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.nombre} {p.apellido}
+                    {cuotasDisponibles.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        Cuota {c.numero} - L {c.monto.toLocaleString("es-HN")}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </FieldContent>
             </Field>
-          )}
-
-          {financiamientos.length > 0 && (
-            <>
-              <Field>
-                <FieldLabel>Financiamiento</FieldLabel>
-                <FieldContent>
-                  <Select
-                    value={form.watch("financiamientoId") || ""}
-                    onValueChange={(v) => {
-                      form.setValue("financiamientoId", v || null);
-                      form.setValue("cuotaId", null);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Aplicar a financiamiento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {financiamientos.map((f) => (
-                        <SelectItem key={f.id} value={f.id}>
-                          {f.pacienteNombre} - Fin. #{f.id.slice(0, 8)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldContent>
-              </Field>
-
-              {cuotasDisponibles.length > 0 && (
-                <Field>
-                  <FieldLabel>Cuota específica (opcional)</FieldLabel>
-                  <FieldDescription>
-                    Deje vacío para aplicar al siguiente pendiente
-                  </FieldDescription>
-                  <FieldContent>
-                    <Select
-                      value={form.watch("cuotaId") || ""}
-                      onValueChange={(v) => form.setValue("cuotaId", v || null)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Todas las pendientes" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {cuotasDisponibles.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            Cuota {c.numero} - L {c.monto.toLocaleString("es-HN")}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FieldContent>
-                </Field>
-              )}
-            </>
           )}
 
           <Field>

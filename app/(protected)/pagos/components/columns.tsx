@@ -94,7 +94,7 @@ const getEstadoBadge = (estado: string) => {
     header: "Origen",
     cell: ({ row }) => {
       const p = row.original;
-      const ref = p.consultaRef || p.cotizacionRef || p.planRef || p.financiamientoRef || "-";
+      const ref = p.ordenRef || p.financiamientoRef || "-";
       return <span className="text-sm text-muted-foreground">{ref}</span>;
     },
   },
@@ -115,7 +115,7 @@ const getEstadoBadge = (estado: string) => {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {pago.estado === "APLICADO" && onRevertPago && (
+            {pago.estado === "REGISTRADO" && onRevertPago && (
               <DropdownMenuItem
                 className="cursor-pointer text-amber-600"
                 onClick={() => onRevertPago(pago.id)}

@@ -949,7 +949,7 @@ export function PacientePerfil({
                         <TableCell>{getMetodoPagoLabel(pago.metodo)}</TableCell>
                         <TableCell>{getEstadoPagoBadge(pago.estado)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {pago.consultaRef || pago.cotizacionRef || pago.planRef || pago.financiamientoRef || "-"}
+                          {pago.ordenRef || pago.financiamientoRef || "-"}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -970,7 +970,7 @@ export function PacientePerfil({
                             {format(new Date(pago.fechaPago), "PPP", { locale: es })} · {getMetodoPagoLabel(pago.metodo)}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {pago.consultaRef || pago.cotizacionRef || pago.planRef || pago.financiamientoRef || "-"}
+                            {pago.ordenRef || pago.financiamientoRef || "-"}
                           </p>
                         </div>
                         {getEstadoPagoBadge(pago.estado)}
