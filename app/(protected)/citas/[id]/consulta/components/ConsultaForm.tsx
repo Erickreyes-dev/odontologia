@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -75,8 +75,24 @@ interface ConsultaFormProps {
   consulta: Consulta | null;
   servicios: { id: string; nombre: string; precioBase: number }[];
   productos: { id: string; nombre: string; unidad: string | null }[];
-  seguimientos: { id: string; etapaNombre?: string; servicioNombre?: string; fechaProgramada: Date }[];
-  financiamientos: { id: string; pacienteId: string }[];
+  seguimientos: {
+    id: string;
+    etapaNombre?: string;
+    servicioNombre?: string;
+    fechaProgramada: Date;
+    citaId?: string | null;
+    servicios?: {
+      servicioId: string;
+      precioAplicado: number;
+      cantidad: number;
+      servicioNombre?: string;
+    }[];
+  }[];
+  financiamientos: {
+    id: string;
+    pacienteId: string;
+    cuotasLista?: { id: string; numero: number; monto: number; pagada: boolean }[];
+  }[];
 }
 
 export function ConsultaForm({
@@ -119,7 +135,8 @@ export function ConsultaForm({
     });
 
   const serviciosWatch = form.watch("servicios") ?? [];
-  const productosWatch = form.watch("productos") ?? [];
+  const seguimientoId = form.watch("seguimientoId");
+  const financiamientoId = form.watch("financiamientoId");
 
   const totalServicios = useMemo(
     () =>
@@ -130,16 +147,63 @@ export function ConsultaForm({
     [serviciosWatch]
   );
 
-  const totalProductos = useMemo(
-    () =>
-      productosWatch.reduce(
-        (acc, item) => acc + (item.precioAplicado || 0) * (item.cantidad || 0),
-        0
-      ),
-    [productosWatch]
+  const financiamientoSeleccionado = useMemo(() => {
+    if (!financiamientoId) return null;
+    return financiamientos.find((fin) => fin.id === financiamientoId) ?? null;
+  }, [financiamientoId, financiamientos]);
+
+  const cuotaPendiente = useMemo(() => {
+    if (!financiamientoSeleccionado?.cuotasLista?.length) return null;
+    return financiamientoSeleccionado.cuotasLista.find((cuota) => !cuota.pagada) ?? null;
+  }, [financiamientoSeleccionado]);
+
+  const totalConsulta = financiamientoSeleccionado
+    ? cuotaPendiente?.monto ?? 0
+    : totalServicios;
+
+  const hasServiciosPlan = Boolean(seguimientoId);
+
+  const applySeguimientoServicios = useCallback(
+    (seguimientoId: string | null) => {
+      if (!seguimientoId) return;
+      const seguimiento = seguimientos.find((s) => s.id === seguimientoId);
+      if (!seguimiento?.servicios?.length) return;
+
+      const serviciosPlan = seguimiento.servicios.map((servicio) => ({
+        servicioId: servicio.servicioId,
+        precioAplicado: servicio.precioAplicado,
+        cantidad: servicio.cantidad,
+        servicioNombre: servicio.servicioNombre,
+      }));
+
+      const serviciosActuales = form.getValues("servicios") ?? [];
+      const extras = serviciosActuales.filter(
+        (servicio) => !serviciosPlan.some((plan) => plan.servicioId === servicio.servicioId)
+      );
+
+      form.setValue("servicios", [...serviciosPlan, ...extras], {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    },
+    [form, seguimientos]
   );
 
-  const totalConsulta = totalServicios + totalProductos;
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    if (initializedRef.current) return;
+    if (consulta?.id) {
+      initializedRef.current = true;
+      return;
+    }
+    const seguimientoCita = seguimientos.find((s) => s.citaId === cita.id);
+    if (seguimientoCita) {
+      form.setValue("seguimientoId", seguimientoCita.id);
+      applySeguimientoServicios(seguimientoCita.id);
+    }
+    initializedRef.current = true;
+  }, [applySeguimientoServicios, cita.id, consulta?.id, form, seguimientos]);
 
   const onSubmit = async (data: Consulta) => {
     setIsSubmitting(true);
@@ -332,7 +396,7 @@ export function ConsultaForm({
                   {serviciosFields.map((field, index) => (
                     <div
                       key={field.id}
-                      className="grid grid-cols-1 md:grid-cols-4 gap-3 rounded-md border p-3"
+                      className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-md border p-3"
                     >
                       <Controller
                         name={`servicios.${index}.servicioId`}
@@ -415,7 +479,7 @@ export function ConsultaForm({
                           </div>
                         )}
                       />
-                      <div className="flex items-end justify-end md:col-span-4">
+                      <div className="flex items-end justify-end md:col-span-3">
                         <Button
                           type="button"
                           variant="ghost"
@@ -438,9 +502,7 @@ export function ConsultaForm({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    appendProducto({ productoId: "", precioAplicado: 0, cantidad: 1 })
-                  }
+                  onClick={() => appendProducto({ productoId: "", cantidad: 1 })}
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Agregar producto
@@ -475,29 +537,6 @@ export function ConsultaForm({
                                 ))}
                               </SelectContent>
                             </Select>
-                          </div>
-                        )}
-                      />
-                      <Controller
-                        name={`productos.${index}.precioAplicado`}
-                        control={form.control}
-                        render={({ field: f }) => (
-                          <div className="space-y-2">
-                            <FieldLabel>Precio (L)</FieldLabel>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              {...f}
-                              value={f.value ?? ""}
-                              onChange={(event) =>
-                                f.onChange(
-                                  event.target.value
-                                    ? parseFloat(event.target.value)
-                                    : 0
-                                )
-                              }
-                            />
                           </div>
                         )}
                       />
@@ -545,9 +584,11 @@ export function ConsultaForm({
                 <FieldContent>
                   <Select
                     value={form.watch("seguimientoId") || "none"}
-                    onValueChange={(value) =>
-                      form.setValue("seguimientoId", value === "none" ? null : value)
-                    }
+                    onValueChange={(value) => {
+                      const nextValue = value === "none" ? null : value;
+                      form.setValue("seguimientoId", nextValue);
+                      applySeguimientoServicios(nextValue);
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccione un seguimiento" />
@@ -598,6 +639,15 @@ export function ConsultaForm({
                     className="bg-muted"
                   />
                 </FieldContent>
+                <FieldDescription>
+                  {financiamientoSeleccionado
+                    ? cuotaPendiente
+                      ? `Total basado en la cuota ${cuotaPendiente.numero}.`
+                      : "No hay cuotas pendientes en este financiamiento."
+                    : hasServiciosPlan
+                      ? "Total calculado en base a los servicios del plan."
+                      : "Total calculado en base a los servicios seleccionados."}
+                </FieldDescription>
               </Field>
             </div>
           </CardContent>

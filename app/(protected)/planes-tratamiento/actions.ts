@@ -358,6 +358,13 @@ export async function getSeguimientosPendientes(pacienteId: string): Promise<Seg
       servicioNombre: s.etapa.servicios
         .map((servicio) => servicio.servicio.nombre)
         .join(", "),
+      servicios: s.etapa.servicios.map((servicio) => ({
+        id: servicio.id,
+        servicioId: servicio.servicioId,
+        precioAplicado: Number(servicio.precioAplicado),
+        cantidad: servicio.cantidad,
+        servicioNombre: servicio.servicio.nombre,
+      })),
     }));
   } catch (error) {
     console.error("Error al obtener seguimientos pendientes:", error);
