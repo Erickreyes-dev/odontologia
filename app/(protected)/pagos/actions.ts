@@ -125,37 +125,45 @@ export async function createFinanciamiento(
  * Crea un pago. Si está vinculado a financiamiento/cuota, marca la cuota como pagada y actualiza el saldo.
  */
 export async function createPago(
-  data: CreatePagoInput
+ data: CreatePagoInput
 ): Promise<{ success: true; data: PagoWithRelations } | { success: false; error: string }> {
   try {
     const validated = CreatePagoSchema.parse(data);
     const monto = validated.monto;
 
     const pago = await prisma.$transaction(async (tx) => {
+      const orden = await tx.ordenDeCobro.findUnique({
+        where: { id: validated.ordenCobroId },
+        include: { financiamiento: true, paciente: true },
+      });
+
+      if (!orden) {
+        throw new Error("Orden de cobro no encontrada");
+      }
+
+      if (orden.estado !== "PENDIENTE") {
+        throw new Error("La orden de cobro no está pendiente de pago");
+      }
+
       const pagoCreado = await tx.pago.create({
         data: {
           id: randomUUID(),
+          ordenCobroId: validated.ordenCobroId,
           monto,
           metodo: validated.metodo as MetodoPago,
           referencia: validated.referencia || null,
           comentario: validated.comentario || null,
-          pacienteId: validated.pacienteId || null,
-          consultaId: validated.consultaId || null,
-          cotizacionId: validated.cotizacionId || null,
-          planTratamientoId: validated.planTratamientoId || null,
-          financiamientoId: validated.financiamientoId || null,
           estado: PagoEstado.REGISTRADO,
         },
       });
 
       let estadoFinal = PagoEstado.REGISTRADO;
-      let pacienteIdRes = validated.pacienteId;
 
-      if (validated.financiamientoId && validated.cuotaId) {
+      if (orden.financiamientoId && validated.cuotaId) {
         const cuota = await tx.cuotaFinanciamiento.findFirst({
           where: {
             id: validated.cuotaId,
-            financiamientoId: validated.financiamientoId,
+            financiamientoId: orden.financiamientoId,
             pagada: false,
           },
           include: { financiamiento: true },
@@ -187,12 +195,11 @@ export async function createPago(
             data: { estado: PagoEstado.REGISTRADO },
           });
           estadoFinal = PagoEstado.REGISTRADO;
-          pacienteIdRes = pacienteIdRes || cuota.financiamiento.pacienteId;
         }
-      } else if (validated.financiamientoId && !validated.cuotaId) {
+      } else if (orden.financiamientoId && !validated.cuotaId) {
         const cuotasPendientes = await tx.cuotaFinanciamiento.findMany({
           where: {
-            financiamientoId: validated.financiamientoId,
+            financiamientoId: orden.financiamientoId,
             pagada: false,
           },
           orderBy: { numero: "asc" },
@@ -223,7 +230,6 @@ export async function createPago(
                   nuevoSaldo <= 0 ? FinanciamientoEstado.PAGADO : FinanciamientoEstado.ACTIVO,
               },
             });
-            pacienteIdRes = pacienteIdRes || cuota.financiamiento.pacienteId;
           }
         }
         if (montoRestante < monto) {
@@ -237,17 +243,20 @@ export async function createPago(
         }
       }
 
-      return { ...pagoCreado, estado: estadoFinal, pacienteId: pacienteIdRes };
+      await tx.ordenDeCobro.update({
+        where: { id: orden.id },
+        data: { estado: "PAGADA", fechaPago: new Date() },
+      });
+
+      return { ...pagoCreado, estado: estadoFinal, ordenPacienteId: orden.pacienteId };
     });
 
     const pagoCompleto = await getPagoById(pago.id);
     if (pagoCompleto) {
       revalidatePath("/pagos");
-      if (pagoCompleto.pacienteId) {
-        revalidatePath(`/pacientes/${pagoCompleto.pacienteId}/perfil`);
-      }
-      if (pagoCompleto.consultaId) {
-        revalidatePath("/citas");
+      revalidatePath("/ordenes-cobro");
+      if (pago.ordenPacienteId) {
+        revalidatePath(`/pacientes/${pago.ordenPacienteId}/perfil`);
       }
       return { success: true, data: pagoCompleto };
     }
@@ -273,13 +282,14 @@ export async function getPagosByPaciente(
 ): Promise<PagoWithRelations[]> {
   try {
     const records = await prisma.pago.findMany({
-      where: { pacienteId },
+      where: { ordenCobro: { pacienteId } },
       include: {
-        paciente: true,
-        consulta: { include: { cita: true } },
-        cotizacion: true,
-        planTratamiento: true,
-        financiamiento: true,
+        ordenCobro: {
+          include: {
+            paciente: true,
+            financiamiento: true,
+          },
+        },
       },
       orderBy: { fechaPago: "desc" },
     });
@@ -298,11 +308,12 @@ export async function getPagos(): Promise<PagoWithRelations[]> {
   try {
     const records = await prisma.pago.findMany({
       include: {
-        paciente: true,
-        consulta: { include: { cita: true } },
-        cotizacion: true,
-        planTratamiento: true,
-        financiamiento: true,
+        ordenCobro: {
+          include: {
+            paciente: true,
+            financiamiento: true,
+          },
+        },
       },
       orderBy: { fechaPago: "desc" },
     });
@@ -322,11 +333,12 @@ export async function getPagoById(id: string): Promise<PagoWithRelations | null>
     const r = await prisma.pago.findUnique({
       where: { id },
       include: {
-        paciente: true,
-        consulta: { include: { cita: true } },
-        cotizacion: true,
-        planTratamiento: true,
-        financiamiento: true,
+        ordenCobro: {
+          include: {
+            paciente: true,
+            financiamiento: true,
+          },
+        },
       },
     });
     return r ? mapPagoToWithRelations(r) : null;
@@ -344,16 +356,11 @@ function mapPagoToWithRelations(r: {
   fechaPago: Date;
   estado: string;
   comentario: string | null;
-  pacienteId: string | null;
-  consultaId: string | null;
-  cotizacionId: string | null;
-  planTratamientoId: string | null;
-  financiamientoId: string | null;
-  paciente?: { nombre: string; apellido: string } | null;
-  consulta?: { id: string } | null;
-  cotizacion?: { id: string } | null;
-  planTratamiento?: { nombre: string } | null;
-  financiamiento?: { id: string } | null;
+  ordenCobroId: string;
+  ordenCobro?: {
+    paciente?: { nombre: string; apellido: string } | null;
+    financiamiento?: { id: string } | null;
+  } | null;
 }): PagoWithRelations {
   return {
     id: r.id,
@@ -363,18 +370,14 @@ function mapPagoToWithRelations(r: {
     fechaPago: r.fechaPago,
     estado: r.estado,
     comentario: r.comentario,
-    pacienteId: r.pacienteId,
-    consultaId: r.consultaId,
-    cotizacionId: r.cotizacionId,
-    planTratamientoId: r.planTratamientoId,
-    financiamientoId: r.financiamientoId,
-    pacienteNombre: r.paciente
-      ? `${r.paciente.nombre} ${r.paciente.apellido}`
+    ordenCobroId: r.ordenCobroId,
+    pacienteNombre: r.ordenCobro?.paciente
+      ? `${r.ordenCobro.paciente.nombre} ${r.ordenCobro.paciente.apellido}`
       : undefined,
-    consultaRef: r.consulta ? `Consulta #${r.consulta.id.slice(0, 8)}` : undefined,
-    cotizacionRef: r.cotizacion ? `Cot. #${r.cotizacion.id.slice(0, 8)}` : undefined,
-    planRef: r.planTratamiento?.nombre,
-    financiamientoRef: r.financiamiento ? `Fin. #${r.financiamiento.id.slice(0, 8)}` : undefined,
+    financiamientoRef: r.ordenCobro?.financiamiento
+      ? `Fin. #${r.ordenCobro.financiamiento.id.slice(0, 8)}`
+      : undefined,
+    ordenRef: `Orden #${r.ordenCobroId.slice(0, 8)}`,
   };
 }
 
@@ -390,7 +393,6 @@ export async function getFinanciamientoDetalle(
       include: {
         paciente: true,
         cuotasFinanciamiento: { orderBy: { numero: "asc" } },
-        pagos: true,
       },
     });
 
@@ -442,7 +444,6 @@ export async function getFinanciamientos(): Promise<FinanciamientoDetalle[]> {
       include: {
         paciente: true,
         cuotasFinanciamiento: { orderBy: { numero: "asc" } },
-        pagos: true,
       },
       orderBy: { createAt: "desc" },
     });
@@ -491,7 +492,6 @@ export async function getFinanciamientosPorPaciente( pacienteId: string): Promis
       include: {
         paciente: true,
         cuotasFinanciamiento: { orderBy: { numero: "asc" } },
-        pagos: true,
       },
       orderBy: { createAt: "desc" },
     });
@@ -543,7 +543,7 @@ export async function revertPago(
   try {
     const pago = await prisma.pago.findUnique({
       where: { id: pagoId },
-      include: { cuotas: true, financiamiento: true },
+      include: { cuotas: true, ordenCobro: true },
     });
 
     if (!pago) return { success: false, error: "Pago no encontrado" };
@@ -552,9 +552,9 @@ export async function revertPago(
     }
 
     await prisma.$transaction(async (tx) => {
-      if (pago.cuotas && pago.cuotas.length > 0 && pago.financiamientoId) {
+      if (pago.cuotas && pago.cuotas.length > 0 && pago.ordenCobro?.financiamientoId) {
         const financiamiento = await tx.financiamiento.findUnique({
-          where: { id: pago.financiamientoId },
+          where: { id: pago.ordenCobro.financiamientoId },
         });
         if (financiamiento) {
           let saldoAjustar = 0;
@@ -567,7 +567,7 @@ export async function revertPago(
           }
           const nuevoSaldo = Number(financiamiento.saldo) + saldoAjustar;
           await tx.financiamiento.update({
-            where: { id: pago.financiamientoId },
+            where: { id: pago.ordenCobro.financiamientoId },
             data: {
               saldo: nuevoSaldo,
               estado: FinanciamientoEstado.ACTIVO,
@@ -576,6 +576,11 @@ export async function revertPago(
         }
       }
 
+      await tx.ordenDeCobro.update({
+        where: { id: pago.ordenCobroId },
+        data: { estado: "PENDIENTE", fechaPago: null },
+      });
+
       await tx.pago.update({
         where: { id: pagoId },
         data: { estado: PagoEstado.REVERTIDO },
@@ -583,7 +588,10 @@ export async function revertPago(
     });
 
     revalidatePath("/pagos");
-    if (pago.pacienteId) revalidatePath(`/pacientes/${pago.pacienteId}/perfil`);
+    revalidatePath("/ordenes-cobro");
+    if (pago.ordenCobro?.pacienteId) {
+      revalidatePath(`/pacientes/${pago.ordenCobro.pacienteId}/perfil`);
+    }
     return { success: true };
   } catch (error) {
     console.error("Error al revertir pago:", error);

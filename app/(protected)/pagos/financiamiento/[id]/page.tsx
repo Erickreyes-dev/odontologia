@@ -5,11 +5,7 @@ import { DollarSign } from "lucide-react";
 import { getFinanciamientoDetalle } from "../../actions";
 import { notFound } from "next/navigation";
 import { FinanciamientoDetalleClient } from "../../components/FinanciamientoDetalleClient";
-import {
-  getPacientesActivos,
-  getCotizacionesAceptadas,
-  getPlanesActivos,
-} from "../../actions";
+import { getOrdenesCobroPendientes } from "@/app/(protected)/ordenes-cobro/actions";
 
 export default async function FinanciamientoDetallePage({
   params,
@@ -23,11 +19,9 @@ export default async function FinanciamientoDetallePage({
   }
 
   const { id } = await params;
-  const [financiamiento, pacientes, cotizaciones, planes] = await Promise.all([
+  const [financiamiento, ordenesCobro] = await Promise.all([
     getFinanciamientoDetalle(id),
-    getPacientesActivos(),
-    getCotizacionesAceptadas(),
-    getPlanesActivos(),
+    getOrdenesCobroPendientes(),
   ]);
 
   if (!financiamiento) {
@@ -52,10 +46,8 @@ export default async function FinanciamientoDetallePage({
 
       <FinanciamientoDetalleClient
         financiamiento={financiamiento}
-        pacientes={pacientes}
-        cotizaciones={cotizaciones}
-        planes={planes}
         financiamientosParaPago={financiamientosConEste}
+        ordenesCobro={ordenesCobro}
       />
     </div>
   );

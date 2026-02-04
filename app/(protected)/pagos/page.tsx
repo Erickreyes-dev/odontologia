@@ -9,8 +9,10 @@ import {
   getCotizacionesAceptadas,
   getPlanesActivos,
   getFinanciamientosPorPaciente,
+  getFinanciamientos,
 } from "./actions";
 import { PagosPageClient } from "./components/PagosPageClient";
+import { getOrdenesCobroPendientes } from "@/app/(protected)/ordenes-cobro/actions";
 
 export default async function PagosPage({
   searchParams,
@@ -27,13 +29,16 @@ export default async function PagosPage({
   const pacienteIdFromUrl = params?.pacienteId;
 
   // 1. Obtenemos los datos de las acciones
-  const [pagos, financiamientos, pacientes, rawCotizaciones, rawPlanes] =
+  const [pagos, financiamientos, pacientes, rawCotizaciones, rawPlanes, ordenesCobro] =
     await Promise.all([
       getPagos(),
-      getFinanciamientosPorPaciente(pacienteIdFromUrl!),
+      pacienteIdFromUrl
+        ? getFinanciamientosPorPaciente(pacienteIdFromUrl)
+        : getFinanciamientos(),
       getPacientesActivos(),
       getCotizacionesAceptadas(),
       getPlanesActivos(),
+      getOrdenesCobroPendientes(),
     ]);
 
   // 2. Mapeamos para asegurar que pacienteId exista (si la base de datos no lo devuelve con ese nombre exacto)
@@ -62,6 +67,7 @@ export default async function PagosPage({
         pacientes={pacientes}
         cotizaciones={cotizaciones} // Ahora tiene pacienteId
         planes={planes}             // Ahora tiene pacienteId
+        ordenesCobro={ordenesCobro}
         defaultPacienteId={pacienteIdFromUrl}
       />
     </div>

@@ -101,7 +101,7 @@ const getSeguimientoBadge = (estado: string) => {
   const label = estadoInfo?.label || estado;
 
   switch (estado) {
-    case "PROGRAMADO":
+    case "PENDIENTE":
       return (
         <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
           {label}
@@ -110,18 +110,6 @@ const getSeguimientoBadge = (estado: string) => {
     case "REALIZADO":
       return (
         <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
-          {label}
-        </Badge>
-      );
-    case "CANCELADO":
-      return (
-        <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-300">
-          {label}
-        </Badge>
-      );
-    case "NO_ASISTIO":
-      return (
-        <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
           {label}
         </Badge>
       );
@@ -350,7 +338,7 @@ export function PlanDetailView({ plan }: PlanDetailViewProps) {
                           .map((seguimiento) => (
                             <TableRow key={seguimiento.id}>
                               <TableCell>
-                                {seguimiento.estado === "PROGRAMADO"
+                                {seguimiento.estado === "PENDIENTE"
                                   ? getFechaStatus(seguimiento.fechaProgramada)
                                   : format(new Date(seguimiento.fechaProgramada), "PPP", { locale: es })}
                               </TableCell>
@@ -360,7 +348,7 @@ export function PlanDetailView({ plan }: PlanDetailViewProps) {
                               <TableCell className="max-w-[150px] truncate">{seguimiento.nota || "-"}</TableCell>
                               <TableCell>
                                 <div className="flex gap-1">
-                                  {seguimiento.estado === "PROGRAMADO" && (
+                                  {seguimiento.estado === "PENDIENTE" && (
                                     <>
                                       <Button
                                         variant="ghost"
@@ -397,7 +385,7 @@ export function PlanDetailView({ plan }: PlanDetailViewProps) {
                                 {seguimiento.servicioNombre}
                               </p>
                               <div className="text-sm">
-                                {seguimiento.estado === "PROGRAMADO"
+                                {seguimiento.estado === "PENDIENTE"
                                   ? getFechaStatus(seguimiento.fechaProgramada)
                                   : format(
                                     new Date(seguimiento.fechaProgramada),
@@ -413,7 +401,7 @@ export function PlanDetailView({ plan }: PlanDetailViewProps) {
                             </div>
                             <div className="flex flex-col items-end gap-2">
                               {getSeguimientoBadge(seguimiento.estado)}
-                              {seguimiento.estado === "PROGRAMADO" && (
+                              {seguimiento.estado === "PENDIENTE" && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -433,7 +421,7 @@ export function PlanDetailView({ plan }: PlanDetailViewProps) {
                 </>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  No hay seguimientos programados.
+                  No hay seguimientos pendientes.
                 </div>
               )}
             </CardContent>
@@ -506,14 +494,11 @@ export function PlanDetailView({ plan }: PlanDetailViewProps) {
                     {plan.seguimientos.map((seguimiento) => (
                       <div key={seguimiento.id} className="relative pl-10">
                         <div
-                          className={`absolute left-2 w-5 h-5 rounded-full border-2 ${seguimiento.estado === "REALIZADO"
+                          className={`absolute left-2 w-5 h-5 rounded-full border-2 ${
+                            seguimiento.estado === "REALIZADO"
                               ? "bg-green-500 border-green-500"
-                              : seguimiento.estado === "CANCELADO"
-                                ? "bg-gray-400 border-gray-400"
-                                : seguimiento.estado === "NO_ASISTIO"
-                                  ? "bg-red-500 border-red-500"
-                                  : "bg-background border-primary"
-                            }`}
+                              : "bg-background border-primary"
+                          }`}
                         >
                           {seguimiento.estado === "REALIZADO" && (
                             <CheckCircle2 className="h-4 w-4 text-white" />

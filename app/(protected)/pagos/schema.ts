@@ -28,11 +28,7 @@ export const CreatePagoSchema = z.object({
   metodo: z.enum(["EFECTIVO", "TARJETA", "TRANSFERENCIA", "SEGURO", "OTRO"]),
   referencia: z.string().max(100).optional().nullable(),
   comentario: z.string().max(255).optional().nullable(),
-  pacienteId: z.string().optional().nullable(),
-  consultaId: z.string().optional().nullable(),
-  cotizacionId: z.string().optional().nullable(),
-  planTratamientoId: z.string().optional().nullable(),
-  financiamientoId: z.string().optional().nullable(),
+  ordenCobroId: z.string().min(1, "La orden de cobro es requerida"),
   cuotaId: z.string().optional().nullable(),
 });
 
@@ -75,17 +71,11 @@ export const PagoWithRelationsSchema = z.object({
   fechaPago: z.date(),
   estado: z.string(),
   comentario: z.string().optional().nullable(),
-  pacienteId: z.string().optional().nullable(),
-  consultaId: z.string().optional().nullable(),
-  cotizacionId: z.string().optional().nullable(),
-  planTratamientoId: z.string().optional().nullable(),
-  financiamientoId: z.string().optional().nullable(),
+  ordenCobroId: z.string(),
   // UI
   pacienteNombre: z.string().optional(),
-  consultaRef: z.string().optional(),
-  cotizacionRef: z.string().optional(),
-  planRef: z.string().optional(),
   financiamientoRef: z.string().optional(),
+  ordenRef: z.string().optional(),
 });
 
 // Financiamiento con cuotas (para detalle)

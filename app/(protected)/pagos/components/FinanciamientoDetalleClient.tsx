@@ -15,22 +15,22 @@ import {
 } from "@/components/ui/table";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { ArrowLeft, DollarSign } from "lucide-react";
+import { ArrowLeft, DollarSign, Receipt } from "lucide-react";
 import Link from "next/link";
 import { PagoFormModal } from "./PagoFormModal";
 import type { FinanciamientoDetalle } from "../schema";
 import { ESTADOS_FINANCIAMIENTO } from "../schema";
+import type { OrdenCobroWithRelations } from "@/app/(protected)/ordenes-cobro/schema";
+import { OrdenCobroFormModal } from "@/app/(protected)/ordenes-cobro/components/OrdenCobroFormModal";
 
 interface FinanciamientoDetalleClientProps {
   financiamiento: FinanciamientoDetalle;
-  pacientes: { id: string; nombre: string; apellido: string }[];
-  cotizaciones: { id: string; total: number; pacienteNombre: string }[];
-  planes: { id: string; nombre: string; pacienteNombre: string }[];
   financiamientosParaPago: {
     id: string;
     pacienteNombre: string;
     cuotasLista: { id: string; numero: number; monto: number; pagada: boolean }[];
   }[];
+  ordenesCobro: OrdenCobroWithRelations[];
 }
 
 const getEstadoBadge = (estado: string) => {
@@ -55,14 +55,19 @@ const getEstadoBadge = (estado: string) => {
 
 export function FinanciamientoDetalleClient({
   financiamiento,
-  pacientes,
   financiamientosParaPago,
+  ordenesCobro,
 }: FinanciamientoDetalleClientProps) {
   const router = useRouter();
   const [pagoModalOpen, setPagoModalOpen] = useState(false);
+  const [ordenModalOpen, setOrdenModalOpen] = useState(false);
 
   const cuotas = financiamiento.cuotasLista ?? [];
   const totalPagado = financiamiento.totalPagado ?? financiamiento.anticipo;
+
+  const ordenesPendientes = ordenesCobro.filter(
+    (orden) => orden.financiamientoId === financiamiento.id
+  );
 
   return (
     <div className="space-y-6">
@@ -86,10 +91,16 @@ export function FinanciamientoDetalleClient({
               </p>
               {getEstadoBadge(financiamiento.estado)}
             </div>
-            <Button onClick={() => setPagoModalOpen(true)}>
-              <DollarSign className="h-4 w-4 mr-2" />
-              Registrar Pago
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setOrdenModalOpen(true)}>
+                <Receipt className="h-4 w-4 mr-2" />
+                Generar Orden de Cobro
+              </Button>
+              <Button onClick={() => setPagoModalOpen(true)} disabled={ordenesPendientes.length === 0}>
+                <DollarSign className="h-4 w-4 mr-2" />
+                Registrar Pago
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -160,12 +171,30 @@ export function FinanciamientoDetalleClient({
         </CardContent>
       </Card>
 
+      <OrdenCobroFormModal
+        open={ordenModalOpen}
+        onOpenChange={setOrdenModalOpen}
+        pacienteId={financiamiento.pacienteId}
+        financiamientoId={financiamiento.id}
+        pacientes={[
+          {
+            id: financiamiento.pacienteId,
+            nombre: financiamiento.pacienteNombre ?? "",
+            apellido: "",
+          },
+        ]}
+        onSuccess={() => router.refresh()}
+      />
+
       <PagoFormModal
         open={pagoModalOpen}
         onOpenChange={setPagoModalOpen}
-        pacienteId={financiamiento.pacienteId}
-        financiamientoId={financiamiento.id}
-        pacientes={pacientes}
+        ordenesCobro={ordenesPendientes.map((orden) => ({
+          id: orden.id,
+          pacienteNombre: orden.pacienteNombre ?? "",
+          monto: orden.monto,
+          financiamientoId: orden.financiamientoId,
+        }))}
         financiamientos={financiamientosParaPago}
         onSuccess={() => router.refresh()}
       />

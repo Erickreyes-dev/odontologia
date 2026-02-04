@@ -35,7 +35,7 @@ async function generarSeguimientos(planId: string, pacienteId: string) {
           etapaId: etapa.id,
           pacienteId,
           fechaProgramada,
-          estado: "PROGRAMADO" as SeguimientoEstado,
+          estado: "PENDIENTE" as SeguimientoEstado,
         },
       });
     }
@@ -304,7 +304,7 @@ export async function updateSeguimiento(
 export async function getSeguimientosPendientes(pacienteId: string): Promise<Seguimiento[]> {
   try {
     const records = await prisma.seguimiento.findMany({
-      where: { pacienteId, estado: "PROGRAMADO" },
+      where: { pacienteId, estado: "PENDIENTE" },
       include: { etapa: { include: { servicio: true, plan: true } } },
       orderBy: { fechaProgramada: "asc" },
     });
