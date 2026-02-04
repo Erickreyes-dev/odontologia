@@ -31,6 +31,7 @@ import {
   Plus,
   Eye,
   DollarSign,
+  HandCoins,
 } from "lucide-react";
 import Link from "next/link";
 import { calcularEdad } from "@/lib/utils";
@@ -38,11 +39,12 @@ import { Paciente } from "../../../schema";
 import { Cita } from "@/app/(protected)/citas/schema";
 import { Cotizacion, ESTADOS_COTIZACION } from "@/app/(protected)/cotizaciones/schema";
 import { PlanTratamiento, ESTADOS_PLAN } from "@/app/(protected)/planes-tratamiento/schema";
-import { PagoWithRelations } from "@/app/(protected)/pagos/schema";
+import { FinanciamientoDetalle, PagoWithRelations } from "@/app/(protected)/pagos/schema";
 import { METODOS_PAGO, ESTADOS_PAGO } from "@/app/(protected)/pagos/schema";
 import { Progress } from "@/components/ui/progress";
 import { generateCotizacionPDF } from "@/lib/pdf/cotizacion-pdf";
 import { ClipboardList } from "lucide-react";
+import { FinanciamientoCard } from "@/app/(protected)/pagos/components/FinanciamientoCard";
 
 interface PacientePerfilProps {
   paciente: Paciente;
@@ -50,6 +52,7 @@ interface PacientePerfilProps {
   cotizaciones: Cotizacion[];
   planes: PlanTratamiento[];
   pagos: PagoWithRelations[];
+  financiamientos: FinanciamientoDetalle[];
   seguroNombre?: string;
 }
 
@@ -194,6 +197,7 @@ export function PacientePerfil({
   cotizaciones,
   planes,
   pagos,
+  financiamientos,
   seguroNombre,
 }: PacientePerfilProps) {
   const initials = `${paciente.nombre?.charAt(0) ?? ""}${paciente.apellido?.charAt(0) ?? ""}`;
@@ -900,6 +904,45 @@ export function PacientePerfil({
                 <Button variant="outline" className="mt-4">
                   <Plus className="h-4 w-4 mr-2" />
                   Crear Primer Plan
+                </Button>
+              </Link>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Financiamientos */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <HandCoins className="h-5 w-5" />
+              Financiamientos
+            </span>
+            <Link href={`/pagos?pacienteId=${paciente.id}`}>
+              <Button size="sm" variant="outline">
+                Gestionar financiamientos
+              </Button>
+            </Link>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {financiamientos.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {financiamientos.map((fin) => (
+                <FinanciamientoCard key={fin.id} financiamiento={fin} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 bg-muted/30 rounded-lg">
+              <HandCoins className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground">
+                Este paciente no tiene financiamientos registrados.
+              </p>
+              <Link href={`/pagos?pacienteId=${paciente.id}`}>
+                <Button variant="outline" className="mt-4">
+                  <HandCoins className="h-4 w-4 mr-2" />
+                  Crear financiamiento
                 </Button>
               </Link>
             </div>

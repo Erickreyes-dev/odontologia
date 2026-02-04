@@ -65,6 +65,9 @@ export function FinanciamientoDetalleClient({
 
   const cuotas = financiamiento.cuotasLista ?? [];
   const totalPagado = financiamiento.totalPagado ?? financiamiento.anticipo;
+  const montoFinanciado = financiamiento.montoTotal - financiamiento.anticipo;
+  const interesMonto = montoFinanciado * (financiamiento.interes / 100);
+  const totalConInteres = montoFinanciado + interesMonto;
 
   const ordenesPendientes = ordenesCobro.filter(
     (orden) => orden.financiamientoId === financiamiento.id
@@ -128,6 +131,30 @@ export function FinanciamientoDetalleClient({
               <p className="text-sm text-muted-foreground">Total pagado</p>
               <p className="font-mono font-medium text-green-600">
                 L {totalPagado.toLocaleString("es-HN")}
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 border-t pt-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Monto financiado</p>
+              <p className="font-mono font-medium">
+                L {montoFinanciado.toLocaleString("es-HN")}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Plazo</p>
+              <p className="font-mono font-medium">{financiamiento.cuotas} cuotas</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Interés</p>
+              <p className="font-mono font-medium">
+                {financiamiento.interes}% · L {interesMonto.toLocaleString("es-HN")}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Total con intereses</p>
+              <p className="font-mono font-medium">
+                L {totalConInteres.toLocaleString("es-HN")}
               </p>
             </div>
           </div>
