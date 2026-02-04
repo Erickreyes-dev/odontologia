@@ -86,6 +86,12 @@ async function main() {
     { nombre: "ver_pagos", descripcion: "Permiso para ver pagos y financiamientos" },
     { nombre: "crear_pagos", descripcion: "Permiso para registrar pagos" },
     { nombre: "crear_financiamiento", descripcion: "Permiso para crear financiamientos" },
+
+    // permisos inventario
+    { nombre: "ver_inventario", descripcion: "Permiso para ver inventario de productos" },
+    { nombre: "crear_inventario", descripcion: "Permiso para ver crear inventario" },
+    { nombre: "editar_inventario", descripcion: "Permiso para ver editar inventario" },
+
   ];
 
   const permisoIds: string[] = [];
