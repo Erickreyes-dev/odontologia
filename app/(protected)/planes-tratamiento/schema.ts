@@ -18,11 +18,19 @@ export const ESTADOS_SEGUIMIENTO = [
 export const PlanEtapaSchema = z.object({
   id: z.string().optional(),
   planId: z.string().optional(),
-  servicioId: z.string().min(1, "El servicio es requerido"),
+  servicios: z.array(
+    z.object({
+      id: z.string().optional(),
+      servicioId: z.string().min(1, "El servicio es requerido"),
+      precioAplicado: z.number().min(0, "El precio debe ser mayor o igual a 0"),
+      cantidad: z.number().min(1, "La cantidad debe ser mayor a 0"),
+      servicioNombre: z.string().optional(),
+    })
+  ).min(1, "Debe agregar al menos un servicio"),
   nombre: z.string().min(1, "El nombre es requerido").max(150),
   descripcion: z.string().max(255).optional().nullable(),
   orden: z.number().min(1),
-  intervaloDias: z.number().min(1).optional().nullable(),
+  intervaloDias: z.number().min(0).optional().nullable(),
   repeticiones: z.number().min(1).optional().nullable(),
   programarCita: z.boolean(),
   responsableMedicoId: z.string().optional().nullable(),

@@ -178,7 +178,7 @@ model Servicio {
   medicosServicios    MedicoServicio[]
   consultasServicios  ConsultaServicio[]
   cotizacionServicios CotizacionServicio[]
-  planEtapas          PlanEtapa[]
+  planEtapaServicios  PlanEtapaServicio[]
 
   @@map("Servicios")
 }
@@ -316,6 +316,7 @@ model ConsultaProducto {
   consultaId String   @db.VarChar(36)
   productoId String   @db.VarChar(36)
   cantidad   Int      @default(1)
+  precioAplicado Decimal @db.Decimal(10, 2)
   createAt   DateTime @default(now())
 
   consulta Consulta @relation(fields: [consultaId], references: [id], onDelete: Cascade)
@@ -408,7 +409,6 @@ model PlanTratamiento {
 model PlanEtapa {
   id          String  @id @default(uuid()) @db.VarChar(36)
   planId      String  @db.VarChar(36)
-  servicioId  String  @db.VarChar(36) // servicio asociado a la etapa (p. ej. "ajuste")
   nombre      String  @db.VarChar(150) // p.ej. "Ajuste Mensual"
   descripcion String? @db.VarChar(255)
   orden       Int     @default(1) // orden en el plan
@@ -425,15 +425,30 @@ model PlanEtapa {
 
   // Relaciones
   plan               PlanTratamiento @relation(fields: [planId], references: [id], onDelete: Cascade)
-  servicio           Servicio        @relation(fields: [servicioId], references: [id])
   responsableMedico  Medico?         @relation(fields: [responsableMedicoId], references: [idEmpleado])
   crearDesdeConsulta Consulta?       @relation(fields: [crearDesdeConsultaId], references: [id])
+  servicios          PlanEtapaServicio[]
   seguimientos       Seguimiento[]
 
   @@index([planId])
-  @@index([servicioId])
   @@index([responsableMedicoId])
   @@index([crearDesdeConsultaId])
+}
+
+model PlanEtapaServicio {
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  etapaId    String   @db.VarChar(36)
+  servicioId String   @db.VarChar(36)
+  precioAplicado Decimal @db.Decimal(10, 2)
+  cantidad       Int     @default(1)
+  createAt   DateTime @default(now())
+
+  etapa    PlanEtapa @relation(fields: [etapaId], references: [id], onDelete: Cascade)
+  servicio Servicio @relation(fields: [servicioId], references: [id])
+
+  @@unique([etapaId, servicioId])
+  @@index([etapaId])
+  @@index([servicioId])
 }
 
 model Seguimiento {

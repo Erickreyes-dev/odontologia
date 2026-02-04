@@ -1,8 +1,15 @@
 import { notFound } from "next/navigation";
-import { getCitaParaConsulta, getConsultaByCitaId } from "./actions";
+import {
+  getCitaParaConsulta,
+  getConsultaByCitaId,
+  getProductosActivos,
+  getServiciosActivos,
+} from "./actions";
 import HeaderComponent from "@/components/HeaderComponent";
 import { ConsultaForm } from "./components/ConsultaForm";
 import { Calendar } from "lucide-react";
+import { getSeguimientosPendientes } from "@/app/(protected)/planes-tratamiento/actions";
+import { getFinanciamientosPorPaciente } from "@/app/(protected)/pagos/actions";
 
 interface ConsultaPageProps {
   params: Promise<{ id: string }>;
@@ -20,6 +27,13 @@ export default async function ConsultaPage({ params }: ConsultaPageProps) {
     notFound();
   }
 
+  const [servicios, productos, seguimientos, financiamientos] = await Promise.all([
+    getServiciosActivos(),
+    getProductosActivos(),
+    cita.paciente?.id ? getSeguimientosPendientes(cita.paciente.id) : Promise.resolve([]),
+    cita.paciente?.id ? getFinanciamientosPorPaciente(cita.paciente.id) : Promise.resolve([]),
+  ]);
+
   return (
     <div className="container mx-auto py-6">
       <HeaderComponent
@@ -36,6 +50,10 @@ export default async function ConsultaPage({ params }: ConsultaPageProps) {
       <ConsultaForm
         cita={cita}
         consulta={consulta}
+        servicios={servicios}
+        productos={productos}
+        seguimientos={seguimientos}
+        financiamientos={financiamientos}
       />
     </div>
   );

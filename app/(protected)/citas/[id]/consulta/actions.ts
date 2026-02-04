@@ -13,6 +13,8 @@ export async function getConsultaByCitaId(citaId: string): Promise<Consulta | nu
     const r = await prisma.consulta.findUnique({
       where: { citaId },
       include: {
+        detalles: { include: { servicio: true } },
+        productos: { include: { producto: true } },
         cita: {
           include: {
             paciente: {
@@ -48,6 +50,20 @@ export async function getConsultaByCitaId(citaId: string): Promise<Consulta | nu
       diagnostico: r.diagnostico,
       notas: r.notas,
       observacionesClinicas: r.observacionesClinicas,
+      servicios: r.detalles.map((detalle) => ({
+        id: detalle.id,
+        servicioId: detalle.servicioId,
+        precioAplicado: Number(detalle.precioAplicado),
+        cantidad: detalle.cantidad,
+        servicioNombre: detalle.servicio.nombre,
+      })),
+      productos: r.productos.map((producto) => ({
+        id: producto.id,
+        productoId: producto.productoId,
+        precioAplicado: Number(producto.precioAplicado),
+        cantidad: producto.cantidad,
+        productoNombre: producto.producto.nombre,
+      })),
       cita: {
         id: r.cita.id,
         fechaHora: new Date(r.cita.fechaHora),
@@ -70,6 +86,8 @@ export async function getConsultaById(id: string): Promise<Consulta | null> {
     const r = await prisma.consulta.findUnique({
       where: { id },
       include: {
+        detalles: { include: { servicio: true } },
+        productos: { include: { producto: true } },
         cita: {
           include: {
             paciente: {
@@ -105,6 +123,20 @@ export async function getConsultaById(id: string): Promise<Consulta | null> {
       diagnostico: r.diagnostico,
       notas: r.notas,
       observacionesClinicas: r.observacionesClinicas,
+      servicios: r.detalles.map((detalle) => ({
+        id: detalle.id,
+        servicioId: detalle.servicioId,
+        precioAplicado: Number(detalle.precioAplicado),
+        cantidad: detalle.cantidad,
+        servicioNombre: detalle.servicio.nombre,
+      })),
+      productos: r.productos.map((producto) => ({
+        id: producto.id,
+        productoId: producto.productoId,
+        precioAplicado: Number(producto.precioAplicado),
+        cantidad: producto.cantidad,
+        productoNombre: producto.producto.nombre,
+      })),
       cita: {
         id: r.cita.id,
         fechaHora: new Date(r.cita.fechaHora),
@@ -137,34 +169,82 @@ export async function upsertConsulta(
 
     if (existingConsulta) {
       // Actualizar consulta existente
-      await prisma.consulta.update({
-        where: { id: existingConsulta.id },
-        data: {
-          fechaConsulta: validatedData.fechaConsulta ?? null,
-          diagnostico: validatedData.diagnostico,
-          notas: validatedData.notas,
-          observacionesClinicas: validatedData.observacionesClinicas,
-        },
+      await prisma.$transaction(async (tx) => {
+        await tx.consulta.update({
+          where: { id: existingConsulta.id },
+          data: {
+            fechaConsulta: validatedData.fechaConsulta ?? null,
+            diagnostico: validatedData.diagnostico,
+            notas: validatedData.notas,
+            observacionesClinicas: validatedData.observacionesClinicas,
+          },
+        });
+        await tx.consultaServicio.deleteMany({ where: { consultaId: existingConsulta.id } });
+        await tx.consultaProducto.deleteMany({ where: { consultaId: existingConsulta.id } });
+        if (validatedData.servicios?.length) {
+          await tx.consultaServicio.createMany({
+            data: validatedData.servicios.map((servicio) => ({
+              id: randomUUID(),
+              consultaId: existingConsulta.id,
+              servicioId: servicio.servicioId,
+              precioAplicado: servicio.precioAplicado,
+              cantidad: servicio.cantidad,
+            })),
+          });
+        }
+        if (validatedData.productos?.length) {
+          await tx.consultaProducto.createMany({
+            data: validatedData.productos.map((producto) => ({
+              id: randomUUID(),
+              consultaId: existingConsulta.id,
+              productoId: producto.productoId,
+              precioAplicado: producto.precioAplicado,
+              cantidad: producto.cantidad,
+            })),
+          });
+        }
       });
       consultaId = existingConsulta.id;
     } else {
       // Crear nueva consulta
       consultaId = randomUUID();
-      await prisma.consulta.create({
-        data: {
-          id: consultaId,
-          citaId: validatedData.citaId,
-          fechaConsulta: validatedData.fechaConsulta ?? null,
-          diagnostico: validatedData.diagnostico,
-          notas: validatedData.notas,
-          observacionesClinicas: validatedData.observacionesClinicas,
-        },
-      });
+      await prisma.$transaction(async (tx) => {
+        await tx.consulta.create({
+          data: {
+            id: consultaId,
+            citaId: validatedData.citaId,
+            fechaConsulta: validatedData.fechaConsulta ?? null,
+            diagnostico: validatedData.diagnostico,
+            notas: validatedData.notas,
+            observacionesClinicas: validatedData.observacionesClinicas,
+            detalles: validatedData.servicios?.length
+              ? {
+                  create: validatedData.servicios.map((servicio) => ({
+                    id: randomUUID(),
+                    servicioId: servicio.servicioId,
+                    precioAplicado: servicio.precioAplicado,
+                    cantidad: servicio.cantidad,
+                  })),
+                }
+              : undefined,
+            productos: validatedData.productos?.length
+              ? {
+                  create: validatedData.productos.map((producto) => ({
+                    id: randomUUID(),
+                    productoId: producto.productoId,
+                    precioAplicado: producto.precioAplicado,
+                    cantidad: producto.cantidad,
+                  })),
+                }
+              : undefined,
+          },
+        });
 
-      // Actualizar el estado de la cita a "atendida"
-      await prisma.cita.update({
-        where: { id: validatedData.citaId },
-        data: { estado: "atendida" },
+        // Actualizar el estado de la cita a "atendida"
+        await tx.cita.update({
+          where: { id: validatedData.citaId },
+          data: { estado: "atendida" },
+        });
       });
     }
 
@@ -181,6 +261,205 @@ export async function upsertConsulta(
       return { success: false, error: error.message };
     }
     return { success: false, error: "Error desconocido al guardar consulta" };
+  }
+}
+
+export async function finalizarConsulta(
+  data: Consulta
+): Promise<
+  | { success: true; data: { consultaId: string; ordenId: string } }
+  | { success: false; error: string }
+> {
+  try {
+    const validatedData = ConsultaSchema.parse(data);
+    const cita = await prisma.cita.findUnique({
+      where: { id: validatedData.citaId },
+      select: { id: true, pacienteId: true },
+    });
+
+    if (!cita) {
+      return { success: false, error: "La cita no existe" };
+    }
+
+    let consultaId = validatedData.id;
+
+    const serviciosTotal =
+      validatedData.servicios?.reduce(
+        (acc, servicio) => acc + servicio.precioAplicado * servicio.cantidad,
+        0
+      ) ?? 0;
+    const productosTotal =
+      validatedData.productos?.reduce(
+        (acc, producto) => acc + producto.precioAplicado * producto.cantidad,
+        0
+      ) ?? 0;
+    const montoTotal = serviciosTotal + productosTotal;
+
+    if (montoTotal <= 0) {
+      return { success: false, error: "Debe registrar servicios o productos con monto válido" };
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      if (consultaId) {
+        await tx.consulta.update({
+          where: { id: consultaId },
+          data: {
+            fechaConsulta: validatedData.fechaConsulta ?? null,
+            diagnostico: validatedData.diagnostico,
+            notas: validatedData.notas,
+            observacionesClinicas: validatedData.observacionesClinicas,
+          },
+        });
+        await tx.consultaServicio.deleteMany({ where: { consultaId } });
+        await tx.consultaProducto.deleteMany({ where: { consultaId } });
+      } else {
+        consultaId = randomUUID();
+        await tx.consulta.create({
+          data: {
+            id: consultaId,
+            citaId: validatedData.citaId,
+            fechaConsulta: validatedData.fechaConsulta ?? null,
+            diagnostico: validatedData.diagnostico,
+            notas: validatedData.notas,
+            observacionesClinicas: validatedData.observacionesClinicas,
+          },
+        });
+      }
+
+      if (validatedData.servicios?.length) {
+        await tx.consultaServicio.createMany({
+          data: validatedData.servicios.map((servicio) => ({
+            id: randomUUID(),
+            consultaId: consultaId!,
+            servicioId: servicio.servicioId,
+            precioAplicado: servicio.precioAplicado,
+            cantidad: servicio.cantidad,
+          })),
+        });
+      }
+      if (validatedData.productos?.length) {
+        await tx.consultaProducto.createMany({
+          data: validatedData.productos.map((producto) => ({
+            id: randomUUID(),
+            consultaId: consultaId!,
+            productoId: producto.productoId,
+            precioAplicado: producto.precioAplicado,
+            cantidad: producto.cantidad,
+          })),
+        });
+      }
+
+      await tx.cita.update({
+        where: { id: validatedData.citaId },
+        data: { estado: "atendida" },
+      });
+
+      let planTratamientoId: string | null = null;
+      if (validatedData.seguimientoId) {
+        const seguimiento = await tx.seguimiento.findUnique({
+          where: { id: validatedData.seguimientoId },
+          include: { etapa: true },
+        });
+        if (!seguimiento || seguimiento.pacienteId !== cita.pacienteId) {
+          throw new Error("El seguimiento seleccionado no pertenece al paciente");
+        }
+        await tx.seguimiento.update({
+          where: { id: validatedData.seguimientoId },
+          data: {
+            estado: "REALIZADO",
+            fechaRealizada: new Date(),
+            citaId: validatedData.citaId,
+          },
+        });
+        planTratamientoId = seguimiento.etapa.planId;
+      }
+
+      let financiamientoId: string | null = validatedData.financiamientoId ?? null;
+      if (financiamientoId) {
+        const financiamiento = await tx.financiamiento.findUnique({
+          where: { id: financiamientoId },
+          select: { pacienteId: true },
+        });
+        if (!financiamiento || financiamiento.pacienteId !== cita.pacienteId) {
+          throw new Error("El financiamiento seleccionado no pertenece al paciente");
+        }
+      }
+
+      const orden = await tx.ordenDeCobro.create({
+        data: {
+          id: randomUUID(),
+          pacienteId: cita.pacienteId,
+          planTratamientoId,
+          financiamientoId,
+          consultaId: consultaId!,
+          monto: montoTotal,
+          concepto: `Consulta #${consultaId!.slice(0, 8)} - Servicios y productos`,
+          estado: "PENDIENTE",
+        },
+      });
+
+      return { consultaId: consultaId!, ordenId: orden.id, planTratamientoId };
+    });
+
+    revalidatePath("/citas");
+    revalidatePath(`/citas/${validatedData.citaId}/consulta`);
+    revalidatePath("/ordenes-cobro");
+    revalidatePath(`/pacientes/${cita.pacienteId}/perfil`);
+    if (result.planTratamientoId) {
+      revalidatePath("/planes-tratamiento");
+      revalidatePath(`/planes-tratamiento/${result.planTratamientoId}`);
+    }
+
+    return { success: true, data: { consultaId: result.consultaId, ordenId: result.ordenId } };
+  } catch (error) {
+    console.error("Error al finalizar consulta:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Error al finalizar consulta",
+    };
+  }
+}
+
+export async function getServiciosActivos(): Promise<
+  { id: string; nombre: string; precioBase: number; duracionMin: number }[]
+> {
+  try {
+    const servicios = await prisma.servicio.findMany({
+      where: { activo: true },
+      select: { id: true, nombre: true, precioBase: true, duracionMin: true },
+      orderBy: { nombre: "asc" },
+    });
+
+    return servicios.map((s) => ({
+      id: s.id,
+      nombre: s.nombre,
+      precioBase: Number(s.precioBase),
+      duracionMin: s.duracionMin,
+    }));
+  } catch (error) {
+    console.error("Error al obtener servicios activos:", error);
+    return [];
+  }
+}
+
+export async function getProductosActivos(): Promise<
+  { id: string; nombre: string; unidad: string | null }[]
+> {
+  try {
+    const productos = await prisma.producto.findMany({
+      where: { activo: true },
+      select: { id: true, nombre: true, unidad: true },
+      orderBy: { nombre: "asc" },
+    });
+
+    return productos.map((p) => ({
+      id: p.id,
+      nombre: p.nombre,
+      unidad: p.unidad ?? null,
+    }));
+  } catch (error) {
+    console.error("Error al obtener productos activos:", error);
+    return [];
   }
 }
 

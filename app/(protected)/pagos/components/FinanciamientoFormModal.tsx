@@ -48,7 +48,7 @@ interface FinanciamientoFormModalProps {
   planTratamientoId?: string;
   pacientes: { id: string; nombre: string; apellido: string }[];
   cotizaciones?: { id: string; total: number; pacienteNombre: string; pacienteId: string }[];
-  planes?: { id: string; nombre: string; pacienteNombre: string; pacienteId: string }[];
+  planes?: { id: string; nombre: string; pacienteNombre: string; pacienteId: string; montoTotal: number }[];
   onSuccess?: () => void;
 }
 
@@ -80,6 +80,7 @@ export function FinanciamientoFormModal({
   // Observadores de estado
   const selectedPacienteId = form.watch("pacienteId");
   const selectedCotizacionId = form.watch("cotizacionId");
+  const selectedPlanId = form.watch("planTratamientoId");
 
   // Resetear el formulario al abrir el modal
   useEffect(() => {
@@ -108,15 +109,22 @@ export function FinanciamientoFormModal({
     return planes.filter(p => String(p.pacienteId) === String(selectedPacienteId));
   }, [selectedPacienteId, planes]);
 
-  // Auto-completar monto total al seleccionar cotización
   useEffect(() => {
+    if (selectedPlanId) {
+      const plan = planes.find((p) => p.id === selectedPlanId);
+      if (plan) {
+        form.setValue("montoTotal", plan.montoTotal);
+      }
+      return;
+    }
+
     if (selectedCotizacionId) {
-      const cotizacion = cotizaciones.find(c => c.id === selectedCotizacionId);
+      const cotizacion = cotizaciones.find((c) => c.id === selectedCotizacionId);
       if (cotizacion) {
         form.setValue("montoTotal", cotizacion.total);
       }
     }
-  }, [selectedCotizacionId, cotizaciones, form]);
+  }, [selectedPlanId, selectedCotizacionId, planes, cotizaciones, form]);
 
   const onSubmit = async (data: CreateFinanciamientoInput) => {
     const payload = {
@@ -230,7 +238,7 @@ export function FinanciamientoFormModal({
                     <SelectItem value="none">Ninguno</SelectItem>
                     {planesFiltrados.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.nombre}
+                        {p.nombre} (L {p.montoTotal.toLocaleString("es-HN")})
                       </SelectItem>
                     ))}
                   </SelectContent>

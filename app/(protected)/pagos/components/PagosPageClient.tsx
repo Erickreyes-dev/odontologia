@@ -33,6 +33,7 @@ interface PagosPageClientProps {
     nombre: string;
     pacienteNombre: string;
     pacienteId: string;
+    montoTotal: number;
   }[];
   ordenesCobro: OrdenCobroWithRelations[];
   defaultPacienteId?: string;

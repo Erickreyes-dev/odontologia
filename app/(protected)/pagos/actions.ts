@@ -14,6 +14,27 @@ import {
 } from "./schema";
 import { MetodoPago, PagoEstado, FinanciamientoEstado } from "@/lib/generated/prisma";
 
+async function calcularTotalPlan(planTratamientoId: string): Promise<number> {
+  const plan = await prisma.planTratamiento.findUnique({
+    where: { id: planTratamientoId },
+    include: {
+      etapas: {
+        include: { servicios: { include: { servicio: true } } },
+      },
+    },
+  });
+
+  if (!plan) return 0;
+
+  return plan.etapas.reduce((acc, etapa) => {
+    const subtotal = etapa.servicios.reduce((sum, servicio) => {
+      const precio = Number(servicio.precioAplicado ?? servicio.servicio.precioBase);
+      return sum + precio * servicio.cantidad;
+    }, 0);
+    return acc + subtotal;
+  }, 0);
+}
+
 /**
  * Crea un financiamiento y genera las cuotas automáticamente
  */
@@ -24,7 +45,12 @@ export async function createFinanciamiento(
   | { success: false; error: string }
 > {
   try {
-    const validated = CreateFinanciamientoSchema.parse(data);
+    const montoPlan =
+      data.planTratamientoId ? await calcularTotalPlan(data.planTratamientoId) : null;
+    const validated = CreateFinanciamientoSchema.parse({
+      ...data,
+      montoTotal: montoPlan && montoPlan > 0 ? montoPlan : data.montoTotal,
+    });
     const anticipo = Number(validated.anticipo);
     const montoTotal = Number(validated.montoTotal);
     const interes = Number(validated.interes);
@@ -648,15 +674,22 @@ export async function getCotizacionesAceptadas(): Promise<
  * Obtiene planes de tratamiento activos para select
  */
 export async function getPlanesActivos(): Promise<
-  { id: string; nombre: string; pacienteNombre: string }[]
+  { id: string; nombre: string; pacienteNombre: string; pacienteId: string; montoTotal: number }[]
 > {
   try {
     const planes = await prisma.planTratamiento.findMany({
       where: { estado: "ACTIVO" },
-      select: { 
-        id: true, 
-        nombre: true, 
-        paciente: { select: { nombre: true, apellido: true, id: true } } 
+      select: {
+        id: true,
+        nombre: true,
+        paciente: { select: { nombre: true, apellido: true, id: true } },
+        etapas: {
+          select: {
+            servicios: {
+              select: { precioAplicado: true, cantidad: true, servicio: { select: { precioBase: true } } },
+            },
+          },
+        },
       },
       orderBy: { nombre: "asc" },
     });
@@ -665,6 +698,13 @@ export async function getPlanesActivos(): Promise<
       nombre: p.nombre,
       pacienteId: p.paciente.id,
       pacienteNombre: `${p.paciente.nombre} ${p.paciente.apellido}`,
+      montoTotal: p.etapas.reduce((acc, etapa) => {
+        const subtotal = etapa.servicios.reduce((sum, servicio) => {
+          const precio = Number(servicio.precioAplicado ?? servicio.servicio.precioBase);
+          return sum + precio * servicio.cantidad;
+        }, 0);
+        return acc + subtotal;
+      }, 0),
     }));
   } catch (error) {
     console.error("Error al obtener planes:", error);

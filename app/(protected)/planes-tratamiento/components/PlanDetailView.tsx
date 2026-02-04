@@ -456,7 +456,7 @@ export function PlanDetailView({ plan }: PlanDetailViewProps) {
                             )}
                             <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
                               <span>
-                                Intervalo: {etapa.intervaloDias || 30} días
+                                Intervalo: {etapa.intervaloDias ?? 30} días
                               </span>
                               <span>
                                 Repeticiones: {etapa.repeticiones || 1}

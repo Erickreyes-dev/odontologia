@@ -100,7 +100,15 @@ const form = useForm<PlanFormValues>({
         etapas: (initialData.etapas ?? []).map((etapa) => ({
           id: etapa.id,
           planId: etapa.planId,
-          servicioId: etapa.servicioId,
+          servicios: etapa.servicios?.length
+            ? etapa.servicios.map((servicio) => ({
+                id: servicio.id,
+                servicioId: servicio.servicioId,
+                precioAplicado: servicio.precioAplicado,
+                cantidad: servicio.cantidad,
+                servicioNombre: servicio.servicioNombre,
+              }))
+            : [],
           nombre: etapa.nombre,
           descripcion: etapa.descripcion ?? null,
           // Aquí está la solución al error: aseguramos que 'orden' sea siempre number
@@ -133,7 +141,7 @@ const form = useForm<PlanFormValues>({
 
   const handleAddEtapa = () => {
     append({
-      servicioId: "",
+      servicios: [{ servicioId: "", precioAplicado: 0, cantidad: 1 }],
       nombre: "",
       descripcion: null,
       orden: fields.length + 1,
@@ -166,17 +174,43 @@ const form = useForm<PlanFormValues>({
     }
   };
 
-  const handleServicioChange = (index: number, servicioId: string) => {
+  const handleServicioChange = (
+    etapaIndex: number,
+    servicioIndex: number,
+    servicioId: string
+  ) => {
     const servicio = servicios.find((s) => s.id === servicioId);
     if (servicio) {
-      form.setValue(`etapas.${index}.servicioId`, servicioId);
-      form.setValue(`etapas.${index}.servicioNombre`, servicio.nombre);
-      // Si el nombre está vacío, usar el nombre del servicio
-      const currentName = form.getValues(`etapas.${index}.nombre`);
+      form.setValue(`etapas.${etapaIndex}.servicios.${servicioIndex}.servicioId`, servicioId);
+      form.setValue(
+        `etapas.${etapaIndex}.servicios.${servicioIndex}.servicioNombre`,
+        servicio.nombre
+      );
+      form.setValue(
+        `etapas.${etapaIndex}.servicios.${servicioIndex}.precioAplicado`,
+        servicio.precioBase
+      );
+      const currentName = form.getValues(`etapas.${etapaIndex}.nombre`);
       if (!currentName) {
-        form.setValue(`etapas.${index}.nombre`, servicio.nombre);
+        form.setValue(`etapas.${etapaIndex}.nombre`, servicio.nombre);
       }
     }
+  };
+
+  const handleAddServicio = (etapaIndex: number) => {
+    const serviciosActuales = form.getValues(`etapas.${etapaIndex}.servicios`) ?? [];
+    form.setValue(`etapas.${etapaIndex}.servicios`, [
+      ...serviciosActuales,
+      { servicioId: "", precioAplicado: 0, cantidad: 1 },
+    ]);
+  };
+
+  const handleRemoveServicio = (etapaIndex: number, servicioIndex: number) => {
+    const serviciosActuales = form.getValues(`etapas.${etapaIndex}.servicios`) ?? [];
+    form.setValue(
+      `etapas.${etapaIndex}.servicios`,
+      serviciosActuales.filter((_, index) => index !== servicioIndex)
+    );
   };
 
   async function onSubmit(data: PlanFormValues) {
@@ -189,6 +223,11 @@ const form = useForm<PlanFormValues>({
           ...e,
           orden: index + 1,
           responsableMedicoId: e.responsableMedicoId || null,
+          servicios: e.servicios?.map((servicio) => ({
+            ...servicio,
+            precioAplicado: Number(servicio.precioAplicado),
+            cantidad: Number(servicio.cantidad),
+          })),
         })),
       };
 
@@ -472,35 +511,119 @@ const form = useForm<PlanFormValues>({
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label>Servicios de la etapa</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAddServicio(index)}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Agregar servicio
+                        </Button>
+                      </div>
+                      {(form.watch(`etapas.${index}.servicios`) ?? []).length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          Agrega al menos un servicio para esta etapa.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {(form.watch(`etapas.${index}.servicios`) ?? []).map(
+                            (_servicio, servicioIndex) => (
+                              <div
+                                key={`${field.id}-servicio-${servicioIndex}`}
+                                className="grid grid-cols-1 md:grid-cols-4 gap-3 rounded-md border p-3"
+                              >
+                                <Controller
+                                  name={`etapas.${index}.servicios.${servicioIndex}.servicioId`}
+                                  control={form.control}
+                                  render={({ field: f }) => (
+                                    <div className="space-y-2 md:col-span-2">
+                                      <Label>Servicio</Label>
+                                      <Select
+                                        onValueChange={(value) =>
+                                          handleServicioChange(index, servicioIndex, value)
+                                        }
+                                        value={f.value}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Seleccionar servicio..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {servicios.map((s) => (
+                                            <SelectItem key={s.id} value={s.id}>
+                                              {s.nombre}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  )}
+                                />
+                                <Controller
+                                  name={`etapas.${index}.servicios.${servicioIndex}.precioAplicado`}
+                                  control={form.control}
+                                  render={({ field: f }) => (
+                                    <div className="space-y-2">
+                                      <Label>Precio (L)</Label>
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        {...f}
+                                        value={f.value ?? ""}
+                                        onChange={(event) =>
+                                          f.onChange(
+                                            event.target.value
+                                              ? parseFloat(event.target.value)
+                                              : 0
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                  )}
+                                />
+                                <Controller
+                                  name={`etapas.${index}.servicios.${servicioIndex}.cantidad`}
+                                  control={form.control}
+                                  render={({ field: f }) => (
+                                    <div className="space-y-2">
+                                      <Label>Cantidad</Label>
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        {...f}
+                                        value={f.value ?? ""}
+                                        onChange={(event) =>
+                                          f.onChange(
+                                            event.target.value
+                                              ? parseInt(event.target.value, 10)
+                                              : 1
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                  )}
+                                />
+                                <div className="flex items-end justify-end md:col-span-4">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleRemoveServicio(index, servicioIndex)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Servicio */}
-                      <Controller
-                        name={`etapas.${index}.servicioId`}
-                        control={form.control}
-                        render={({ field: f }) => (
-                          <div className="space-y-2">
-                            <Label>Servicio</Label>
-                            <Select
-                              onValueChange={(value) =>
-                                handleServicioChange(index, value)
-                              }
-                              value={f.value}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Seleccionar servicio..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {servicios.map((s) => (
-                                  <SelectItem key={s.id} value={s.id}>
-                                    {s.nombre}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-                      />
-
                       {/* Nombre de la Etapa */}
                       <Controller
                         name={`etapas.${index}.nombre`}
@@ -525,8 +648,8 @@ const form = useForm<PlanFormValues>({
                             <Label>Intervalo (días)</Label>
                             <Input
                               type="number"
-                              min="1"
-                              placeholder="30"
+                              min="0"
+                              placeholder="0"
                               {...f}
                               value={f.value ?? ""}
                               onChange={(e) =>

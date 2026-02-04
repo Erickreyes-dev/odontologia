@@ -1,13 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { differenceInYears, format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Calendar, FileText, Loader2, Receipt, Stethoscope, User } from "lucide-react";
+import {
+  Calendar,
+  FileText,
+  Loader2,
+  Plus,
+  Stethoscope,
+  Trash2,
+  User,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,10 +30,16 @@ import {
 } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { ConsultaSchema, Consulta } from "../schema";
-import { upsertConsulta } from "../actions";
-import { OrdenCobroFormModal } from "@/app/(protected)/ordenes-cobro/components/OrdenCobroFormModal";
+import { finalizarConsulta, upsertConsulta } from "../actions";
 
 interface CitaData {
   id: string;
@@ -59,13 +73,22 @@ interface CitaData {
 interface ConsultaFormProps {
   cita: CitaData;
   consulta: Consulta | null;
+  servicios: { id: string; nombre: string; precioBase: number }[];
+  productos: { id: string; nombre: string; unidad: string | null }[];
+  seguimientos: { id: string; etapaNombre?: string; servicioNombre?: string; fechaProgramada: Date }[];
+  financiamientos: { id: string; pacienteId: string }[];
 }
 
-export function ConsultaForm({ cita, consulta }: ConsultaFormProps) {
+export function ConsultaForm({
+  cita,
+  consulta,
+  servicios,
+  productos,
+  seguimientos,
+  financiamientos,
+}: ConsultaFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showOrdenModal, setShowOrdenModal] = useState(false);
-  const [savedConsultaForOrden, setSavedConsultaForOrden] = useState<{ id: string } | null>(null);
 
   const form = useForm<Consulta>({
     resolver: zodResolver(ConsultaSchema),
@@ -76,13 +99,49 @@ export function ConsultaForm({ cita, consulta }: ConsultaFormProps) {
       diagnostico: consulta?.diagnostico || "",
       notas: consulta?.notas || "",
       observacionesClinicas: consulta?.observacionesClinicas || "",
+      servicios: consulta?.servicios ?? [],
+      productos: consulta?.productos ?? [],
+      seguimientoId: consulta?.seguimientoId ?? null,
+      financiamientoId: consulta?.financiamientoId ?? null,
     },
   });
 
-  const onSubmit = async (
-    data: Consulta,
-    options?: { openOrdenModal?: boolean }
-  ) => {
+  const { fields: serviciosFields, append: appendServicio, remove: removeServicio } =
+    useFieldArray({
+      control: form.control,
+      name: "servicios",
+    });
+
+  const { fields: productosFields, append: appendProducto, remove: removeProducto } =
+    useFieldArray({
+      control: form.control,
+      name: "productos",
+    });
+
+  const serviciosWatch = form.watch("servicios") ?? [];
+  const productosWatch = form.watch("productos") ?? [];
+
+  const totalServicios = useMemo(
+    () =>
+      serviciosWatch.reduce(
+        (acc, item) => acc + (item.precioAplicado || 0) * (item.cantidad || 0),
+        0
+      ),
+    [serviciosWatch]
+  );
+
+  const totalProductos = useMemo(
+    () =>
+      productosWatch.reduce(
+        (acc, item) => acc + (item.precioAplicado || 0) * (item.cantidad || 0),
+        0
+      ),
+    [productosWatch]
+  );
+
+  const totalConsulta = totalServicios + totalProductos;
+
+  const onSubmit = async (data: Consulta) => {
     setIsSubmitting(true);
 
     try {
@@ -92,13 +151,8 @@ export function ConsultaForm({ cita, consulta }: ConsultaFormProps) {
         toast.success("Consulta guardada", {
           description: "La consulta se ha guardado correctamente.",
         });
-        if (options?.openOrdenModal && result.data?.id) {
-          setSavedConsultaForOrden({ id: result.data.id });
-          setShowOrdenModal(true);
-        } else {
-          router.push("/citas");
-          router.refresh();
-        }
+        router.push("/citas");
+        router.refresh();
       } else {
         toast.error("Error al guardar", {
           description: result.error || "No se pudo guardar la consulta.",
@@ -108,6 +162,26 @@ export function ConsultaForm({ cita, consulta }: ConsultaFormProps) {
       toast.error("Error", {
         description: "Ocurrio un error inesperado.",
       });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const onFinalize = async (data: Consulta) => {
+    setIsSubmitting(true);
+    try {
+      const result = await finalizarConsulta(data);
+      if (result.success) {
+        toast.success("Consulta finalizada y orden de cobro generada");
+        router.push("/ordenes-cobro");
+        router.refresh();
+      } else {
+        toast.error("No se pudo finalizar la consulta", {
+          description: result.error,
+        });
+      }
+    } catch {
+      toast.error("Error al finalizar consulta");
     } finally {
       setIsSubmitting(false);
     }
@@ -227,6 +301,312 @@ export function ConsultaForm({ cita, consulta }: ConsultaFormProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
+              Servicios y Productos
+            </CardTitle>
+            <CardDescription>
+              Registre los servicios realizados y productos consumidos en la consulta.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <FieldLabel>Servicios realizados</FieldLabel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    appendServicio({ servicioId: "", precioAplicado: 0, cantidad: 1 })
+                  }
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Agregar servicio
+                </Button>
+              </div>
+              {serviciosFields.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Aún no hay servicios registrados en esta consulta.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {serviciosFields.map((field, index) => (
+                    <div
+                      key={field.id}
+                      className="grid grid-cols-1 md:grid-cols-4 gap-3 rounded-md border p-3"
+                    >
+                      <Controller
+                        name={`servicios.${index}.servicioId`}
+                        control={form.control}
+                        render={({ field: f }) => (
+                          <div className="space-y-2 md:col-span-2">
+                            <FieldLabel>Servicio</FieldLabel>
+                            <Select
+                              value={f.value}
+                              onValueChange={(value) => {
+                                f.onChange(value);
+                                const servicio = servicios.find((s) => s.id === value);
+                                if (servicio) {
+                                  form.setValue(
+                                    `servicios.${index}.precioAplicado`,
+                                    servicio.precioBase
+                                  );
+                                  if (!form.getValues(`servicios.${index}.cantidad`)) {
+                                    form.setValue(`servicios.${index}.cantidad`, 1);
+                                  }
+                                }
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecciona un servicio" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {servicios.map((servicio) => (
+                                  <SelectItem key={servicio.id} value={servicio.id}>
+                                    {servicio.nombre}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      />
+                      <Controller
+                        name={`servicios.${index}.precioAplicado`}
+                        control={form.control}
+                        render={({ field: f }) => (
+                          <div className="space-y-2">
+                            <FieldLabel>Precio (L)</FieldLabel>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              {...f}
+                              value={f.value ?? ""}
+                              onChange={(event) =>
+                                f.onChange(
+                                  event.target.value
+                                    ? parseFloat(event.target.value)
+                                    : 0
+                                )
+                              }
+                            />
+                          </div>
+                        )}
+                      />
+                      <Controller
+                        name={`servicios.${index}.cantidad`}
+                        control={form.control}
+                        render={({ field: f }) => (
+                          <div className="space-y-2">
+                            <FieldLabel>Cantidad</FieldLabel>
+                            <Input
+                              type="number"
+                              min="1"
+                              {...f}
+                              value={f.value ?? ""}
+                              onChange={(event) =>
+                                f.onChange(
+                                  event.target.value
+                                    ? parseInt(event.target.value, 10)
+                                    : 1
+                                )
+                              }
+                            />
+                          </div>
+                        )}
+                      />
+                      <div className="flex items-end justify-end md:col-span-4">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeServicio(index)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <FieldLabel>Productos consumidos</FieldLabel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    appendProducto({ productoId: "", precioAplicado: 0, cantidad: 1 })
+                  }
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Agregar producto
+                </Button>
+              </div>
+              {productosFields.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Aún no hay productos registrados en esta consulta.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {productosFields.map((field, index) => (
+                    <div
+                      key={field.id}
+                      className="grid grid-cols-1 md:grid-cols-4 gap-3 rounded-md border p-3"
+                    >
+                      <Controller
+                        name={`productos.${index}.productoId`}
+                        control={form.control}
+                        render={({ field: f }) => (
+                          <div className="space-y-2 md:col-span-2">
+                            <FieldLabel>Producto</FieldLabel>
+                            <Select value={f.value} onValueChange={f.onChange}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecciona un producto" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {productos.map((producto) => (
+                                  <SelectItem key={producto.id} value={producto.id}>
+                                    {producto.nombre}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      />
+                      <Controller
+                        name={`productos.${index}.precioAplicado`}
+                        control={form.control}
+                        render={({ field: f }) => (
+                          <div className="space-y-2">
+                            <FieldLabel>Precio (L)</FieldLabel>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              {...f}
+                              value={f.value ?? ""}
+                              onChange={(event) =>
+                                f.onChange(
+                                  event.target.value
+                                    ? parseFloat(event.target.value)
+                                    : 0
+                                )
+                              }
+                            />
+                          </div>
+                        )}
+                      />
+                      <Controller
+                        name={`productos.${index}.cantidad`}
+                        control={form.control}
+                        render={({ field: f }) => (
+                          <div className="space-y-2">
+                            <FieldLabel>Cantidad</FieldLabel>
+                            <Input
+                              type="number"
+                              min="1"
+                              {...f}
+                              value={f.value ?? ""}
+                              onChange={(event) =>
+                                f.onChange(
+                                  event.target.value
+                                    ? parseInt(event.target.value, 10)
+                                    : 1
+                                )
+                              }
+                            />
+                          </div>
+                        )}
+                      />
+                      <div className="flex items-end justify-end md:col-span-4">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeProducto(index)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field>
+                <FieldLabel>Seguimiento del plan (opcional)</FieldLabel>
+                <FieldContent>
+                  <Select
+                    value={form.watch("seguimientoId") || "none"}
+                    onValueChange={(value) =>
+                      form.setValue("seguimientoId", value === "none" ? null : value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccione un seguimiento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin seguimiento</SelectItem>
+                      {seguimientos.map((seguimiento) => (
+                        <SelectItem key={seguimiento.id} value={seguimiento.id}>
+                          {seguimiento.etapaNombre || "Etapa"} -{" "}
+                          {seguimiento.servicioNombre || "Servicios"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FieldContent>
+              </Field>
+
+              <Field>
+                <FieldLabel>Financiamiento (opcional)</FieldLabel>
+                <FieldContent>
+                  <Select
+                    value={form.watch("financiamientoId") || "none"}
+                    onValueChange={(value) =>
+                      form.setValue("financiamientoId", value === "none" ? null : value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccione un financiamiento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin financiamiento</SelectItem>
+                      {financiamientos.map((fin) => (
+                        <SelectItem key={fin.id} value={fin.id}>
+                          Fin. #{fin.id.slice(0, 8)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FieldContent>
+              </Field>
+
+              <Field>
+                <FieldLabel>Total de la consulta</FieldLabel>
+                <FieldContent>
+                  <Input
+                    value={totalConsulta.toFixed(2)}
+                    readOnly
+                    className="bg-muted"
+                  />
+                </FieldContent>
+              </Field>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
               Diagnostico y Observaciones
             </CardTitle>
             <CardDescription>
@@ -339,19 +719,6 @@ export function ConsultaForm({ cita, consulta }: ConsultaFormProps) {
           >
             Cancelar
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() =>
-              form.handleSubmit((data) =>
-                onSubmit(data, { openOrdenModal: true })
-              )()
-            }
-            disabled={isSubmitting}
-          >
-            <Receipt className="h-4 w-4 mr-2" />
-            Guardar y Generar Orden de Cobro
-          </Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
@@ -364,39 +731,16 @@ export function ConsultaForm({ cita, consulta }: ConsultaFormProps) {
               "Registrar Consulta"
             )}
           </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => form.handleSubmit((data) => onFinalize(data))()}
+            disabled={isSubmitting || totalConsulta <= 0}
+          >
+            Finalizar consulta y generar orden
+          </Button>
         </div>
       </form>
-
-      <OrdenCobroFormModal
-        open={showOrdenModal}
-        onOpenChange={(open) => {
-          setShowOrdenModal(open);
-          if (!open) {
-            setSavedConsultaForOrden(null);
-            router.push("/citas");
-            router.refresh();
-          }
-        }}
-        pacienteId={cita.paciente?.id}
-        pacientes={
-          cita.paciente
-            ? [
-                {
-                  id: cita.paciente.id,
-                  nombre: cita.paciente.nombre,
-                  apellido: cita.paciente.apellido,
-                },
-              ]
-            : []
-        }
-        consultaId={savedConsultaForOrden?.id ?? consulta?.id ?? undefined}
-        onSuccess={() => {
-          setShowOrdenModal(false);
-          setSavedConsultaForOrden(null);
-          router.push("/citas");
-          router.refresh();
-        }}
-      />
     </div>
   );
 }

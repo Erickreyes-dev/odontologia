@@ -15,7 +15,10 @@ import { PlanEstado, SeguimientoEstado } from "@/lib/generated/prisma";
  * Genera seguimientos automáticamente para las etapas de un plan
  */
 async function generarSeguimientos(planId: string, pacienteId: string) {
-  const etapas = await prisma.planEtapa.findMany({ where: { planId }, orderBy: { orden: "asc" } });
+  const etapas = await prisma.planEtapa.findMany({
+    where: { planId },
+    orderBy: { orden: "asc" },
+  });
   const plan = await prisma.planTratamiento.findUnique({ where: { id: planId } });
   if (!plan || !plan.fechaInicio) return;
 
@@ -53,7 +56,13 @@ export async function getPlanesTratamiento(): Promise<PlanTratamiento[]> {
       include: {
         paciente: true,
         medicoResponsable: { include: { empleado: true } },
-        etapas: { include: { servicio: true, seguimientos: true }, orderBy: { orden: "asc" } },
+        etapas: {
+          include: {
+            servicios: { include: { servicio: true } },
+            seguimientos: true,
+          },
+          orderBy: { orden: "asc" },
+        },
       },
       orderBy: { createAt: "desc" },
     });
@@ -62,8 +71,14 @@ export async function getPlanesTratamiento(): Promise<PlanTratamiento[]> {
       const etapas: PlanEtapa[] = r.etapas.map((e) => ({
         id: e.id,
         planId: e.planId,
-        servicioId: e.servicioId,
-        servicioNombre: e.servicio.nombre,
+        servicios: e.servicios.map((s) => ({
+          id: s.id,
+          servicioId: s.servicioId,
+          precioAplicado: Number(s.precioAplicado),
+          cantidad: s.cantidad,
+          servicioNombre: s.servicio.nombre,
+        })),
+        servicioNombre: e.servicios.map((s) => s.servicio.nombre).join(", "),
         nombre: e.nombre,
         descripcion: e.descripcion,
         orden: e.orden,
@@ -85,7 +100,7 @@ export async function getPlanesTratamiento(): Promise<PlanTratamiento[]> {
           nota: s.nota ?? null,
           citaId: s.citaId ?? null,
           etapaNombre: e.nombre,
-          servicioNombre: e.servicio.nombre,
+          servicioNombre: e.servicios.map((servicio) => servicio.servicio.nombre).join(", "),
         }))
       );
 
@@ -158,7 +173,6 @@ export async function createPlanTratamiento(
           create:
             validatedData.etapas?.map((e, index) => ({
               id: randomUUID(),
-              servicioId: e.servicioId,
               nombre: e.nombre,
               descripcion: e.descripcion ?? null,
               orden: e.orden ?? index + 1,
@@ -166,6 +180,14 @@ export async function createPlanTratamiento(
               repeticiones: e.repeticiones ?? null,
               programarCita: e.programarCita ?? true,
               responsableMedicoId: e.responsableMedicoId ?? null,
+              servicios: {
+                create: e.servicios.map((servicio) => ({
+                  id: randomUUID(),
+                  servicioId: servicio.servicioId,
+                  precioAplicado: servicio.precioAplicado,
+                  cantidad: servicio.cantidad,
+                })),
+              },
             })) ?? [],
         },
       },
@@ -216,7 +238,6 @@ export async function updatePlanTratamiento(
           create:
             data.etapas?.map((e, index) => ({
               id: randomUUID(),
-              servicioId: e.servicioId,
               nombre: e.nombre,
               descripcion: e.descripcion ?? null,
               orden: e.orden ?? index + 1,
@@ -224,6 +245,14 @@ export async function updatePlanTratamiento(
               repeticiones: e.repeticiones ?? null,
               programarCita: e.programarCita ?? true,
               responsableMedicoId: e.responsableMedicoId ?? null,
+              servicios: {
+                create: e.servicios.map((servicio) => ({
+                  id: randomUUID(),
+                  servicioId: servicio.servicioId,
+                  precioAplicado: servicio.precioAplicado,
+                  cantidad: servicio.cantidad,
+                })),
+              },
             })) ?? [],
         },
       },
@@ -305,7 +334,14 @@ export async function getSeguimientosPendientes(pacienteId: string): Promise<Seg
   try {
     const records = await prisma.seguimiento.findMany({
       where: { pacienteId, estado: "PENDIENTE" },
-      include: { etapa: { include: { servicio: true, plan: true } } },
+      include: {
+        etapa: {
+          include: {
+            servicios: { include: { servicio: true } },
+            plan: true,
+          },
+        },
+      },
       orderBy: { fechaProgramada: "asc" },
     });
 
@@ -319,7 +355,9 @@ export async function getSeguimientosPendientes(pacienteId: string): Promise<Seg
       nota: s.nota ?? null,
       citaId: s.citaId ?? null,
       etapaNombre: s.etapa.nombre,
-      servicioNombre: s.etapa.servicio.nombre,
+      servicioNombre: s.etapa.servicios
+        .map((servicio) => servicio.servicio.nombre)
+        .join(", "),
     }));
   } catch (error) {
     console.error("Error al obtener seguimientos pendientes:", error);
