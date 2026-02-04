@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { format, differenceInYears } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, Trash2, User, Calendar, Stethoscope, FileText, DollarSign, Loader2 } from "lucide-react";
+import { Calendar, DollarSign, FileText, Loader2, Package, Plus, Stethoscope, Trash2, User } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,14 @@ interface ServicioDisponible {
   duracionMin: number;
 }
 
+interface ProductoDisponible {
+  id: string;
+  nombre: string;
+  unidad: string;
+  stock: number;
+  stockMinimo: number;
+}
+
 interface CitaData {
   id: string;
   fechaHora: Date;
@@ -82,9 +90,10 @@ interface ConsultaFormProps {
   cita: CitaData;
   consulta: Consulta | null;
   servicios: ServicioDisponible[];
+  productos: ProductoDisponible[];
 }
 
-export function ConsultaForm({ cita, consulta, servicios }: ConsultaFormProps) {
+export function ConsultaForm({ cita, consulta, servicios, productos }: ConsultaFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPagoModal, setShowPagoModal] = useState(false);
@@ -100,6 +109,7 @@ export function ConsultaForm({ cita, consulta, servicios }: ConsultaFormProps) {
       diagnostico: consulta?.diagnostico || "",
       notas: consulta?.notas || "",
       detalles: consulta?.detalles || [],
+      productos: consulta?.productos || [],
     },
   });
 
@@ -108,7 +118,17 @@ export function ConsultaForm({ cita, consulta, servicios }: ConsultaFormProps) {
     name: "detalles",
   });
 
+  const {
+    fields: productoFields,
+    append: appendProducto,
+    remove: removeProducto,
+  } = useFieldArray({
+    control: form.control,
+    name: "productos",
+  });
+
   const watchDetalles = form.watch("detalles");
+  const watchProductos = form.watch("productos");
 
   const calcularTotal = () => {
     return watchDetalles.reduce((acc, detalle) => {
@@ -133,6 +153,27 @@ export function ConsultaForm({ cita, consulta, servicios }: ConsultaFormProps) {
         id: servicio.id,
         nombre: servicio.nombre,
         precioBase: servicio.precioBase,
+      });
+    }
+  };
+
+  const handleAddProducto = () => {
+    appendProducto({
+      productoId: "",
+      cantidad: 1,
+    });
+  };
+
+  const handleProductoChange = (index: number, productoId: string) => {
+    const producto = productos.find((p) => p.id === productoId);
+    if (producto) {
+      form.setValue(`productos.${index}.productoId`, productoId);
+      form.setValue(`productos.${index}.producto`, {
+        id: producto.id,
+        nombre: producto.nombre,
+        unidad: producto.unidad,
+        stock: producto.stock,
+        stockMinimo: producto.stockMinimo,
       });
     }
   };
@@ -606,6 +647,235 @@ export function ConsultaForm({ cita, consulta, servicios }: ConsultaFormProps) {
                 <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>No hay servicios agregados</p>
                 <p className="text-sm">Haga clic en &quot;Agregar Servicio&quot; para comenzar</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Productos Utilizados */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Productos Utilizados
+                </CardTitle>
+                <CardDescription>
+                  Seleccione los productos consumidos durante la consulta
+                </CardDescription>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddProducto}
+                className="flex items-center gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                Agregar Producto
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {productoFields.length > 0 ? (
+              <div className="space-y-4">
+                <div className="hidden md:block rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[40%]">Producto</TableHead>
+                        <TableHead className="w-[20%]">Stock</TableHead>
+                        <TableHead className="w-[20%]">Cantidad</TableHead>
+                        <TableHead className="w-[10%]">Unidad</TableHead>
+                        <TableHead className="w-[10%]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {productoFields.map((field, index) => {
+                        const detalle = watchProductos[index];
+                        const productoSeleccionado = productos.find(
+                          (p) => p.id === detalle?.productoId
+                        );
+                        const stockActual = productoSeleccionado?.stock ?? 0;
+                        const stockMinimo = productoSeleccionado?.stockMinimo ?? 0;
+                        return (
+                          <TableRow key={field.id}>
+                            <TableCell>
+                              <Controller
+                                name={`productos.${index}.productoId`}
+                                control={form.control}
+                                render={({ field: selectField, fieldState }) => (
+                                  <Select
+                                    onValueChange={(value) => {
+                                      selectField.onChange(value);
+                                      handleProductoChange(index, value);
+                                    }}
+                                    value={selectField.value}
+                                  >
+                                    <SelectTrigger className={fieldState.invalid ? "border-destructive" : ""}>
+                                      <SelectValue placeholder="Seleccione un producto" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {productos.map((producto) => (
+                                        <SelectItem key={producto.id} value={producto.id}>
+                                          {producto.nombre} ({producto.stock})
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span>{stockActual}</span>
+                                {stockActual <= stockMinimo ? (
+                                  <Badge variant="destructive">Bajo</Badge>
+                                ) : (
+                                  <Badge variant="secondary">Ok</Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Controller
+                                name={`productos.${index}.cantidad`}
+                                control={form.control}
+                                render={({ field: inputField }) => (
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    {...inputField}
+                                    onChange={(e) => inputField.onChange(parseInt(e.target.value) || 1)}
+                                  />
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell>{productoSeleccionado?.unidad || "-"}</TableCell>
+                            <TableCell>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeProducto(index)}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="md:hidden space-y-3">
+                  {productoFields.map((field, index) => {
+                    const detalle = watchProductos[index];
+                    const productoSeleccionado = productos.find(
+                      (p) => p.id === detalle?.productoId
+                    );
+                    const stockActual = productoSeleccionado?.stock ?? 0;
+                    const stockMinimo = productoSeleccionado?.stockMinimo ?? 0;
+                    return (
+                      <Card key={field.id} className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start">
+                            <span className="text-sm font-medium">Producto {index + 1}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeProducto(index)}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <Controller
+                            name={`productos.${index}.productoId`}
+                            control={form.control}
+                            render={({ field: selectField, fieldState }) => (
+                              <Field data-invalid={fieldState.invalid}>
+                                <FieldLabel>Producto</FieldLabel>
+                                <FieldContent>
+                                  <Select
+                                    onValueChange={(value) => {
+                                      selectField.onChange(value);
+                                      handleProductoChange(index, value);
+                                    }}
+                                    value={selectField.value}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Seleccione un producto" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {productos.map((producto) => (
+                                        <SelectItem key={producto.id} value={producto.id}>
+                                          {producto.nombre} ({producto.stock})
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </FieldContent>
+                                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                              </Field>
+                            )}
+                          />
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <Field>
+                              <FieldLabel>Stock</FieldLabel>
+                              <FieldContent>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm">{stockActual}</span>
+                                  {stockActual <= stockMinimo ? (
+                                    <Badge variant="destructive">Bajo</Badge>
+                                  ) : (
+                                    <Badge variant="secondary">Ok</Badge>
+                                  )}
+                                </div>
+                              </FieldContent>
+                            </Field>
+                            <Controller
+                              name={`productos.${index}.cantidad`}
+                              control={form.control}
+                              render={({ field: inputField, fieldState }) => (
+                                <Field data-invalid={fieldState.invalid}>
+                                  <FieldLabel>Cantidad</FieldLabel>
+                                  <FieldContent>
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      {...inputField}
+                                      onChange={(e) => inputField.onChange(parseInt(e.target.value) || 1)}
+                                    />
+                                  </FieldContent>
+                                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                </Field>
+                              )}
+                            />
+                          </div>
+
+                          <div className="flex justify-between text-sm text-muted-foreground pt-2 border-t">
+                            <span>Unidad:</span>
+                            <span className="font-medium text-foreground">
+                              {productoSeleccionado?.unidad || "-"}
+                            </span>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No hay productos agregados</p>
+                <p className="text-sm">Haga clic en &quot;Agregar Producto&quot; para comenzar</p>
               </div>
             )}
           </CardContent>

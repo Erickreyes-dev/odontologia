@@ -14,16 +14,22 @@ import { Prisma } from "@/lib/generated/prisma";
 export async function getCitas({
   page = 1,
   pageSize = 10,
+  from,
+  to,
 }: {
   page?: number;
   pageSize?: number;
+  from?: string;
+  to?: string;
 }) {
   try {
+    const where = buildFechaRangeFilter(from, to);
     const result = await paginate<any, Prisma.CitaWhereInput>({
       model: prisma.cita,
       page,
       pageSize,
       orderBy: { fechaHora: "desc" },
+      where,
       select: {
         id: true,
         pacienteId: true,
@@ -91,6 +97,97 @@ export async function getCitas({
       pageSize,
       pageCount: 0,
     };
+  }
+}
+
+function buildFechaRangeFilter(from?: string, to?: string): Prisma.CitaWhereInput | undefined {
+  if (!from && !to) return undefined;
+
+  const fechaHora: Prisma.DateTimeFilter = {};
+
+  if (from) {
+    const startLocal = new Date(from);
+    startLocal.setHours(0, 0, 0, 0);
+    fechaHora.gte = toUtcDate(startLocal);
+  }
+
+  if (to) {
+    const endLocal = new Date(to);
+    endLocal.setHours(23, 59, 59, 999);
+    fechaHora.lte = toUtcDate(endLocal);
+  }
+
+  return { fechaHora };
+}
+
+function toUtcDate(localDate: Date) {
+  return new Date(localDate.getTime() + localDate.getTimezoneOffset() * 60000);
+}
+
+/**
+ * Obtiene citas para calendario en un rango sin paginacion
+ */
+export async function getCitasPorRango({
+  from,
+  to,
+}: {
+  from: Date;
+  to: Date;
+}): Promise<Cita[]> {
+  try {
+    const records = await prisma.cita.findMany({
+      where: {
+        fechaHora: {
+          gte: from,
+          lte: to,
+        },
+      },
+      orderBy: { fechaHora: "asc" },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            identidad: true,
+          },
+        },
+        medico: {
+          select: {
+            idEmpleado: true,
+            empleado: {
+              select: {
+                nombre: true,
+                apellido: true,
+              },
+            },
+          },
+        },
+        consultorio: {
+          select: {
+            id: true,
+            nombre: true,
+          },
+        },
+      },
+    });
+
+    return records.map((r) => ({
+      id: r.id,
+      pacienteId: r.pacienteId,
+      medicoId: r.medicoId,
+      consultorioId: r.consultorioId,
+      fechaHora: new Date(r.fechaHora),
+      estado: r.estado,
+      motivo: r.motivo,
+      observacion: r.observacion,
+      paciente: r.paciente,
+      medico: r.medico,
+      consultorio: r.consultorio,
+    }));
+  } catch (error) {
+    console.error("Error al obtener citas por rango:", error);
+    return [];
   }
 }
 

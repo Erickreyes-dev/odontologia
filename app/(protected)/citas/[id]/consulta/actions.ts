@@ -47,6 +47,19 @@ export async function getConsultaByCitaId(citaId: string): Promise<Consulta | nu
             },
           },
         },
+        productos: {
+          include: {
+            producto: {
+              select: {
+                id: true,
+                nombre: true,
+                unidad: true,
+                stock: true,
+                stockMinimo: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -74,6 +87,19 @@ export async function getConsultaByCitaId(citaId: string): Promise<Consulta | nu
           id: d.servicio.id,
           nombre: d.servicio.nombre,
           precioBase: Number(d.servicio.precioBase),
+        },
+      })),
+      productos: r.productos.map((p) => ({
+        id: p.id,
+        consultaId: p.consultaId,
+        productoId: p.productoId,
+        cantidad: p.cantidad,
+        producto: {
+          id: p.producto.id,
+          nombre: p.producto.nombre,
+          unidad: p.producto.unidad || "",
+          stock: p.producto.stock,
+          stockMinimo: p.producto.stockMinimo,
         },
       })),
     };
@@ -125,6 +151,19 @@ export async function getConsultaById(id: string): Promise<Consulta | null> {
             },
           },
         },
+        productos: {
+          include: {
+            producto: {
+              select: {
+                id: true,
+                nombre: true,
+                unidad: true,
+                stock: true,
+                stockMinimo: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -154,6 +193,19 @@ export async function getConsultaById(id: string): Promise<Consulta | null> {
           precioBase: Number(d.servicio.precioBase),
         },
       })),
+      productos: r.productos.map((p) => ({
+        id: p.id,
+        consultaId: p.consultaId,
+        productoId: p.productoId,
+        cantidad: p.cantidad,
+        producto: {
+          id: p.producto.id,
+          nombre: p.producto.nombre,
+          unidad: p.producto.unidad || "",
+          stock: p.producto.stock,
+          stockMinimo: p.producto.stockMinimo,
+        },
+      })),
     };
   } catch (error) {
     console.error(`Error al obtener consulta con ID ${id}:`, error);
@@ -173,6 +225,7 @@ export async function upsertConsulta(
     // Verificar si ya existe una consulta para esta cita
     const existingConsulta = await prisma.consulta.findUnique({
       where: { citaId: validatedData.citaId },
+      include: { productos: true },
     });
 
     let consultaId: string;
@@ -188,8 +241,23 @@ export async function upsertConsulta(
       });
       consultaId = existingConsulta.id;
 
+      // Revertir productos existentes al inventario y recrearlos
+      if (existingConsulta.productos.length > 0) {
+        const productoUpdates = existingConsulta.productos.map((detalle) =>
+          prisma.producto.update({
+            where: { id: detalle.productoId },
+            data: { stock: { increment: detalle.cantidad } },
+          })
+        );
+        await prisma.$transaction(productoUpdates);
+      }
+
       // Eliminar detalles existentes y recrearlos
       await prisma.consultaServicio.deleteMany({
+        where: { consultaId: existingConsulta.id },
+      });
+
+      await prisma.consultaProducto.deleteMany({
         where: { consultaId: existingConsulta.id },
       });
     } else {
@@ -222,6 +290,45 @@ export async function upsertConsulta(
           cantidad: d.cantidad,
         })),
       });
+    }
+
+    // Crear los detalles de productos y descontar inventario
+    if (validatedData.productos && validatedData.productos.length > 0) {
+      const productosIds = validatedData.productos.map((p) => p.productoId);
+      const productosDb = await prisma.producto.findMany({
+        where: { id: { in: productosIds } },
+        select: { id: true, nombre: true, stock: true },
+      });
+
+      const stockPorProducto = new Map(productosDb.map((p) => [p.id, p]));
+      const productoSinStock = validatedData.productos.find((p) => {
+        const producto = stockPorProducto.get(p.productoId);
+        return !producto || producto.stock < p.cantidad;
+      });
+
+      if (productoSinStock) {
+        const producto = stockPorProducto.get(productoSinStock.productoId);
+        throw new Error(
+          `Stock insuficiente para ${producto?.nombre ?? "el producto seleccionado"}`
+        );
+      }
+
+      await prisma.consultaProducto.createMany({
+        data: validatedData.productos.map((p) => ({
+          id: randomUUID(),
+          consultaId: consultaId,
+          productoId: p.productoId,
+          cantidad: p.cantidad,
+        })),
+      });
+
+      const inventarioUpdates = validatedData.productos.map((p) =>
+        prisma.producto.update({
+          where: { id: p.productoId },
+          data: { stock: { decrement: p.cantidad } },
+        })
+      );
+      await prisma.$transaction(inventarioUpdates);
     }
 
     // Obtener la consulta actualizada
@@ -264,6 +371,36 @@ export async function getServiciosDisponibles() {
     }));
   } catch (error) {
     console.error("Error al obtener servicios disponibles:", error);
+    return [];
+  }
+}
+
+/**
+ * Obtiene los productos disponibles para una consulta
+ */
+export async function getProductosDisponibles() {
+  try {
+    const productos = await prisma.producto.findMany({
+      where: { activo: true },
+      select: {
+        id: true,
+        nombre: true,
+        unidad: true,
+        stock: true,
+        stockMinimo: true,
+      },
+      orderBy: { nombre: "asc" },
+    });
+
+    return productos.map((p) => ({
+      id: p.id,
+      nombre: p.nombre,
+      unidad: p.unidad || "",
+      stock: p.stock,
+      stockMinimo: p.stockMinimo,
+    }));
+  } catch (error) {
+    console.error("Error al obtener productos disponibles:", error);
     return [];
   }
 }
