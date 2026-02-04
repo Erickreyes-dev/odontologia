@@ -57,6 +57,15 @@ export const SeguimientoSchema = z.object({
   // Para mostrar en UI
   etapaNombre: z.string().optional(),
   servicioNombre: z.string().optional(),
+  servicios: z.array(
+    z.object({
+      id: z.string().optional(),
+      servicioId: z.string().min(1),
+      precioAplicado: z.number().min(0),
+      cantidad: z.number().min(1),
+      servicioNombre: z.string().optional(),
+    })
+  ).optional(),
 });
 
 // Schema para plan de tratamiento

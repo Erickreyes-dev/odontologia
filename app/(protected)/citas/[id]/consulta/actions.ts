@@ -50,6 +50,9 @@ export async function getConsultaByCitaId(citaId: string): Promise<Consulta | nu
       diagnostico: r.diagnostico,
       notas: r.notas,
       observacionesClinicas: r.observacionesClinicas,
+      total: Number(r.total),
+      seguimientoId: r.seguimientoId ?? null,
+      financiamientoId: r.financiamientoId ?? null,
       servicios: r.detalles.map((detalle) => ({
         id: detalle.id,
         servicioId: detalle.servicioId,
@@ -60,7 +63,6 @@ export async function getConsultaByCitaId(citaId: string): Promise<Consulta | nu
       productos: r.productos.map((producto) => ({
         id: producto.id,
         productoId: producto.productoId,
-        precioAplicado: Number(producto.precioAplicado),
         cantidad: producto.cantidad,
         productoNombre: producto.producto.nombre,
       })),
@@ -123,6 +125,9 @@ export async function getConsultaById(id: string): Promise<Consulta | null> {
       diagnostico: r.diagnostico,
       notas: r.notas,
       observacionesClinicas: r.observacionesClinicas,
+      total: Number(r.total),
+      seguimientoId: r.seguimientoId ?? null,
+      financiamientoId: r.financiamientoId ?? null,
       servicios: r.detalles.map((detalle) => ({
         id: detalle.id,
         servicioId: detalle.servicioId,
@@ -133,7 +138,6 @@ export async function getConsultaById(id: string): Promise<Consulta | null> {
       productos: r.productos.map((producto) => ({
         id: producto.id,
         productoId: producto.productoId,
-        precioAplicado: Number(producto.precioAplicado),
         cantidad: producto.cantidad,
         productoNombre: producto.producto.nombre,
       })),
@@ -159,6 +163,11 @@ export async function upsertConsulta(
 ): Promise<{ success: true; data: Consulta } | { success: false; error: string }> {
   try {
     const validatedData = ConsultaSchema.parse(data);
+    const totalServicios =
+      validatedData.servicios?.reduce(
+        (acc, servicio) => acc + servicio.precioAplicado * servicio.cantidad,
+        0
+      ) ?? 0;
 
     // Verificar si ya existe una consulta para esta cita
     const existingConsulta = await prisma.consulta.findUnique({
@@ -177,6 +186,9 @@ export async function upsertConsulta(
             diagnostico: validatedData.diagnostico,
             notas: validatedData.notas,
             observacionesClinicas: validatedData.observacionesClinicas,
+            seguimientoId: validatedData.seguimientoId ?? null,
+            financiamientoId: validatedData.financiamientoId ?? null,
+            total: totalServicios,
           },
         });
         await tx.consultaServicio.deleteMany({ where: { consultaId: existingConsulta.id } });
@@ -198,7 +210,6 @@ export async function upsertConsulta(
               id: randomUUID(),
               consultaId: existingConsulta.id,
               productoId: producto.productoId,
-              precioAplicado: producto.precioAplicado,
               cantidad: producto.cantidad,
             })),
           });
@@ -217,6 +228,9 @@ export async function upsertConsulta(
             diagnostico: validatedData.diagnostico,
             notas: validatedData.notas,
             observacionesClinicas: validatedData.observacionesClinicas,
+            seguimientoId: validatedData.seguimientoId ?? null,
+            financiamientoId: validatedData.financiamientoId ?? null,
+            total: totalServicios,
             detalles: validatedData.servicios?.length
               ? {
                   create: validatedData.servicios.map((servicio) => ({
@@ -232,7 +246,6 @@ export async function upsertConsulta(
                   create: validatedData.productos.map((producto) => ({
                     id: randomUUID(),
                     productoId: producto.productoId,
-                    precioAplicado: producto.precioAplicado,
                     cantidad: producto.cantidad,
                   })),
                 }
@@ -288,16 +301,6 @@ export async function finalizarConsulta(
         (acc, servicio) => acc + servicio.precioAplicado * servicio.cantidad,
         0
       ) ?? 0;
-    const productosTotal =
-      validatedData.productos?.reduce(
-        (acc, producto) => acc + producto.precioAplicado * producto.cantidad,
-        0
-      ) ?? 0;
-    const montoTotal = serviciosTotal + productosTotal;
-
-    if (montoTotal <= 0) {
-      return { success: false, error: "Debe registrar servicios o productos con monto válido" };
-    }
 
     const result = await prisma.$transaction(async (tx) => {
       if (consultaId) {
@@ -308,6 +311,9 @@ export async function finalizarConsulta(
             diagnostico: validatedData.diagnostico,
             notas: validatedData.notas,
             observacionesClinicas: validatedData.observacionesClinicas,
+            seguimientoId: validatedData.seguimientoId ?? null,
+            financiamientoId: validatedData.financiamientoId ?? null,
+            total: serviciosTotal,
           },
         });
         await tx.consultaServicio.deleteMany({ where: { consultaId } });
@@ -322,6 +328,9 @@ export async function finalizarConsulta(
             diagnostico: validatedData.diagnostico,
             notas: validatedData.notas,
             observacionesClinicas: validatedData.observacionesClinicas,
+            seguimientoId: validatedData.seguimientoId ?? null,
+            financiamientoId: validatedData.financiamientoId ?? null,
+            total: serviciosTotal,
           },
         });
       }
@@ -343,7 +352,6 @@ export async function finalizarConsulta(
             id: randomUUID(),
             consultaId: consultaId!,
             productoId: producto.productoId,
-            precioAplicado: producto.precioAplicado,
             cantidad: producto.cantidad,
           })),
         });
@@ -375,6 +383,7 @@ export async function finalizarConsulta(
       }
 
       let financiamientoId: string | null = validatedData.financiamientoId ?? null;
+      let cuotaSeleccionada: { id: string; numero: number; monto: number } | null = null;
       if (financiamientoId) {
         const financiamiento = await tx.financiamiento.findUnique({
           where: { id: financiamientoId },
@@ -383,7 +392,21 @@ export async function finalizarConsulta(
         if (!financiamiento || financiamiento.pacienteId !== cita.pacienteId) {
           throw new Error("El financiamiento seleccionado no pertenece al paciente");
         }
+        const cuota = await tx.cuotaFinanciamiento.findFirst({
+          where: { financiamientoId, pagada: false },
+          orderBy: { numero: "asc" },
+        });
+        if (!cuota) {
+          throw new Error("El financiamiento no tiene cuotas pendientes");
+        }
+        cuotaSeleccionada = { id: cuota.id, numero: cuota.numero, monto: Number(cuota.monto) };
+      } else if (serviciosTotal <= 0) {
+        throw new Error("Debe registrar servicios con monto válido");
       }
+
+      const montoTotal = financiamientoId
+        ? cuotaSeleccionada?.monto ?? 0
+        : serviciosTotal;
 
       const orden = await tx.ordenDeCobro.create({
         data: {
@@ -393,7 +416,9 @@ export async function finalizarConsulta(
           financiamientoId,
           consultaId: consultaId!,
           monto: montoTotal,
-          concepto: `Consulta #${consultaId!.slice(0, 8)} - Servicios y productos`,
+          concepto: financiamientoId
+            ? `Consulta #${consultaId!.slice(0, 8)} - Cuota ${cuotaSeleccionada?.numero ?? "pendiente"}`
+            : `Consulta #${consultaId!.slice(0, 8)} - Servicios`,
           estado: "PENDIENTE",
         },
       });

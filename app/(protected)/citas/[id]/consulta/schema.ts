@@ -7,6 +7,7 @@ export const ConsultaSchema = z.object({
   diagnostico: z.string().nullable().optional(),
   notas: z.string().nullable().optional(),
   observacionesClinicas: z.string().nullable().optional(),
+  total: z.number().optional(),
   servicios: z.array(
     z.object({
       id: z.string().optional(),
@@ -20,7 +21,6 @@ export const ConsultaSchema = z.object({
     z.object({
       id: z.string().optional(),
       productoId: z.string().min(1, "El producto es requerido"),
-      precioAplicado: z.number().min(0, "El precio debe ser mayor o igual a 0"),
       cantidad: z.number().min(1, "La cantidad debe ser mayor a 0"),
       productoNombre: z.string().optional(),
     })

@@ -265,17 +265,25 @@ model Consulta {
   diagnostico String? @db.VarChar(255)
   notas       String? @db.Text
   observacionesClinicas String? @db.Text
+  total Decimal @default(0) @db.Decimal(10, 2)
+  seguimientoId String? @db.VarChar(36)
+  financiamientoId String? @db.VarChar(36)
 
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
 
   cita Cita @relation(fields: [citaId], references: [id], onDelete: Cascade)
+  seguimiento Seguimiento? @relation(fields: [seguimientoId], references: [id])
+  financiamiento Financiamiento? @relation(fields: [financiamientoId], references: [id])
 
   detalles ConsultaServicio[]
   productos ConsultaProducto[]
 
   planEtapas PlanEtapa[]
   ordenesCobro OrdenDeCobro[]
+
+  @@index([seguimientoId])
+  @@index([financiamientoId])
 }
 
 model ConsultaServicio {
@@ -316,7 +324,6 @@ model ConsultaProducto {
   consultaId String   @db.VarChar(36)
   productoId String   @db.VarChar(36)
   cantidad   Int      @default(1)
-  precioAplicado Decimal @db.Decimal(10, 2)
   createAt   DateTime @default(now())
 
   consulta Consulta @relation(fields: [consultaId], references: [id], onDelete: Cascade)
