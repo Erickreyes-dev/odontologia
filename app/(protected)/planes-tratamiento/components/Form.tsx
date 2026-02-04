@@ -132,6 +132,8 @@ const form = useForm<PlanFormValues>({
         etapas: [],
       },
 });
+console.log("🚀 ~ PlanFormulario ~ form:", form.formState.isValid)
+console.log("🚀 ~ PlanFormulario ~ form:", form.formState.defaultValues)
 
 
   const { fields, append, remove, move } = useFieldArray({
