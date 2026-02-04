@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getCitaParaConsulta, getConsultaByCitaId, getServiciosDisponibles } from "./actions";
+import { getCitaParaConsulta, getConsultaByCitaId, getProductosDisponibles, getServiciosDisponibles } from "./actions";
 import HeaderComponent from "@/components/HeaderComponent";
 import { ConsultaForm } from "./components/ConsultaForm";
 import { Calendar } from "lucide-react";
@@ -11,10 +11,11 @@ interface ConsultaPageProps {
 export default async function ConsultaPage({ params }: ConsultaPageProps) {
   const { id } = await params;
   
-  const [cita, consulta, servicios] = await Promise.all([
+  const [cita, consulta, servicios, productos] = await Promise.all([
     getCitaParaConsulta(id),
     getConsultaByCitaId(id),
     getServiciosDisponibles(),
+    getProductosDisponibles(),
   ]);
 
   if (!cita) {
@@ -38,6 +39,7 @@ export default async function ConsultaPage({ params }: ConsultaPageProps) {
         cita={cita}
         consulta={consulta}
         servicios={servicios}
+        productos={productos}
       />
     </div>
   );
