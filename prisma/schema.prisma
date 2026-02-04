@@ -270,6 +270,7 @@ model Consulta {
   cita Cita @relation(fields: [citaId], references: [id], onDelete: Cascade)
 
   detalles ConsultaServicio[]
+  productos ConsultaProducto[]
 
   planEtapas PlanEtapa[]
 
@@ -292,6 +293,36 @@ model ConsultaServicio {
 
   @@index([consultaId])
   @@index([servicioId])
+}
+
+model Producto {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  nombre      String   @db.VarChar(150)
+  descripcion String?  @db.VarChar(255)
+  unidad      String?  @db.VarChar(50)
+  stock       Int      @default(0)
+  stockMinimo Int      @default(0)
+  activo      Boolean  @db.Bit(1)
+  createAt    DateTime @default(now())
+  updateAt    DateTime @updatedAt
+
+  consultasProductos ConsultaProducto[]
+
+  @@index([nombre])
+}
+
+model ConsultaProducto {
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  consultaId String   @db.VarChar(36)
+  productoId String   @db.VarChar(36)
+  cantidad   Int      @default(1)
+  createAt   DateTime @default(now())
+
+  consulta Consulta @relation(fields: [consultaId], references: [id], onDelete: Cascade)
+  producto Producto @relation(fields: [productoId], references: [id])
+
+  @@index([consultaId])
+  @@index([productoId])
 }
 
 model Cotizacion {

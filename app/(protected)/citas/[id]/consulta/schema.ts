@@ -13,12 +13,27 @@ export const ConsultaServicioSchema = z.object({
     precioBase: z.number(),
   }).optional(),
 });
+
+export const ConsultaProductoSchema = z.object({
+  id: z.string().optional(),
+  consultaId: z.string().optional(),
+  productoId: z.string().min(1, "El producto es requerido"),
+  cantidad: z.number().min(1, "La cantidad debe ser al menos 1"),
+  producto: z.object({
+    id: z.string(),
+    nombre: z.string(),
+    unidad: z.string().optional(),
+    stock: z.number(),
+    stockMinimo: z.number(),
+  }).optional(),
+});
 export const ConsultaSchema = z.object({
   id: z.string().optional(),
   citaId: z.string().min(1, "La cita es requerida"),
   diagnostico: z.string().nullable().optional(),
   notas: z.string().nullable().optional(),
   detalles: z.array(ConsultaServicioSchema), // quitar .default([])
+  productos: z.array(ConsultaProductoSchema),
   // Datos de la cita para mostrar
   cita: z.object({
     id: z.string(),
@@ -43,3 +58,4 @@ export const ConsultaSchema = z.object({
 
 export type Consulta = z.infer<typeof ConsultaSchema>;
 export type ConsultaServicio = z.infer<typeof ConsultaServicioSchema>;
+export type ConsultaProducto = z.infer<typeof ConsultaProductoSchema>;

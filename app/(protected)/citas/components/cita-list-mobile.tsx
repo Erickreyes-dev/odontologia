@@ -42,6 +42,8 @@ interface CitaListMobileProps {
   initialData: Cita[];
   initialPage: number;
   initialPageCount: number;
+  from?: string;
+  to?: string;
 }
 
 const getEstadoBadge = (estado: string) => {
@@ -80,6 +82,8 @@ export default function CitaListMobile({
   initialData,
   initialPage,
   initialPageCount,
+  from,
+  to,
 }: CitaListMobileProps) {
   const [citas, setCitas] = useState<Cita[]>(initialData);
   const [page, setPage] = useState<number>(initialPage);
@@ -113,7 +117,7 @@ export default function CitaListMobile({
     if (newPage < 1 || newPage > pageCount) return;
     setLoading(true);
 
-    const res = await getCitas({ page: newPage, pageSize: 10 });
+    const res = await getCitas({ page: newPage, pageSize: 10, from, to });
     setCitas(res.data);
     setPage(res.page);
     setPageCount(res.pageCount);
@@ -129,7 +133,7 @@ export default function CitaListMobile({
           description: `La cita ha sido marcada como ${nuevoEstado}.`,
         });
         // Refrescar datos
-        const res = await getCitas({ page, pageSize: 10 });
+        const res = await getCitas({ page, pageSize: 10, from, to });
         setCitas(res.data);
         router.refresh();
       } else {
@@ -154,7 +158,7 @@ export default function CitaListMobile({
         toast.success("Cita eliminada", {
           description: "La cita ha sido eliminada correctamente.",
         });
-        const res = await getCitas({ page, pageSize: 10 });
+        const res = await getCitas({ page, pageSize: 10, from, to });
         setCitas(res.data);
         setPageCount(res.pageCount);
         router.refresh();
