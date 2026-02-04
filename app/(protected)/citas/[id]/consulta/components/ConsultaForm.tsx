@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { differenceInYears, format } from "date-fns";
@@ -74,7 +74,7 @@ interface ConsultaFormProps {
   cita: CitaData;
   consulta: Consulta | null;
   servicios: { id: string; nombre: string; precioBase: number }[];
-  productos: { id: string; nombre: string; unidad: string | null }[];
+  productos: { id: string; nombre: string; unidad: string | null; stock: number }[];
   seguimientos: {
     id: string;
     etapaNombre?: string;
@@ -134,9 +134,10 @@ export function ConsultaForm({
       name: "productos",
     });
 
-  const serviciosWatch = form.watch("servicios") ?? [];
-  const seguimientoId = form.watch("seguimientoId");
-  const financiamientoId = form.watch("financiamientoId");
+  const serviciosWatch = useWatch({ control: form.control, name: "servicios" }) ?? [];
+  const productosWatch = useWatch({ control: form.control, name: "productos" }) ?? [];
+  const seguimientoId = useWatch({ control: form.control, name: "seguimientoId" });
+  const financiamientoId = useWatch({ control: form.control, name: "financiamientoId" });
 
   const totalServicios = useMemo(
     () =>
@@ -412,10 +413,14 @@ export function ConsultaForm({
                                 if (servicio) {
                                   form.setValue(
                                     `servicios.${index}.precioAplicado`,
-                                    servicio.precioBase
+                                    servicio.precioBase,
+                                    { shouldDirty: true, shouldValidate: true }
                                   );
                                   if (!form.getValues(`servicios.${index}.cantidad`)) {
-                                    form.setValue(`servicios.${index}.cantidad`, 1);
+                                    form.setValue(`servicios.${index}.cantidad`, 1, {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    });
                                   }
                                 }
                               }}
@@ -532,7 +537,7 @@ export function ConsultaForm({
                               <SelectContent>
                                 {productos.map((producto) => (
                                   <SelectItem key={producto.id} value={producto.id}>
-                                    {producto.nombre}
+                                    {producto.nombre} · Stock: {producto.stock}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -562,7 +567,16 @@ export function ConsultaForm({
                           </div>
                         )}
                       />
-                      <div className="flex items-end justify-end md:col-span-4">
+                      <div className="flex items-center justify-between md:col-span-4">
+                        <p className="text-xs text-muted-foreground">
+                          {(() => {
+                            const selected = productos.find(
+                              (producto) => producto.id === productosWatch[index]?.productoId
+                            );
+                            if (!selected) return "Selecciona un producto para ver stock.";
+                            return `Stock disponible: ${selected.stock}${selected.unidad ? ` ${selected.unidad}` : ""}`;
+                          })()}
+                        </p>
                         <Button
                           type="button"
                           variant="ghost"

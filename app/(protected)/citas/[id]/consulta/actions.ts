@@ -303,7 +303,12 @@ export async function finalizarConsulta(
       ) ?? 0;
 
     const result = await prisma.$transaction(async (tx) => {
+      let productosExistentes: { productoId: string; cantidad: number }[] = [];
       if (consultaId) {
+        productosExistentes = await tx.consultaProducto.findMany({
+          where: { consultaId },
+          select: { productoId: true, cantidad: true },
+        });
         await tx.consulta.update({
           where: { id: consultaId },
           data: {
@@ -355,6 +360,52 @@ export async function finalizarConsulta(
             cantidad: producto.cantidad,
           })),
         });
+      }
+
+      const productosActuales = validatedData.productos ?? [];
+      const stockAjustes = new Map<string, number>();
+      for (const producto of productosExistentes) {
+        stockAjustes.set(
+          producto.productoId,
+          (stockAjustes.get(producto.productoId) ?? 0) - producto.cantidad
+        );
+      }
+      for (const producto of productosActuales) {
+        stockAjustes.set(
+          producto.productoId,
+          (stockAjustes.get(producto.productoId) ?? 0) + producto.cantidad
+        );
+      }
+
+      if (stockAjustes.size > 0) {
+        const productosIds = Array.from(stockAjustes.keys());
+        const productosDB = await tx.producto.findMany({
+          where: { id: { in: productosIds } },
+          select: { id: true, stock: true, nombre: true },
+        });
+        const stockMap = new Map(
+          productosDB.map((producto) => [producto.id, producto])
+        );
+
+        for (const [productoId, delta] of stockAjustes.entries()) {
+          if (delta === 0) continue;
+          const productoDB = stockMap.get(productoId);
+          if (!productoDB) continue;
+          if (delta > 0 && productoDB.stock < delta) {
+            throw new Error(
+              `Stock insuficiente para ${productoDB.nombre}. Disponible: ${productoDB.stock}`
+            );
+          }
+          await tx.producto.update({
+            where: { id: productoId },
+            data: {
+              stock:
+                delta > 0
+                  ? { decrement: delta }
+                  : { increment: Math.abs(delta) },
+            },
+          });
+        }
       }
 
       await tx.cita.update({
@@ -468,12 +519,12 @@ export async function getServiciosActivos(): Promise<
 }
 
 export async function getProductosActivos(): Promise<
-  { id: string; nombre: string; unidad: string | null }[]
+  { id: string; nombre: string; unidad: string | null; stock: number }[]
 > {
   try {
     const productos = await prisma.producto.findMany({
       where: { activo: true },
-      select: { id: true, nombre: true, unidad: true },
+      select: { id: true, nombre: true, unidad: true, stock: true },
       orderBy: { nombre: "asc" },
     });
 
@@ -481,6 +532,7 @@ export async function getProductosActivos(): Promise<
       id: p.id,
       nombre: p.nombre,
       unidad: p.unidad ?? null,
+      stock: p.stock,
     }));
   } catch (error) {
     console.error("Error al obtener productos activos:", error);
