@@ -97,31 +97,46 @@ const getEstadoCotizacionBadge = (estado: string) => {
   switch (estado) {
     case "borrador":
       return (
-        <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-300">
+        <Badge
+          variant="outline"
+          className="bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700"
+        >
           {label}
         </Badge>
       );
     case "enviada":
       return (
-        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+        <Badge
+          variant="outline"
+          className="bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-800"
+        >
           {label}
         </Badge>
       );
     case "aceptada":
       return (
-        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+        <Badge
+          variant="outline"
+          className="bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-200 dark:border-green-800"
+        >
           {label}
         </Badge>
       );
     case "rechazada":
       return (
-        <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
+        <Badge
+          variant="outline"
+          className="bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800"
+        >
           {label}
         </Badge>
       );
     case "parcial":
       return (
-        <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+        <Badge
+          variant="outline"
+          className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950 dark:text-yellow-200 dark:border-yellow-800"
+        >
           {label}
         </Badge>
       );
@@ -137,25 +152,37 @@ const getEstadoPlanBadge = (estado: string) => {
   switch (estado) {
     case "ACTIVO":
       return (
-        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+        <Badge
+          variant="outline"
+          className="bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-200 dark:border-green-800"
+        >
           {label}
         </Badge>
       );
     case "PAUSADO":
       return (
-        <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+        <Badge
+          variant="outline"
+          className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950 dark:text-yellow-200 dark:border-yellow-800"
+        >
           {label}
         </Badge>
       );
     case "COMPLETADO":
       return (
-        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+        <Badge
+          variant="outline"
+          className="bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-800"
+        >
           {label}
         </Badge>
       );
     case "CANCELADO":
       return (
-        <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
+        <Badge
+          variant="outline"
+          className="bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800"
+        >
           {label}
         </Badge>
       );
@@ -172,19 +199,28 @@ const getEstadoPagoBadge = (estado: string) => {
   switch (estado) {
     case "APLICADO":
       return (
-        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+        <Badge
+          variant="outline"
+          className="bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-200 dark:border-green-800"
+        >
           {info?.label ?? estado}
         </Badge>
       );
     case "REVERTIDO":
       return (
-        <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
+        <Badge
+          variant="outline"
+          className="bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800"
+        >
           {info?.label ?? estado}
         </Badge>
       );
     default:
       return (
-        <Badge variant="outline" className="bg-slate-100 text-slate-800">
+        <Badge
+          variant="outline"
+          className="bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200"
+        >
           {info?.label ?? estado}
         </Badge>
       );

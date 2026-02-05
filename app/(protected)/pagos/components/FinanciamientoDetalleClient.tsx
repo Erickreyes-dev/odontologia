@@ -182,11 +182,17 @@ export function FinanciamientoDetalleClient({
                     </TableCell>
                     <TableCell>
                       {c.pagada ? (
-                        <Badge variant="outline" className="bg-green-100 text-green-800">
+                        <Badge
+                          variant="outline"
+                          className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200"
+                        >
                           Pagada
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="bg-slate-100">
+                        <Badge
+                          variant="outline"
+                          className="bg-slate-100 dark:bg-slate-900 dark:text-slate-200"
+                        >
                           Pendiente
                         </Badge>
                       )}

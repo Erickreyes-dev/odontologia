@@ -10,11 +10,32 @@ import type { OrdenCobroWithRelations } from "../schema";
 const getEstadoBadge = (estado: string) => {
   switch (estado) {
     case "PENDIENTE":
-      return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">Pendiente</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950 dark:text-yellow-200 dark:border-yellow-800"
+        >
+          Pendiente
+        </Badge>
+      );
     case "PAGADA":
-      return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">Pagada</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-200 dark:border-green-800"
+        >
+          Pagada
+        </Badge>
+      );
     case "ANULADA":
-      return <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-300">Anulada</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700"
+        >
+          Anulada
+        </Badge>
+      );
     default:
       return <Badge variant="outline">{estado}</Badge>;
   }

@@ -18,11 +18,23 @@ interface OrdenesCobroListMobileProps {
 const getEstadoBadge = (estado: string) => {
   switch (estado) {
     case "PENDIENTE":
-      return <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-300">Pendiente</Badge>;
+      return (
+        <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-300 dark:bg-yellow-950 dark:text-yellow-200 dark:border-yellow-800">
+          Pendiente
+        </Badge>
+      );
     case "PAGADA":
-      return <Badge className="bg-green-100 text-green-800 border border-green-300">Pagada</Badge>;
+      return (
+        <Badge className="bg-green-100 text-green-800 border border-green-300 dark:bg-green-950 dark:text-green-200 dark:border-green-800">
+          Pagada
+        </Badge>
+      );
     case "ANULADA":
-      return <Badge className="bg-gray-100 text-gray-800 border border-gray-300">Anulada</Badge>;
+      return (
+        <Badge className="bg-gray-100 text-gray-800 border border-gray-300 dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700">
+          Anulada
+        </Badge>
+      );
     default:
       return <Badge variant="outline">{estado}</Badge>;
   }
