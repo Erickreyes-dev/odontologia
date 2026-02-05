@@ -103,13 +103,19 @@ const getSeguimientoBadge = (estado: string) => {
   switch (estado) {
     case "PENDIENTE":
       return (
-        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+        <Badge
+          variant="outline"
+          className="bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-800"
+        >
           {label}
         </Badge>
       );
     case "REALIZADO":
       return (
-        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+        <Badge
+          variant="outline"
+          className="bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-200 dark:border-green-800"
+        >
           {label}
         </Badge>
       );
@@ -402,15 +408,23 @@ export function PlanDetailView({ plan }: PlanDetailViewProps) {
                             <div className="flex flex-col items-end gap-2">
                               {getSeguimientoBadge(seguimiento.estado)}
                               {seguimiento.estado === "PENDIENTE" && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleOpenUpdateSeguimiento(seguimiento)
-                                  }
-                                >
-                                  Actualizar
-                                </Button>
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleOpenUpdateSeguimiento(seguimiento)
+                                    }
+                                  >
+                                    Actualizar
+                                  </Button>
+                                  <Link href={`/citas/create?pacienteId=${plan.pacienteId}`}>
+                                    <Button variant="outline" size="sm">
+                                      <CalendarPlus className="h-4 w-4 mr-1" />
+                                      Cita
+                                    </Button>
+                                  </Link>
+                                </>
                               )}
                             </div>
                           </div>

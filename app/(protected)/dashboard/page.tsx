@@ -29,19 +29,28 @@ const getOrdenEstadoBadge = (estado: string) => {
   switch (estado) {
     case "PENDIENTE":
       return (
-        <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
+        <Badge
+          variant="outline"
+          className="bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800"
+        >
           Pendiente
         </Badge>
       );
     case "PAGADA":
       return (
-        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+        <Badge
+          variant="outline"
+          className="bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-200 dark:border-green-800"
+        >
           Pagada
         </Badge>
       );
     case "ANULADA":
       return (
-        <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
+        <Badge
+          variant="outline"
+          className="bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-200 dark:border-red-800"
+        >
           Anulada
         </Badge>
       );

@@ -68,7 +68,7 @@ const getEstadoBadge = (estado: string) => {
       return (
         <Badge
           variant="outline"
-          className="bg-red-100 text-red-800 border-red-300"
+          className="bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800"
         >
           Cancelada
         </Badge>

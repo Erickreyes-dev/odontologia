@@ -14,6 +14,11 @@ import {
 } from "./schema";
 import { MetodoPago, PagoEstado, FinanciamientoEstado } from "@/lib/generated/prisma";
 
+const CENTRAL_AMERICA_OFFSET_MS = 6 * 60 * 60 * 1000;
+
+const toCentralAmericaTime = (date?: Date | null) =>
+  date ? new Date(date.getTime() - CENTRAL_AMERICA_OFFSET_MS) : date;
+
 async function calcularTotalPlan(planTratamientoId: string): Promise<number> {
   const plan = await prisma.planTratamiento.findUnique({
     where: { id: planTratamientoId },
@@ -393,7 +398,7 @@ function mapPagoToWithRelations(r: {
     monto: Number(r.monto),
     metodo: r.metodo,
     referencia: r.referencia,
-    fechaPago: r.fechaPago,
+    fechaPago: toCentralAmericaTime(r.fechaPago) ?? r.fechaPago,
     estado: r.estado,
     comentario: r.comentario,
     ordenCobroId: r.ordenCobroId,
@@ -450,7 +455,7 @@ export async function getFinanciamientoDetalle(
         monto: Number(c.monto),
         fechaVencimiento: c.fechaVencimiento,
         pagada: c.pagada,
-        fechaPago: c.fechaPago,
+        fechaPago: toCentralAmericaTime(c.fechaPago),
         pagoId: c.pagoId,
       })),
       totalPagado,
@@ -500,7 +505,7 @@ export async function getFinanciamientos(): Promise<FinanciamientoDetalle[]> {
           monto: Number(c.monto),
           fechaVencimiento: c.fechaVencimiento,
           pagada: c.pagada,
-          fechaPago: c.fechaPago,
+          fechaPago: toCentralAmericaTime(c.fechaPago),
           pagoId: c.pagoId,
         })),
         totalPagado,
@@ -548,7 +553,7 @@ export async function getFinanciamientosPorPaciente( pacienteId: string): Promis
           monto: Number(c.monto),
           fechaVencimiento: c.fechaVencimiento,
           pagada: c.pagada,
-          fechaPago: c.fechaPago,
+          fechaPago: toCentralAmericaTime(c.fechaPago),
           pagoId: c.pagoId,
         })),
         totalPagado,
