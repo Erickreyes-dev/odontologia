@@ -232,6 +232,102 @@ async function main() {
     });
   }
 
+
+
+  let platformRole = await prisma.rol.findFirst({ where: { nombre: "OwnerPlatform", tenantId: platformTenant.id } });
+  if (!platformRole) {
+    platformRole = await prisma.rol.create({
+      data: {
+        id: randomUUID(),
+        tenantId: platformTenant.id,
+        nombre: "OwnerPlatform",
+        descripcion: "Rol dueño del SaaS con acceso global de administración",
+        activo: true,
+      },
+    });
+  }
+
+  const platformPermisosData = [
+    { nombre: "ver_dashboard_admin", descripcion: "Permiso para ver dashboard global de tenants" },
+    { nombre: "gestionar_tenants", descripcion: "Permiso para crear y gestionar tenants" },
+  ];
+
+  const platformPermisos: { id: string }[] = [];
+  for (const pp of platformPermisosData) {
+    let p = await prisma.permiso.findFirst({ where: { tenantId: platformTenant.id, nombre: pp.nombre } });
+    if (!p) {
+      p = await prisma.permiso.create({
+        data: {
+          id: randomUUID(),
+          tenantId: platformTenant.id,
+          nombre: pp.nombre,
+          descripcion: pp.descripcion,
+          activo: true,
+        },
+      });
+    }
+    platformPermisos.push({ id: p.id });
+  }
+
+  for (const perm of platformPermisos) {
+    const exists = await prisma.rolPermiso.findFirst({
+      where: { rolId: platformRole.id, permisoId: perm.id },
+    });
+    if (!exists) {
+      await prisma.rolPermiso.create({ data: { rolId: platformRole.id, permisoId: perm.id } });
+    }
+  }
+
+  let ownerPuesto = await prisma.puesto.findFirst({ where: { Nombre: "Owner SaaS", tenantId: platformTenant.id } });
+  if (!ownerPuesto) {
+    ownerPuesto = await prisma.puesto.create({
+      data: {
+        Id: randomUUID(),
+        tenantId: platformTenant.id,
+        Nombre: "Owner SaaS",
+        Descripcion: "Administrador principal de la plataforma",
+        Activo: true,
+      },
+    });
+  }
+
+  let ownerEmpleado = await prisma.empleados.findFirst({ where: { correo: "owner@platform.local", tenantId: platformTenant.id } });
+  if (!ownerEmpleado) {
+    ownerEmpleado = await prisma.empleados.create({
+      data: {
+        id: randomUUID(),
+        tenantId: platformTenant.id,
+        nombre: "Owner",
+        apellido: "Platform",
+        puesto_id: ownerPuesto.Id,
+        correo: "owner@platform.local",
+        FechaNacimiento: new Date(1990, 1, 1),
+        fechaIngreso: new Date(),
+        telefono: "0000-0000",
+        identidad: `OWNER-${Date.now()}`,
+        Vacaciones: 0,
+        genero: "N/A",
+        activo: true,
+      },
+    });
+  }
+
+  let ownerUsuario = await prisma.usuarios.findFirst({ where: { usuario: "owner.platform", tenantId: platformTenant.id } });
+  if (!ownerUsuario) {
+    ownerUsuario = await prisma.usuarios.create({
+      data: {
+        id: randomUUID(),
+        tenantId: platformTenant.id,
+        usuario: "owner.platform",
+        contrasena: await bcrypt.hash("owner.platform", 10),
+        empleado_id: ownerEmpleado.id,
+        rol_id: platformRole.id,
+        activo: true,
+        DebeCambiarPassword: false,
+      },
+    });
+  }
+
   console.log("Seed completado exitosamente");
 }
 
