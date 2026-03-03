@@ -13,6 +13,8 @@ import {
   FinanciamientoDetalle,
 } from "./schema";
 import { MetodoPago, PagoEstado, FinanciamientoEstado } from "@/lib/generated/prisma";
+import { tenantWhere, withTenantData } from "@/lib/tenant-query";
+import { Prisma } from "@/lib/generated/prisma";
 
 const CENTRAL_AMERICA_OFFSET_MS = 6 * 60 * 60 * 1000;
 
@@ -20,8 +22,8 @@ const toCentralAmericaTime = (date?: Date | null) =>
   date ? new Date(date.getTime() - CENTRAL_AMERICA_OFFSET_MS) : date;
 
 async function calcularMontoPendientePlan(planTratamientoId: string): Promise<number> {
-  const plan = await prisma.planTratamiento.findUnique({
-    where: { id: planTratamientoId },
+  const plan = await prisma.planTratamiento.findFirst({
+    where: await tenantWhere<Prisma.PlanTratamientoWhereInput>({ id: planTratamientoId }),
     include: {
       etapas: {
         include: { servicios: { include: { servicio: true } } },
@@ -70,6 +72,43 @@ export async function createFinanciamiento(
       ...data,
       montoTotal: montoPlan && montoPlan > 0 ? montoPlan : data.montoTotal,
     });
+    const [paciente, cotizacion, plan] = await Promise.all([
+      prisma.paciente.findFirst({
+        where: await tenantWhere<Prisma.PacienteWhereInput>({ id: validated.pacienteId, activo: true }),
+        select: { id: true },
+      }),
+      validated.cotizacionId
+        ? prisma.cotizacion.findFirst({
+            where: await tenantWhere<Prisma.CotizacionWhereInput>({
+              id: validated.cotizacionId,
+              pacienteId: validated.pacienteId,
+            }),
+            select: { id: true },
+          })
+        : null,
+      validated.planTratamientoId
+        ? prisma.planTratamiento.findFirst({
+            where: await tenantWhere<Prisma.PlanTratamientoWhereInput>({
+              id: validated.planTratamientoId,
+              pacienteId: validated.pacienteId,
+            }),
+            select: { id: true },
+          })
+        : null,
+    ]);
+
+    if (!paciente) {
+      return { success: false, error: "Paciente no válido para este tenant" };
+    }
+
+    if (validated.cotizacionId && !cotizacion) {
+      return { success: false, error: "Cotización no válida para este tenant" };
+    }
+
+    if (validated.planTratamientoId && !plan) {
+      return { success: false, error: "Plan de tratamiento no válido para este tenant" };
+    }
+
     const anticipo = Number(validated.anticipo);
     const montoTotal = Number(validated.montoTotal);
     const interes = Number(validated.interes);
@@ -85,7 +124,7 @@ export async function createFinanciamiento(
 
     const result = await prisma.$transaction(async (tx) => {
       const financiamiento = await tx.financiamiento.create({
-        data: {
+        data: await withTenantData({
           id: randomUUID(),
           pacienteId: validated.pacienteId,
           cotizacionId: validated.cotizacionId || null,
@@ -97,7 +136,7 @@ export async function createFinanciamiento(
           interes,
           fechaInicio: validated.fechaInicio,
           estado: FinanciamientoEstado.ACTIVO,
-        },
+        }),
         include: { paciente: true },
       });
 
@@ -105,14 +144,14 @@ export async function createFinanciamiento(
       for (let i = 1; i <= cuotas; i++) {
         const fechaVenc = addMonths(validated.fechaInicio, i);
         const cuota = await tx.cuotaFinanciamiento.create({
-          data: {
+          data: await withTenantData({
             id: randomUUID(),
             financiamientoId: financiamiento.id,
             numero: i,
             monto: montoPorCuota,
             fechaVencimiento: fechaVenc,
             pagada: false,
-          },
+          }),
         });
         cuotasLista.push({
           id: cuota.id,
@@ -177,8 +216,8 @@ export async function createPago(
     const monto = validated.monto;
 
     const pago = await prisma.$transaction(async (tx) => {
-      const orden = await tx.ordenDeCobro.findUnique({
-        where: { id: validated.ordenCobroId },
+      const orden = await tx.ordenDeCobro.findFirst({
+        where: await tenantWhere<Prisma.OrdenDeCobroWhereInput>({ id: validated.ordenCobroId }),
         include: { financiamiento: true, paciente: true },
       });
 
@@ -191,7 +230,7 @@ export async function createPago(
       }
 
       const pagoCreado = await tx.pago.create({
-        data: {
+        data: await withTenantData({
           id: randomUUID(),
           ordenCobroId: validated.ordenCobroId,
           monto,
@@ -199,18 +238,18 @@ export async function createPago(
           referencia: validated.referencia || null,
           comentario: validated.comentario || null,
           estado: PagoEstado.REGISTRADO,
-        },
+        }),
       });
 
       let estadoFinal = PagoEstado.REGISTRADO;
 
       if (orden.financiamientoId && validated.cuotaId) {
         const cuota = await tx.cuotaFinanciamiento.findFirst({
-          where: {
+          where: await tenantWhere<Prisma.CuotaFinanciamientoWhereInput>({
             id: validated.cuotaId,
             financiamientoId: orden.financiamientoId,
             pagada: false,
-          },
+          }),
           include: { financiamiento: true },
         });
 
@@ -243,10 +282,10 @@ export async function createPago(
         }
       } else if (orden.financiamientoId && !validated.cuotaId) {
         const cuotasPendientes = await tx.cuotaFinanciamiento.findMany({
-          where: {
+          where: await tenantWhere<Prisma.CuotaFinanciamientoWhereInput>({
             financiamientoId: orden.financiamientoId,
             pagada: false,
-          },
+          }),
           orderBy: { numero: "asc" },
           include: { financiamiento: true },
         });
@@ -327,7 +366,7 @@ export async function getPagosByPaciente(
 ): Promise<PagoWithRelations[]> {
   try {
     const records = await prisma.pago.findMany({
-      where: { ordenCobro: { pacienteId } },
+      where: await tenantWhere<Prisma.PagoWhereInput>({ ordenCobro: { pacienteId } }),
       include: {
         ordenCobro: {
           include: {
@@ -352,6 +391,7 @@ export async function getPagosByPaciente(
 export async function getPagos(): Promise<PagoWithRelations[]> {
   try {
     const records = await prisma.pago.findMany({
+      where: await tenantWhere<Prisma.PagoWhereInput>(),
       include: {
         ordenCobro: {
           include: {
@@ -375,8 +415,8 @@ export async function getPagos(): Promise<PagoWithRelations[]> {
  */
 export async function getPagoById(id: string): Promise<PagoWithRelations | null> {
   try {
-    const r = await prisma.pago.findUnique({
-      where: { id },
+    const r = await prisma.pago.findFirst({
+      where: await tenantWhere<Prisma.PagoWhereInput>({ id }),
       include: {
         ordenCobro: {
           include: {
@@ -433,8 +473,8 @@ export async function getFinanciamientoDetalle(
   financiamientoId: string
 ): Promise<FinanciamientoDetalle | null> {
   try {
-    const r = await prisma.financiamiento.findUnique({
-      where: { id: financiamientoId },
+    const r = await prisma.financiamiento.findFirst({
+      where: await tenantWhere<Prisma.FinanciamientoWhereInput>({ id: financiamientoId }),
       include: {
         paciente: true,
         cuotasFinanciamiento: { orderBy: { numero: "asc" } },
@@ -486,6 +526,7 @@ export async function getFinanciamientoDetalle(
 export async function getFinanciamientos(): Promise<FinanciamientoDetalle[]> {
   try {
     const records = await prisma.financiamiento.findMany({
+      where: await tenantWhere<Prisma.FinanciamientoWhereInput>(),
       include: {
         paciente: true,
         cuotasFinanciamiento: { orderBy: { numero: "asc" } },
@@ -533,7 +574,7 @@ export async function getFinanciamientos(): Promise<FinanciamientoDetalle[]> {
 export async function getFinanciamientosPorPaciente( pacienteId: string): Promise<FinanciamientoDetalle[]> {
   try {
     const records = await prisma.financiamiento.findMany({
-      where: { pacienteId: pacienteId },
+      where: await tenantWhere<Prisma.FinanciamientoWhereInput>({ pacienteId: pacienteId }),
       include: {
         paciente: true,
         cuotasFinanciamiento: { orderBy: { numero: "asc" } },
@@ -586,8 +627,8 @@ export async function revertPago(
   pagoId: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const pago = await prisma.pago.findUnique({
-      where: { id: pagoId },
+    const pago = await prisma.pago.findFirst({
+      where: await tenantWhere<Prisma.PagoWhereInput>({ id: pagoId }),
       include: { cuotas: true, ordenCobro: true },
     });
 
@@ -655,7 +696,7 @@ export async function getPacientesActivos(): Promise<
 > {
   try {
     const pacientes = await prisma.paciente.findMany({
-      where: { activo: true },
+      where: await tenantWhere<Prisma.PacienteWhereInput>({ activo: true }),
       select: { id: true, nombre: true, apellido: true },
       orderBy: { nombre: "asc" },
     });
@@ -674,7 +715,7 @@ export async function getCotizacionesAceptadas(): Promise<
 > {
   try {
     const cotizaciones = await prisma.cotizacion.findMany({
-      where: { estado: "aceptada" },
+      where: await tenantWhere<Prisma.CotizacionWhereInput>({ estado: "aceptada" }),
       include: { paciente: { select: { nombre: true, apellido: true } } },
     });
     return cotizaciones.map((c) => ({
@@ -697,7 +738,7 @@ export async function getPlanesActivos(): Promise<
 > {
   try {
     const planes = await prisma.planTratamiento.findMany({
-      where: { estado: "ACTIVO" },
+      where: await tenantWhere<Prisma.PlanTratamientoWhereInput>({ estado: "ACTIVO" }),
       select: {
         id: true,
         nombre: true,
