@@ -12,6 +12,7 @@ import {
 import { PlanEstado, SeguimientoEstado } from "@/lib/generated/prisma";
 import { Prisma } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
+import { getTenantContext } from "@/lib/tenant";
 
 /**
  * Genera seguimientos automáticamente para las etapas de un plan
@@ -163,6 +164,7 @@ export async function createPlanTratamiento(
   try {
     const validatedData = PlanTratamientoSchema.parse(data);
     const planId = randomUUID();
+    const { tenantId } = await getTenantContext();
 
     const plan = await prisma.planTratamiento.create({
       data: await withTenantData({
@@ -184,10 +186,12 @@ export async function createPlanTratamiento(
               intervaloDias: e.intervaloDias ?? null,
               repeticiones: e.repeticiones ?? null,
               programarCita: e.programarCita ?? true,
+              tenantId,
               responsableMedicoId: e.responsableMedicoId ?? null,
               servicios: {
                 create: e.servicios.map((servicio) => ({
                   id: randomUUID(),
+                  tenantId,
                   servicioId: servicio.servicioId,
                   precioAplicado: servicio.precioAplicado,
                   cantidad: servicio.cantidad,
@@ -225,6 +229,7 @@ export async function updatePlanTratamiento(
 ): Promise<{ success: true; data: PlanTratamiento } | { success: false; error: string }> {
   try {
     if (!id) return { success: false, error: "ID del plan es requerido" };
+    const { tenantId } = await getTenantContext();
 
     // Eliminar etapas existentes y sus seguimientos
     await prisma.planEtapa.deleteMany({ where: await tenantWhere<Prisma.PlanEtapaWhereInput>({ planId: id }) });
@@ -256,10 +261,12 @@ export async function updatePlanTratamiento(
               intervaloDias: e.intervaloDias ?? null,
               repeticiones: e.repeticiones ?? null,
               programarCita: e.programarCita ?? true,
+              tenantId,
               responsableMedicoId: e.responsableMedicoId ?? null,
               servicios: {
                 create: e.servicios.map((servicio) => ({
                   id: randomUUID(),
+                  tenantId,
                   servicioId: servicio.servicioId,
                   precioAplicado: servicio.precioAplicado,
                   cantidad: servicio.cantidad,

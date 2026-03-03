@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { Consulta, ConsultaSchema } from "./schema";
+import { tenantWhere, withTenantData } from "@/lib/tenant-query";
+import { getTenantContext } from "@/lib/tenant";
+import { Prisma } from "@/lib/generated/prisma";
 
 /**
  * Obtiene la consulta de una cita por ID de cita
@@ -163,6 +166,7 @@ export async function upsertConsulta(
 ): Promise<{ success: true; data: Consulta } | { success: false; error: string }> {
   try {
     const validatedData = ConsultaSchema.parse(data);
+    const { tenantId } = await getTenantContext();
     const totalServicios =
       validatedData.servicios?.reduce(
         (acc, servicio) => acc + servicio.precioAplicado * servicio.cantidad,
@@ -170,8 +174,8 @@ export async function upsertConsulta(
       ) ?? 0;
 
     // Verificar si ya existe una consulta para esta cita
-    const existingConsulta = await prisma.consulta.findUnique({
-      where: { citaId: validatedData.citaId },
+    const existingConsulta = await prisma.consulta.findFirst({
+      where: await tenantWhere<Prisma.ConsultaWhereInput>({ citaId: validatedData.citaId }),
     });
 
     let consultaId: string;
@@ -197,6 +201,7 @@ export async function upsertConsulta(
           await tx.consultaServicio.createMany({
             data: validatedData.servicios.map((servicio) => ({
               id: randomUUID(),
+              tenantId,
               consultaId: existingConsulta.id,
               servicioId: servicio.servicioId,
               precioAplicado: servicio.precioAplicado,
@@ -208,6 +213,7 @@ export async function upsertConsulta(
           await tx.consultaProducto.createMany({
             data: validatedData.productos.map((producto) => ({
               id: randomUUID(),
+              tenantId,
               consultaId: existingConsulta.id,
               productoId: producto.productoId,
               cantidad: producto.cantidad,
@@ -221,7 +227,7 @@ export async function upsertConsulta(
       consultaId = randomUUID();
       await prisma.$transaction(async (tx) => {
         await tx.consulta.create({
-          data: {
+          data: await withTenantData({
             id: consultaId,
             citaId: validatedData.citaId,
             fechaConsulta: validatedData.fechaConsulta ?? null,
@@ -235,6 +241,7 @@ export async function upsertConsulta(
               ? {
                   create: validatedData.servicios.map((servicio) => ({
                     id: randomUUID(),
+                    tenantId,
                     servicioId: servicio.servicioId,
                     precioAplicado: servicio.precioAplicado,
                     cantidad: servicio.cantidad,
@@ -245,12 +252,13 @@ export async function upsertConsulta(
               ? {
                   create: validatedData.productos.map((producto) => ({
                     id: randomUUID(),
+                    tenantId,
                     productoId: producto.productoId,
                     cantidad: producto.cantidad,
                   })),
                 }
               : undefined,
-          },
+          }),
         });
 
         // Actualizar el estado de la cita a "atendida"
@@ -285,8 +293,9 @@ export async function finalizarConsulta(
 > {
   try {
     const validatedData = ConsultaSchema.parse(data);
-    const cita = await prisma.cita.findUnique({
-      where: { id: validatedData.citaId },
+    const { tenantId } = await getTenantContext();
+    const cita = await prisma.cita.findFirst({
+      where: await tenantWhere<Prisma.CitaWhereInput>({ id: validatedData.citaId }),
       select: { id: true, pacienteId: true },
     });
 
@@ -326,7 +335,7 @@ export async function finalizarConsulta(
       } else {
         consultaId = randomUUID();
         await tx.consulta.create({
-          data: {
+          data: await withTenantData({
             id: consultaId,
             citaId: validatedData.citaId,
             fechaConsulta: validatedData.fechaConsulta ?? null,
@@ -336,7 +345,7 @@ export async function finalizarConsulta(
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
             total: serviciosTotal,
-          },
+          }),
         });
       }
 
@@ -344,6 +353,7 @@ export async function finalizarConsulta(
         await tx.consultaServicio.createMany({
           data: validatedData.servicios.map((servicio) => ({
             id: randomUUID(),
+            tenantId,
             consultaId: consultaId!,
             servicioId: servicio.servicioId,
             precioAplicado: servicio.precioAplicado,
@@ -355,6 +365,7 @@ export async function finalizarConsulta(
         await tx.consultaProducto.createMany({
           data: validatedData.productos.map((producto) => ({
             id: randomUUID(),
+            tenantId,
             consultaId: consultaId!,
             productoId: producto.productoId,
             cantidad: producto.cantidad,
@@ -460,7 +471,7 @@ export async function finalizarConsulta(
         : serviciosTotal;
 
       const orden = await tx.ordenDeCobro.create({
-        data: {
+        data: await withTenantData({
           id: randomUUID(),
           pacienteId: cita.pacienteId,
           planTratamientoId,
@@ -471,7 +482,7 @@ export async function finalizarConsulta(
             ? `Consulta #${consultaId!.slice(0, 8)} - Cuota ${cuotaSeleccionada?.numero ?? "pendiente"}`
             : `Consulta #${consultaId!.slice(0, 8)} - Servicios`,
           estado: "PENDIENTE",
-        },
+        }),
       });
 
       return { consultaId: consultaId!, ordenId: orden.id, planTratamientoId };
@@ -501,7 +512,7 @@ export async function getServiciosActivos(): Promise<
 > {
   try {
     const servicios = await prisma.servicio.findMany({
-      where: { activo: true },
+      where: await tenantWhere<Prisma.ServicioWhereInput>({ activo: true }),
       select: { id: true, nombre: true, precioBase: true, duracionMin: true },
       orderBy: { nombre: "asc" },
     });
@@ -523,7 +534,7 @@ export async function getProductosActivos(): Promise<
 > {
   try {
     const productos = await prisma.producto.findMany({
-      where: { activo: true },
+      where: await tenantWhere<Prisma.ProductoWhereInput>({ activo: true }),
       select: { id: true, nombre: true, unidad: true, stock: true },
       orderBy: { nombre: "asc" },
     });
@@ -545,8 +556,8 @@ export async function getProductosActivos(): Promise<
  */
 export async function getCitaParaConsulta(citaId: string) {
   try {
-    const cita = await prisma.cita.findUnique({
-      where: { id: citaId },
+    const cita = await prisma.cita.findFirst({
+      where: await tenantWhere<Prisma.CitaWhereInput>({ id: citaId }),
       include: {
         paciente: {
           select: {
