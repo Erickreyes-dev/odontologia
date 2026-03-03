@@ -354,6 +354,7 @@ export async function getSeguimientosPendientes(pacienteId: string): Promise<Seg
       estado: s.estado as SeguimientoEstado,
       nota: s.nota ?? null,
       citaId: s.citaId ?? null,
+      planNombre: s.etapa.plan.nombre,
       etapaNombre: s.etapa.nombre,
       servicioNombre: s.etapa.servicios
         .map((servicio) => servicio.servicio.nombre)

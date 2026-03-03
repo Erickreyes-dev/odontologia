@@ -55,6 +55,7 @@ export const SeguimientoSchema = z.object({
   citaId: z.string().optional().nullable(),
   creadoPorId: z.string().optional().nullable(),
   // Para mostrar en UI
+  planNombre: z.string().optional(),
   etapaNombre: z.string().optional(),
   servicioNombre: z.string().optional(),
   servicios: z.array(
