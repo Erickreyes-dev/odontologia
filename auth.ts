@@ -16,7 +16,7 @@ export interface UsuarioSesion extends JWTPayload {
   User: string;
   Rol: string;
   IdRol: string;
-  IdEmpleado: string;
+  IdEmpleado: string | null;
   Permiso: string[];
   DebeCambiar: boolean;
   Puesto: string;
@@ -42,7 +42,7 @@ export const decrypt = async (token: string): Promise<UsuarioSesion | null> => {
       User: payload.User as string,
       Rol: payload.Rol as string,
       IdRol: payload.IdRol as string,
-      IdEmpleado: payload.IdEmpleado as string,
+      IdEmpleado: (payload.IdEmpleado as string | null) ?? null,
       Permiso: (payload.Permiso as string[]) || [],
       DebeCambiar: payload.DebeCambiar === true || payload.DebeCambiar === "True",
       Puesto: payload.Puesto as string,
@@ -140,7 +140,7 @@ async function authenticateDB(tenantSlug: string, username: string, password: st
       User: user.usuario,
       Rol: user.rol.nombre,
       IdRol: user.rol_id,
-      IdEmpleado: user.empleado_id,
+      IdEmpleado: user.empleado_id ?? null,
       Permiso: permisos,
       DebeCambiar: user.DebeCambiarPassword!,
       Puesto: user.Empleados?.Puesto?.Nombre ?? "",
@@ -180,7 +180,7 @@ async function changePassword(tenantId: string, username: string, newPassword: s
       User: updated.usuario,
       Rol: updated.rol.nombre,
       IdRol: updated.rol_id,
-      IdEmpleado: updated.empleado_id,
+      IdEmpleado: updated.empleado_id ?? null,
       Permiso: permisos,
       DebeCambiar: updated.DebeCambiarPassword!,
       Puesto: updated.Empleados?.Puesto?.Nombre ?? "",

@@ -110,7 +110,7 @@ export function Formulario({
             <FieldLabel>Empleado</FieldLabel>
             <FieldContent>
               <Select
-                value={field.value}
+                value={field.value ?? undefined}
                 onValueChange={field.onChange}
               >
                 <SelectTrigger>
@@ -145,7 +145,7 @@ export function Formulario({
             <FieldLabel>Rol</FieldLabel>
             <FieldContent>
               <Select
-                value={field.value}
+                value={field.value ?? undefined}
                 onValueChange={field.onChange}
               >
                 <SelectTrigger>

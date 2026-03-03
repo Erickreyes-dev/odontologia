@@ -34,9 +34,12 @@ export default async function DashboardAdminPage() {
       {permisos.includes("gestionar_tenants") && (
         <Card>
           <CardHeader>
-            <CardTitle>Crear tenant</CardTitle>
+            <CardTitle>Crear tenant y usuario administrador</CardTitle>
           </CardHeader>
           <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              El administrador del tenant se crea sin empleado interno y con rol AdministradorTenant.
+            </p>
             <CreateTenantForm />
           </CardContent>
         </Card>
@@ -55,7 +58,10 @@ export default async function DashboardAdminPage() {
                   Plan: {t.plan} · Máx usuarios: {t.maxUsuarios} · Estado: {t.activo ? "Activo" : "Inactivo"}
                 </div>
                 <div className="text-muted-foreground">
-                  Usuarios: {t._count.usuarios} · Pacientes: {t._count.pacientes}
+                  Contacto: {t.contactoNombre ?? "N/D"} · {t.contactoCorreo ?? "N/D"}
+                </div>
+                <div className="text-muted-foreground">
+                  Usuarios: {t._count.usuarios} · Roles: {t._count.roles} · Pacientes: {t._count.pacientes}
                 </div>
               </div>
             ))}

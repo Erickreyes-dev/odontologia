@@ -29,7 +29,7 @@ export function NavUser({
         User: string;
         Rol: string;
         IdRol: string;
-        IdEmpleado: string;
+        IdEmpleado: string | null;
 
         Permiso: string[];
 

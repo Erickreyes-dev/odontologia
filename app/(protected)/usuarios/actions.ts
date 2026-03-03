@@ -38,6 +38,10 @@ export async function getUsuarios(): Promise<Usuario[]> {
  */
 export async function createUsuario(data: Usuario): Promise<Usuario> {
   // 1️⃣ Generar contraseña aleatoria de 12 caracteres
+  if (!data.empleado_id) {
+    throw new Error("Debe seleccionar un empleado para crear usuario interno");
+  }
+
   const tempPassword = randomBytes(9).toString("base64").slice(0, 12);
 
   // 2️⃣ Hashear la contraseña temporal
@@ -103,6 +107,9 @@ export async function createUsuario(data: Usuario): Promise<Usuario> {
  * Actualizar un usuario existente
  */
 export async function updateUsuario(data: Usuario): Promise<Usuario> {
+  if (!data.empleado_id) {
+    throw new Error("Debe seleccionar un empleado para actualizar usuario interno");
+  }
   const existing = await prisma.usuarios.findFirst({ where: await tenantWhere<Prisma.UsuariosWhereInput>({ id: data.id }) });
   if (!existing) throw new Error("Usuario no encontrado en la clínica");
 
