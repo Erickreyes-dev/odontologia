@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { Medico, MedicoSchema } from "./schema";
+import { Prisma } from "@/lib/generated/prisma";
+import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 
 /**
  * Obtiene todos los médicos
@@ -10,6 +12,7 @@ import { Medico, MedicoSchema } from "./schema";
 export async function getMedicos(): Promise<Medico[]> {
   try {
     const records = await prisma.medico.findMany({
+      where: await tenantWhere<Prisma.MedicoWhereInput>(),
       include: {
         empleado: true,  // Lo incluimos solo para tener la referencia
         profesion: true,
@@ -52,7 +55,7 @@ export async function getMedicos(): Promise<Medico[]> {
 export async function getMedicosActivos(): Promise<Medico[]> {
   try {
     const records = await prisma.medico.findMany({
-      where: { activo: true },
+      where: await tenantWhere<Prisma.MedicoWhereInput>({ activo: true }),
       include: { empleado: true, profesion: true },
     });
     return records.map(r => ({
@@ -90,8 +93,8 @@ export async function getMedicosActivos(): Promise<Medico[]> {
  */
 export async function getMedicoById(idEmpleado: string): Promise<Medico | null> {
   try {
-    const r = await prisma.medico.findUnique({
-      where: { idEmpleado },
+    const r = await prisma.medico.findFirst({
+      where: await tenantWhere<Prisma.MedicoWhereInput>({ idEmpleado }),
       include: { empleado: true, profesion: true },
     });
     if (!r) return null;
@@ -120,11 +123,11 @@ export async function createMedico(data: Medico): Promise<{ success: true; data:
     });
 
     const r = await prisma.medico.create({
-      data: {
+      data: await withTenantData({
         idEmpleado: validatedData.idEmpleado,
         profesionId: validatedData.profesionId,
         activo: validatedData.activo,
-      },
+      }),
     });
 
     const result = {
@@ -157,8 +160,11 @@ export async function updateMedico(
 
     const validatedData = MedicoSchema.partial().parse(data);
 
+    const existing = await prisma.medico.findFirst({ where: await tenantWhere<Prisma.MedicoWhereInput>({ id }) });
+    if (!existing) return { success: false, error: "Médico no encontrado en la clínica" };
+
     const r = await prisma.medico.update({
-      where: { id },
+      where: { id: existing.id },
       data: {
         ...(validatedData.profesionId && { profesionId: validatedData.profesionId }),
         ...(validatedData.activo !== undefined && { activo: validatedData.activo }),
@@ -193,8 +199,8 @@ export async function deleteMedico(
   try {
     if (!id) return { success: false, error: "ID del medico es requerido" };
 
-    await prisma.medico.delete({
-      where: { id },
+    await prisma.medico.deleteMany({
+      where: await tenantWhere<Prisma.MedicoWhereInput>({ id }),
     });
 
     revalidatePath("/medicos");

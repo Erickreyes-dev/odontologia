@@ -3,10 +3,13 @@
 import { prisma } from "@/lib/prisma"; // Asegúrate de importar correctamente tu cliente de Prisma
 import { randomUUID } from "crypto";
 import { PermisosRol, Rol as RolDTO } from "./schema";
+import { Prisma } from "@/lib/generated/prisma";
+import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 
 export async function getRolesPermisos(): Promise<RolDTO[]> {
   try {
     const roles = await prisma.rol.findMany({
+      where: await tenantWhere<Prisma.RolWhereInput>(),
       include: {
         permisos: {
           include: {
@@ -36,6 +39,7 @@ export async function getRolesPermisos(): Promise<RolDTO[]> {
 export async function getRolesPermisosActivos(): Promise<RolDTO[]> {
   try {
     const roles = await prisma.rol.findMany({
+      where: await tenantWhere<Prisma.RolWhereInput>(),
       include: {
         permisos: {
           include: {
@@ -69,8 +73,11 @@ export async function putRol({ rol }: { rol: RolDTO }): Promise<RolDTO | null> {
   }));
 
   try {
+    const existing = await prisma.rol.findFirst({ where: await tenantWhere<Prisma.RolWhereInput>({ id: rol.id! }) });
+    if (!existing) return null;
+
     const updated = await prisma.rol.update({
-      where: { id: rol.id! },
+      where: { id: existing.id },
       data: {
         nombre: rol.nombre,
         descripcion: rol.descripcion,
@@ -112,8 +119,8 @@ export async function putRol({ rol }: { rol: RolDTO }): Promise<RolDTO | null> {
 
 export async function getRolPermisoById(id: string): Promise<RolDTO | null> {
   try {
-    const rol = await prisma.rol.findUnique({
-      where: { id },
+    const rol = await prisma.rol.findFirst({
+      where: await tenantWhere<Prisma.RolWhereInput>({ id }),
       include: {
         permisos: {
           include: {
@@ -151,7 +158,7 @@ export async function postRol({
 }): Promise<RolDTO | null> {
   try {
     const created = await prisma.rol.create({
-      data: {
+      data: await withTenantData({
         // Generamos un UUID para el rol
         id: randomUUID(),
         nombre: rol.nombre,
@@ -163,7 +170,7 @@ export async function postRol({
             permiso: { connect: { id: p.id } },
           })),
         },
-      },
+      }),
       include: {
         permisos: {
           include: {

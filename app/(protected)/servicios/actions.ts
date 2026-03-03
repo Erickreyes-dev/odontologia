@@ -3,10 +3,13 @@
 import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { Servicio } from "./schema";
+import { Prisma } from "@/lib/generated/prisma";
+import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 
 // Obtener todos los servicios
 export async function getServicios(): Promise<Servicio[]> {
     const servicios = await prisma.servicio.findMany({
+        where: await tenantWhere<Prisma.ServicioWhereInput>(),
         include: {
             medicosServicios: {
                 include: {
@@ -35,8 +38,8 @@ export async function getServicios(): Promise<Servicio[]> {
 
 // Obtener un servicio por ID
 export async function getServicioById(id: string): Promise<Servicio | null> {
-    const s = await prisma.servicio.findUnique({
-        where: { id },
+    const s = await prisma.servicio.findFirst({
+        where: await tenantWhere<Prisma.ServicioWhereInput>({ id }),
         include: { medicosServicios: { include: { medico: { include: { empleado: true } } } } },
     });
     if (!s) return null;
@@ -59,7 +62,7 @@ export async function getServicioById(id: string): Promise<Servicio | null> {
 // Crear un servicio
 export async function postServicio(data: Servicio) {
     const servicio = await prisma.servicio.create({
-        data: {
+        data: await withTenantData({
             id: randomUUID(),
             nombre: data.nombre,
             descripcion: data.descripcion,
@@ -74,7 +77,7 @@ export async function postServicio(data: Servicio) {
                     })),
                 }
                 : undefined,
-        },
+        }),
     });
     return servicio;
 }
@@ -82,8 +85,11 @@ export async function postServicio(data: Servicio) {
 
 // Actualizar un servicio
 export async function putServicio(data: Servicio) {
+    const existing = await prisma.servicio.findFirst({ where: await tenantWhere<Prisma.ServicioWhereInput>({ id: data.id! }) });
+    if (!existing) throw new Error("Servicio no encontrado en la clínica");
+
     const servicio = await prisma.servicio.update({
-        where: { id: data.id! },
+        where: { id: existing.id },
         data: {
             nombre: data.nombre,
             descripcion: data.descripcion,

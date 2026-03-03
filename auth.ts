@@ -9,9 +9,6 @@ import { TSchemaResetPassword, schemaResetPassword } from "./app/(public)/reset-
 import { schemaSignIn, TSchemaSignIn } from './lib/shemas';
 import { prisma } from './lib/prisma';
 
-// ------------------------------
-// CONFIGURACIÓN DE JWT
-// ------------------------------
 const key = new TextEncoder().encode(process.env.AUTH_SECRET!);
 
 export interface UsuarioSesion extends JWTPayload {
@@ -19,23 +16,24 @@ export interface UsuarioSesion extends JWTPayload {
   User: string;
   Rol: string;
   IdRol: string;
-  IdEmpleado: string;
+  IdEmpleado: string | null;
   Permiso: string[];
   DebeCambiar: boolean;
   Puesto: string;
   PuestoId: string;
+  TenantId: string;
+  TenantSlug: string;
+  TenantNombre: string;
 }
 
-// Generar token JWT
 export async function encrypt(payload: UsuarioSesion) {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("6h") // Token válido 6 horas
+    .setExpirationTime("6h")
     .sign(key);
 }
 
-// Verificar token y obtener payload
 export const decrypt = async (token: string): Promise<UsuarioSesion | null> => {
   try {
     const { payload } = await jwtVerify<JWTPayload>(token, key, { algorithms: ["HS256"] });
@@ -44,11 +42,14 @@ export const decrypt = async (token: string): Promise<UsuarioSesion | null> => {
       User: payload.User as string,
       Rol: payload.Rol as string,
       IdRol: payload.IdRol as string,
-      IdEmpleado: payload.IdEmpleado as string,
+      IdEmpleado: (payload.IdEmpleado as string | null) ?? null,
       Permiso: (payload.Permiso as string[]) || [],
       DebeCambiar: payload.DebeCambiar === true || payload.DebeCambiar === "True",
       Puesto: payload.Puesto as string,
       PuestoId: payload.PuestoId as string,
+      TenantId: payload.TenantId as string,
+      TenantSlug: payload.TenantSlug as string,
+      TenantNombre: payload.TenantNombre as string,
       iss: payload.iss as string,
       aud: payload.aud as string,
     };
@@ -58,18 +59,12 @@ export const decrypt = async (token: string): Promise<UsuarioSesion | null> => {
   }
 };
 
-// ------------------------------
-// TIPOS GENERALES
-// ------------------------------
 export interface LoginResult {
   success?: string;
   error?: string;
   redirect?: string;
 }
 
-// ------------------------------
-// GESTIÓN DE COOKIE DE SESIÓN
-// ------------------------------
 const setSessionCookie = (token: string) => {
   const expires = new Date(Date.now() + 6 * 60 * 60 * 1000);
   cookies().set("session", token, { expires, httpOnly: true, path: "/" });
@@ -89,16 +84,13 @@ export const signOut = async () => {
   cookies().delete("session");
 };
 
-// ------------------------------
-// LOGIN / RESET PASSWORD
-// ------------------------------
 export const login = async (credentials: TSchemaSignIn, redirect: string): Promise<LoginResult> => {
   const parsed = schemaSignIn.safeParse(credentials);
-  if (!parsed.success) return { error: "Usuario o contraseña inválidos" };
+  if (!parsed.success) return { error: "Datos de acceso inválidos" };
 
-  const { usuario, contrasena } = parsed.data;
-  const token = await authenticateDB(usuario, contrasena);
-  if (!token) return { error: "Usuario o contraseña inválidos" };
+  const { tenantSlug, usuario, contrasena } = parsed.data;
+  const token = await authenticateDB(tenantSlug, usuario, contrasena);
+  if (!token) return { error: "Clínica, usuario o contraseña inválidos" };
 
   setSessionCookie(token);
   return { success: "Login OK", redirect };
@@ -108,31 +100,38 @@ export const resetPassword = async (credentials: TSchemaResetPassword, username:
   const parsed = schemaResetPassword.safeParse(credentials);
   if (!parsed.success) return { error: "Error al cambiar la contraseña" };
 
-  const token = await changePassword(username, parsed.data.confirmar);
+  const session = await getSession();
+  if (!session) return { error: "Sesión no válida" };
+
+  const token = await changePassword(session.TenantId, username, parsed.data.confirmar);
   if (!token) return { error: "Error al cambiar la contraseña" };
 
   setSessionCookie(token);
   return { success: "Contraseña cambiada con éxito" };
 };
 
-// ------------------------------
-// AUTENTICACIÓN CON BASE DE DATOS (Prisma)
-// ------------------------------
 const usuarioWithRolArgs = Prisma.validator<Prisma.UsuariosDefaultArgs>()({
   include: {
     rol: { include: { permisos: { include: { permiso: true } } } },
     Empleados: { include: { Puesto: true } },
+    tenant: true,
   },
 });
 type UsuarioConRol = Prisma.UsuariosGetPayload<typeof usuarioWithRolArgs>;
 
-async function authenticateDB(username: string, password: string): Promise<string | null> {
+async function authenticateDB(tenantSlug: string, username: string, password: string): Promise<string | null> {
   try {
+    const tenant = await prisma.tenant.findUnique({
+      where: { slug: tenantSlug },
+    });
+
+    if (!tenant || !tenant.activo) return null;
+
     const user: UsuarioConRol | null = await prisma.usuarios.findFirst({
-      where: { usuario: username },
+      where: { usuario: username, tenantId: tenant.id, activo: true },
       include: usuarioWithRolArgs.include,
     });
-    if (!user || !(await bcrypt.compare(password, user.contrasena))) return null;
+    if (!user || !user.tenant || !user.tenantId || !(await bcrypt.compare(password, user.contrasena))) return null;
 
     const permisos = user.rol.permisos.map(rp => rp.permiso.nombre);
 
@@ -141,13 +140,16 @@ async function authenticateDB(username: string, password: string): Promise<strin
       User: user.usuario,
       Rol: user.rol.nombre,
       IdRol: user.rol_id,
-      IdEmpleado: user.empleado_id,
+      IdEmpleado: user.empleado_id ?? null,
       Permiso: permisos,
       DebeCambiar: user.DebeCambiarPassword!,
       Puesto: user.Empleados?.Puesto?.Nombre ?? "",
       PuestoId: user.Empleados?.puesto_id ?? "",
-      iss: "your-issuer",
-      aud: "your-audience",
+      TenantId: user.tenantId ?? "",
+      TenantSlug: user.tenant?.slug ?? "",
+      TenantNombre: user.tenant?.nombre ?? "",
+      iss: "odontologia-saas",
+      aud: "odontologia-clients",
     };
 
     return encrypt(payload);
@@ -157,16 +159,13 @@ async function authenticateDB(username: string, password: string): Promise<strin
   }
 }
 
-// ------------------------------
-// CAMBIO DE CONTRASEÑA
-// ------------------------------
-async function changePassword(username: string, newPassword: string): Promise<string | null> {
+async function changePassword(tenantId: string, username: string, newPassword: string): Promise<string | null> {
   try {
     const user = await prisma.usuarios.findFirst({
-      where: { usuario: username },
+      where: { usuario: username, tenantId },
       include: usuarioWithRolArgs.include,
     });
-    if (!user) return null;
+    if (!user || !user.tenant || !user.tenantId) return null;
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     const updated = await prisma.usuarios.update({
@@ -181,13 +180,16 @@ async function changePassword(username: string, newPassword: string): Promise<st
       User: updated.usuario,
       Rol: updated.rol.nombre,
       IdRol: updated.rol_id,
-      IdEmpleado: updated.empleado_id,
+      IdEmpleado: updated.empleado_id ?? null,
       Permiso: permisos,
       DebeCambiar: updated.DebeCambiarPassword!,
       Puesto: updated.Empleados?.Puesto?.Nombre ?? "",
       PuestoId: updated.Empleados?.puesto_id ?? "",
-      iss: "your-issuer",
-      aud: "your-audience",
+      TenantId: updated.tenantId ?? "",
+      TenantSlug: updated.tenant?.slug ?? "",
+      TenantNombre: updated.tenant?.nombre ?? "",
+      iss: "odontologia-saas",
+      aud: "odontologia-clients",
     };
 
     return encrypt(payload);

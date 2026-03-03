@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { Cita, CitaSchema } from "./schema";
 import { paginate } from "@/app/type";
 import { Prisma } from "@/lib/generated/prisma";
+import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 
 /**
  * Obtiene todas las citas con paginacion
@@ -23,7 +24,7 @@ export async function getCitas({
   to?: string;
 }) {
   try {
-    const where = buildFechaRangeFilter(from, to);
+    const where = await tenantWhere<Prisma.CitaWhereInput>(buildFechaRangeFilter(from, to));
     const result = await paginate<any, Prisma.CitaWhereInput>({
       model: prisma.cita,
       page,
@@ -134,12 +135,12 @@ export async function getCitasPorRango({
 }): Promise<Cita[]> {
   try {
     const records = await prisma.cita.findMany({
-      where: {
+      where: await tenantWhere<Prisma.CitaWhereInput>({
         fechaHora: {
           gte: from,
           lte: to,
         },
-      },
+      }),
       orderBy: { fechaHora: "asc" },
       include: {
         paciente: {
@@ -195,7 +196,7 @@ export async function getCitasPorRango({
 export async function getCitasByPaciente(pacienteId: string): Promise<Cita[]> {
   try {
     const records = await prisma.cita.findMany({
-      where: { pacienteId },
+      where: await tenantWhere<Prisma.CitaWhereInput>({ pacienteId }),
       orderBy: { fechaHora: "desc" },
       include: {
         paciente: {
@@ -250,8 +251,8 @@ export async function getCitasByPaciente(pacienteId: string): Promise<Cita[]> {
  */
 export async function getCitaById(id: string): Promise<Cita | null> {
   try {
-    const r = await prisma.cita.findUnique({
-      where: { id },
+    const r = await prisma.cita.findFirst({
+      where: await tenantWhere<Prisma.CitaWhereInput>({ id }),
       include: {
         paciente: {
           select: {
@@ -316,7 +317,7 @@ export async function createCita(
 
     const id = randomUUID();
     const r = await prisma.cita.create({
-      data: {
+      data: await withTenantData({
         id: id,
         pacienteId: validatedData.pacienteId,
         medicoId: validatedData.medicoId,
@@ -325,7 +326,7 @@ export async function createCita(
         estado: validatedData.estado,
         motivo: validatedData.motivo,
         observacion: validatedData.observacion,
-      },
+      }),
     });
 
     const result = {
@@ -365,8 +366,11 @@ export async function updateCita(
 
     const validatedData = CitaSchema.partial().parse(data);
 
+    const existing = await prisma.cita.findFirst({ where: await tenantWhere<Prisma.CitaWhereInput>({ id }) });
+    if (!existing) return { success: false, error: "Cita no encontrada en la clínica" };
+
     const r = await prisma.cita.update({
-      where: { id },
+      where: { id: existing.id },
       data: {
         ...(validatedData.pacienteId && { pacienteId: validatedData.pacienteId }),
         ...(validatedData.medicoId && { medicoId: validatedData.medicoId }),
@@ -413,8 +417,8 @@ export async function deleteCita(
       return { success: false, error: "ID de la cita es requerido" };
     }
 
-    await prisma.cita.delete({
-      where: { id },
+    await prisma.cita.deleteMany({
+      where: await tenantWhere<Prisma.CitaWhereInput>({ id }),
     });
 
     revalidatePath("/citas");
@@ -441,8 +445,11 @@ export async function cambiarEstadoCita(
       return { success: false, error: "ID de la cita es requerido" };
     }
 
+    const existing = await prisma.cita.findFirst({ where: await tenantWhere<Prisma.CitaWhereInput>({ id }) });
+    if (!existing) return { success: false, error: "Cita no encontrada en la clínica" };
+
     await prisma.cita.update({
-      where: { id },
+      where: { id: existing.id },
       data: { estado },
     });
 

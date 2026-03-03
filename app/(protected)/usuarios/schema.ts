@@ -4,7 +4,7 @@ import { z } from "zod";
 export const UsuarioSchema = z.object({
   id: z.string().optional(),
   usuario: z.string().min(3, "El nombre de usuario debe tener al menos 3 caracteres"),
-  empleado_id: z.string().uuid("Empleado ID debe ser un UUID válido"),
+  empleado_id: z.string().uuid("Empleado ID debe ser un UUID válido").nullable().optional(),
   password: z.string().optional(),
   debeCambiarPassword: z.boolean().optional(),
   rol: z.string().optional(),

@@ -4,13 +4,15 @@ import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { Puesto, PuestoSchema } from './schema';
+import { Prisma } from '@/lib/generated/prisma';
+import { tenantWhere, withTenantData } from '@/lib/tenant-query';
 
 /**
  * Obtiene todos los puestos
  */
 export async function getPuestos(): Promise<Puesto[]> {
   try {
-    const records = await prisma.puesto.findMany();
+    const records = await prisma.puesto.findMany({ where: await tenantWhere<Prisma.PuestoWhereInput>() });
     return records.map(r => ({
       id: r.Id,
       nombre: r.Nombre,
@@ -28,7 +30,7 @@ export async function getPuestos(): Promise<Puesto[]> {
  */
 export async function getPuestosActivas(): Promise<Puesto[]> {
   try {
-    const records = await prisma.puesto.findMany({ where: { Activo: true } });
+    const records = await prisma.puesto.findMany({ where: await tenantWhere<Prisma.PuestoWhereInput>({ Activo: true }) });
     return records.map(r => ({
       id: r.Id,
       nombre: r.Nombre,
@@ -51,8 +53,8 @@ export async function deletePuesto(id: string): Promise<{ success: true } | { su
       return { success: false, error: "ID del puesto es requerido" };
     }
 
-    await prisma.puesto.delete({
-      where: { Id: id },
+    await prisma.puesto.deleteMany({
+      where: await tenantWhere<Prisma.PuestoWhereInput>({ Id: id }),
     });
 
     // Revalidar la página de puestos
@@ -73,7 +75,7 @@ export async function deletePuesto(id: string): Promise<{ success: true } | { su
  */
 export async function getPuestoById(id: string): Promise<Puesto | null> {
   try {
-    const r = await prisma.puesto.findUnique({ where: { Id: id } });
+    const r = await prisma.puesto.findFirst({ where: await tenantWhere<Prisma.PuestoWhereInput>({ Id: id }) });
     if (!r) return null;
     return {
       id: r.Id,
@@ -100,12 +102,12 @@ export async function createPuesto(data: Puesto): Promise<{ success: true; data:
 
     const id = randomUUID();
     const r = await prisma.puesto.create({
-      data: {
+      data: await withTenantData({
         Id: id,
         Nombre: validatedData.nombre,
         Descripcion: validatedData.descripcion,
         Activo: validatedData.activo,
-      },
+      }),
     });
     
     const result = {
@@ -140,8 +142,13 @@ export async function updatePuesto(id: string, data: Partial<Puesto>): Promise<{
     // Validar datos con Zod (permitir campos parciales)
     const validatedData = PuestoSchema.partial().parse(data);
 
+    const existing = await prisma.puesto.findFirst({ where: await tenantWhere<Prisma.PuestoWhereInput>({ Id: id }) });
+    if (!existing) {
+      return { success: false, error: "Registro no encontrado en la clínica" };
+    }
+
     const r = await prisma.puesto.update({
-      where: { Id: id },
+      where: { Id: existing.Id },
       data: {
         ...(validatedData.nombre && { Nombre: validatedData.nombre }),
         ...(validatedData.descripcion !== undefined && { Descripcion: validatedData.descripcion }),

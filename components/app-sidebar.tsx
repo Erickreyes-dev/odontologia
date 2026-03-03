@@ -74,6 +74,12 @@ const items = [
     icon: LayoutDashboard,
     permiso: "ver_pagos",
   },
+  {
+    title: "Dashboard Admin",
+    url: "/dashboard-admin",
+    icon: ShieldPlus,
+    permiso: "ver_dashboard_admin",
+  },
 
   {
     title: "Seguros",
