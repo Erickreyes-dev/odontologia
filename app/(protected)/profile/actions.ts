@@ -2,52 +2,76 @@
 
 import { getSession } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { Employee } from "./type"; // Asegúrate de que este tipo tenga los campos correctos
+import { Employee } from "./type";
 import { Prisma } from "@/lib/generated/prisma";
 import { tenantWhere } from "@/lib/tenant-query";
 
 /**
- * Obtiene el perfil del empleado autenticado.
+ * Obtiene el perfil del usuario autenticado.
+ * Soporta usuarios con empleado asociado y usuarios admins globales sin empleado.
  */
 export async function getProfile(): Promise<Employee | null> {
   try {
     const session = await getSession();
-    const idEmpleado = session?.IdEmpleado;
-    if (!idEmpleado) throw new Error("Empleado no autenticado");
+    if (!session?.IdUser) throw new Error("Usuario no autenticado");
 
-    const e = await prisma.empleados.findFirst({
-      where: await tenantWhere<Prisma.EmpleadosWhereInput>({ id: idEmpleado }),
+    const usuario = await prisma.usuarios.findFirst({
+      where: await tenantWhere<Prisma.UsuariosWhereInput>({ id: session.IdUser }),
       include: {
-        Usuarios: true,
-        Puesto: true,
+        Empleados: {
+          include: {
+            Puesto: true,
+          },
+        },
       },
     });
 
-    if (!e) throw new Error("Empleado no encontrado");
+    if (!usuario) throw new Error("Usuario no encontrado");
+
+    if (usuario.Empleados) {
+      const e = usuario.Empleados;
+      return {
+        id: e.id,
+        identidad: e.identidad,
+        fechaIngreso: e.fechaIngreso ?? null,
+        nombre: e.nombre,
+        apellido: e.apellido,
+        correo: e.correo,
+        fechaNacimiento: e.FechaNacimiento ?? null,
+        vacaciones: e.Vacaciones,
+        genero: e.genero || "No especificado",
+        activo: e.activo,
+        usuario: usuario.usuario,
+        usuario_id: usuario.id,
+        puesto_id: e.puesto_id,
+        puesto: e.Puesto?.Nombre ?? "Sin Puesto",
+        telefono: e.telefono || "No especificado",
+        createAt: e.createAt ?? new Date(0),
+        updateAt: e.updateAt ?? new Date(0),
+      };
+    }
 
     return {
-      id: e.id,
-      identidad: e.identidad,
-      fechaIngreso: e.fechaIngreso  ?? new Date(0) ,
-      nombre: e.nombre,
-      apellido: e.apellido,
-      correo: e.correo,
-      fechaNacimiento: e.FechaNacimiento ?? new Date(0),
-      vacaciones: e.Vacaciones,
-      genero: e.genero || "No especificado",
-      activo: e.activo,
-      usuario: e.Usuarios?.usuario ?? "Sin usuario",
-      usuario_id: e.Usuarios?.id ?? "",
-      
-      puesto_id: e.puesto_id,
-      puesto: e.Puesto?.Nombre ?? "Sin Puesto",
-      telefono: e.telefono || "No especificado",
-      createAt: e.createAt ?? new Date(0),
-      updateAt: e.updateAt ?? new Date(0),
+      id: usuario.id,
+      identidad: "No aplica",
+      fechaIngreso: null,
+      nombre: session.User,
+      apellido: "",
+      correo: "No especificado",
+      fechaNacimiento: null,
+      vacaciones: 0,
+      genero: "No especificado",
+      activo: usuario.activo,
+      usuario: usuario.usuario,
+      usuario_id: usuario.id,
+      puesto_id: "",
+      puesto: session.Rol || "Sin puesto",
+      telefono: "No especificado",
+      createAt: usuario.createAt ?? new Date(0),
+      updateAt: usuario.updateAt ?? new Date(0),
     };
   } catch (error) {
     console.error("Error al obtener el perfil:", error);
     return null;
   }
 }
-
