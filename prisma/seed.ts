@@ -115,6 +115,7 @@ async function main() {
     contactoCorreo: "admin@demo.local",
   });
 
+  
   const tenantPlatform = await ensureTenant({
     nombre: "Plataforma SaaS",
     slug: "platform",
