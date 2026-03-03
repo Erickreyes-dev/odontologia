@@ -3,6 +3,7 @@ import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import { CalendarPlus } from "lucide-react";
 import { CitaFormulario } from "../components/Form";
+import { getSeguimientoContextoParaCita } from "../actions";
 import { getPacientesActivos } from "../../pacientes/actions";
 import { getMedicosActivos } from "../../medicos/actions";
 import { getConsultoriosActios } from "../../consultorios/actions";
@@ -10,7 +11,7 @@ import { getConsultoriosActios } from "../../consultorios/actions";
 export default async function CreateCitaPage({
   searchParams,
 }: {
-  searchParams: { pacienteId?: string };
+  searchParams: { pacienteId?: string; seguimientoId?: string };
 }) {
   const permisos = await getSessionPermisos();
 
@@ -18,20 +19,26 @@ export default async function CreateCitaPage({
     return <NoAcceso />;
   }
 
+  const seguimientoContexto = searchParams.seguimientoId
+    ? await getSeguimientoContextoParaCita(searchParams.seguimientoId)
+    : null;
+
   const [pacientes, medicos, consultorios] = await Promise.all([
     getPacientesActivos(),
     getMedicosActivos(),
     getConsultoriosActios(),
   ]);
 
+  const pacienteId = seguimientoContexto?.pacienteId || searchParams.pacienteId || "";
+
   const initialData = {
     id: "",
-    pacienteId: searchParams.pacienteId || "",
+    pacienteId,
     medicoId: "",
     consultorioId: "",
     fechaHora: new Date(),
     estado: "programada",
-    motivo: "",
+    motivo: seguimientoContexto?.motivo || "",
     observacion: "",
   };
 
@@ -48,7 +55,7 @@ export default async function CreateCitaPage({
         pacientes={pacientes}
         medicos={medicos}
         consultorios={consultorios}
-        defaultPacienteId={searchParams.pacienteId}
+        defaultPacienteId={pacienteId}
       />
     </div>
   );

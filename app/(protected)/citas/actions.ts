@@ -303,6 +303,45 @@ export async function getCitaById(id: string): Promise<Cita | null> {
   }
 }
 
+
+export async function getSeguimientoContextoParaCita(seguimientoId: string): Promise<
+  | {
+      id: string;
+      pacienteId: string;
+      motivo: string;
+    }
+  | null
+> {
+  try {
+    const seguimiento = await prisma.seguimiento.findFirst({
+      where: await tenantWhere<Prisma.SeguimientoWhereInput>({ id: seguimientoId, estado: "PENDIENTE" }),
+      include: {
+        etapa: {
+          include: {
+            plan: true,
+            servicios: { include: { servicio: true } },
+          },
+        },
+      },
+    });
+
+    if (!seguimiento) return null;
+
+    const servicios = seguimiento.etapa.servicios
+      .map((item) => item.servicio.nombre)
+      .join(", ");
+
+    return {
+      id: seguimiento.id,
+      pacienteId: seguimiento.pacienteId,
+      motivo: `Seguimiento ${seguimiento.etapa.nombre} (${servicios || "Sin servicios"}) - Plan ${seguimiento.etapa.plan.nombre}`,
+    };
+  } catch (error) {
+    console.error(`Error al obtener seguimiento ${seguimientoId}:`, error);
+    return null;
+  }
+}
+
 /**
  * Crea una nueva cita
  */

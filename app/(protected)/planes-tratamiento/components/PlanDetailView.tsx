@@ -363,7 +363,7 @@ export function PlanDetailView({ plan }: PlanDetailViewProps) {
                                       >
                                         <Pencil className="h-4 w-4" />
                                       </Button>
-                                      <Link href={`/citas/create?pacienteId=${plan.pacienteId}`}>
+                                      <Link href={`/citas/create?pacienteId=${plan.pacienteId}&seguimientoId=${seguimiento.id}`}>
                                         <Button variant="ghost" size="sm">
                                           <CalendarPlus className="h-4 w-4" />
                                         </Button>
@@ -418,7 +418,7 @@ export function PlanDetailView({ plan }: PlanDetailViewProps) {
                                   >
                                     Actualizar
                                   </Button>
-                                  <Link href={`/citas/create?pacienteId=${plan.pacienteId}`}>
+                                  <Link href={`/citas/create?pacienteId=${plan.pacienteId}&seguimientoId=${seguimiento.id}`}>
                                     <Button variant="outline" size="sm">
                                       <CalendarPlus className="h-4 w-4 mr-1" />
                                       Cita
