@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { Cotizacion, CotizacionSchema } from "./schema";
 import { Prisma } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
+import { getTenantContext } from "@/lib/tenant";
 
 /**
  * Obtiene todas las cotizaciones
@@ -147,6 +148,7 @@ export async function createCotizacion(
   try {
     const validatedData = CotizacionSchema.parse(data);
     const id = randomUUID();
+    const { tenantId } = await getTenantContext();
 
     // Calcular el total basado en los detalles
     const total =
@@ -167,6 +169,7 @@ export async function createCotizacion(
           create:
             validatedData.detalles?.map((d) => ({
               id: randomUUID(),
+              tenantId,
               servicioId: d.servicioId,
               precioUnitario: d.precioUnitario,
               cantidad: d.cantidad,
@@ -229,6 +232,8 @@ export async function updateCotizacion(
       return { success: false, error: "ID de la cotización es requerido" };
     }
 
+    const { tenantId } = await getTenantContext();
+
     // Calcular el total basado en los detalles
     const total =
       data.detalles?.reduce(
@@ -257,6 +262,7 @@ export async function updateCotizacion(
           create:
             data.detalles?.map((d) => ({
               id: randomUUID(),
+              tenantId,
               servicioId: d.servicioId,
               precioUnitario: d.precioUnitario,
               cantidad: d.cantidad,
