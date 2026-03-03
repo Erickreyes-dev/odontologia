@@ -78,6 +78,7 @@ interface ConsultaFormProps {
   productos: { id: string; nombre: string; unidad: string | null; stock: number }[];
   seguimientos: {
     id: string;
+    planNombre?: string;
     etapaNombre?: string;
     servicioNombre?: string;
     fechaProgramada: Date;
@@ -164,6 +165,11 @@ export function ConsultaForm({
     : totalServicios;
 
   const hasServiciosPlan = Boolean(seguimientoId);
+
+  const seguimientoSeleccionado = useMemo(() => {
+    if (!seguimientoId) return null;
+    return seguimientos.find((s) => s.id === seguimientoId) ?? null;
+  }, [seguimientoId, seguimientos]);
 
   const applySeguimientoServicios = useCallback(
     (seguimientoId: string | null) => {
@@ -612,13 +618,17 @@ export function ConsultaForm({
                       <SelectItem value="none">Sin seguimiento</SelectItem>
                       {seguimientos.map((seguimiento) => (
                         <SelectItem key={seguimiento.id} value={seguimiento.id}>
-                          {seguimiento.etapaNombre || "Etapa"} -{" "}
-                          {seguimiento.servicioNombre || "Servicios"}
+                          {(seguimiento.planNombre || "Plan")} · {(seguimiento.etapaNombre || "Etapa")}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </FieldContent>
+                {seguimientoSeleccionado ? (
+                  <FieldDescription>
+                    Plan: {seguimientoSeleccionado.planNombre || "Plan"} · Etapa: {seguimientoSeleccionado.etapaNombre || "Etapa"}
+                  </FieldDescription>
+                ) : null}
               </Field>
 
               <Field>

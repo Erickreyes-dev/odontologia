@@ -19,25 +19,39 @@ const CENTRAL_AMERICA_OFFSET_MS = 6 * 60 * 60 * 1000;
 const toCentralAmericaTime = (date?: Date | null) =>
   date ? new Date(date.getTime() - CENTRAL_AMERICA_OFFSET_MS) : date;
 
-async function calcularTotalPlan(planTratamientoId: string): Promise<number> {
+async function calcularMontoPendientePlan(planTratamientoId: string): Promise<number> {
   const plan = await prisma.planTratamiento.findUnique({
     where: { id: planTratamientoId },
     include: {
       etapas: {
         include: { servicios: { include: { servicio: true } } },
       },
+      ordenesCobro: {
+        where: {
+          estado: "PAGADA",
+          financiamientoId: null,
+        },
+        select: { monto: true },
+      },
     },
   });
 
   if (!plan) return 0;
 
-  return plan.etapas.reduce((acc, etapa) => {
+  const totalPlan = plan.etapas.reduce((acc, etapa) => {
     const subtotal = etapa.servicios.reduce((sum, servicio) => {
       const precio = Number(servicio.precioAplicado ?? servicio.servicio.precioBase);
       return sum + precio * servicio.cantidad;
     }, 0);
     return acc + subtotal;
   }, 0);
+
+  const totalPagadoSinFinanciamiento = plan.ordenesCobro.reduce(
+    (acc, orden) => acc + Number(orden.monto),
+    0
+  );
+
+  return Math.max(totalPlan - totalPagadoSinFinanciamiento, 0);
 }
 
 /**
@@ -51,7 +65,7 @@ export async function createFinanciamiento(
 > {
   try {
     const montoPlan =
-      data.planTratamientoId ? await calcularTotalPlan(data.planTratamientoId) : null;
+      data.planTratamientoId ? await calcularMontoPendientePlan(data.planTratamientoId) : null;
     const validated = CreateFinanciamientoSchema.parse({
       ...data,
       montoTotal: montoPlan && montoPlan > 0 ? montoPlan : data.montoTotal,
@@ -695,6 +709,13 @@ export async function getPlanesActivos(): Promise<
             },
           },
         },
+        ordenesCobro: {
+          where: {
+            estado: "PAGADA",
+            financiamientoId: null,
+          },
+          select: { monto: true },
+        },
       },
       orderBy: { nombre: "asc" },
     });
@@ -703,13 +724,17 @@ export async function getPlanesActivos(): Promise<
       nombre: p.nombre,
       pacienteId: p.paciente.id,
       pacienteNombre: `${p.paciente.nombre} ${p.paciente.apellido}`,
-      montoTotal: p.etapas.reduce((acc, etapa) => {
-        const subtotal = etapa.servicios.reduce((sum, servicio) => {
-          const precio = Number(servicio.precioAplicado ?? servicio.servicio.precioBase);
-          return sum + precio * servicio.cantidad;
-        }, 0);
-        return acc + subtotal;
-      }, 0),
+      montoTotal: Math.max(
+        p.etapas.reduce((acc, etapa) => {
+          const subtotal = etapa.servicios.reduce((sum, servicio) => {
+            const precio = Number(servicio.precioAplicado ?? servicio.servicio.precioBase);
+            return sum + precio * servicio.cantidad;
+          }, 0);
+          return acc + subtotal;
+        }, 0) -
+          p.ordenesCobro.reduce((acc, orden) => acc + Number(orden.monto), 0),
+        0
+      ),
     }));
   } catch (error) {
     console.error("Error al obtener planes:", error);
