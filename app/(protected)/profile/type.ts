@@ -1,5 +1,3 @@
-
-
 export interface Employee {
   id: string;
   identidad: string;
@@ -8,11 +6,10 @@ export interface Employee {
   apellido: string;
   correo: string;
 
-  fechaNacimiento: Date;
-  fechaIngreso: Date;
+  fechaNacimiento: Date | null;
+  fechaIngreso: Date | null;
 
   telefono: string;
-
 
   vacaciones: number;
   genero: string;
