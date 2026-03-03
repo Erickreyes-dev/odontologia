@@ -1,6 +1,7 @@
 // app/layout.tsx
 import { getSession } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
+import { AppIntroTour } from "@/components/tour/app-intro-tour";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeProvider } from "next-themes";
 import { redirect } from "next/navigation";
@@ -22,8 +23,9 @@ export default async function Layout({ children }: { children: React.ReactNode }
 
       <SidebarProvider>
         <AppSidebar />
-        <main className="w-full p-2">
-          <SidebarTrigger />
+        <main className="w-full p-2" data-tour="main-content">
+          <SidebarTrigger data-tour="sidebar-trigger" />
+          <AppIntroTour />
           {children}
         </main>
       </SidebarProvider>

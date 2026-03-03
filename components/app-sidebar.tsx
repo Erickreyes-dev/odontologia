@@ -168,16 +168,16 @@ export async function AppSidebar() {
   const showMantenimiento = filteredMantenimientoItems.length > 0;
 
   return (
-    <Sidebar collapsible="icon" variant="floating">
+    <Sidebar collapsible="icon" variant="floating" data-tour="sidebar">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="flex justify-between items-center">
+          <SidebarGroupLabel className="flex justify-between items-center" data-tour="workspace-label">
             <span>{usuario?.TenantSlug || "Sistema Autogestión MP"}</span>
             <ModeToggle></ModeToggle>
           </SidebarGroupLabel>
 
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu data-tour="main-menu">
               {filteredItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
@@ -190,7 +190,7 @@ export async function AppSidebar() {
               ))}
 
               {showMantenimiento && (
-                <Collapsible className="group/collapsible">
+                <Collapsible className="group/collapsible" data-tour="maintenance-group">
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton>

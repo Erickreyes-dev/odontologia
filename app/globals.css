@@ -128,3 +128,11 @@ body {
     color: hsl(var(--card-foreground));
   }
 }
+.tour-highlight {
+  position: relative;
+  z-index: 55 !important;
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 3px;
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0 6px hsl(var(--primary) / 0.2);
+}
