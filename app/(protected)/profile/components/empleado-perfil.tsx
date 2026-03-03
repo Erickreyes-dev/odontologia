@@ -14,7 +14,7 @@ interface EmployeeProfileProps {
 
 export default function EmployeeProfile({ employee }: EmployeeProfileProps) {
     const initials = `${employee.nombre?.charAt(0) ?? ""}${employee.apellido?.charAt(0) ?? ""}`
-    const yearsOfService = calculateServiceDuration(employee.fechaIngreso)
+    const yearsOfService = employee.fechaIngreso ? calculateServiceDuration(employee.fechaIngreso) : { years: 0, months: 0, days: 0 }
 
     return (
         <div className="mx-auto">
@@ -63,7 +63,7 @@ export default function EmployeeProfile({ employee }: EmployeeProfileProps) {
                                 <dd>{employee.usuario ?? "Sin usuario"}</dd>
 
                                 <dt className="font-medium text-muted-foreground">Edad:</dt>
-                                <dd>{calcularEdad(employee.fechaNacimiento ?? new Date())} años</dd>
+                                <dd>{employee.fechaNacimiento ? `${calcularEdad(employee.fechaNacimiento)} años` : "No especificado"}</dd>
 
                                 <dt className="font-medium text-muted-foreground">Género:</dt>
                                 <dd>{employee.genero ?? "No especificado"}</dd>

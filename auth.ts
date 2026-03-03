@@ -89,10 +89,10 @@ export const login = async (credentials: TSchemaSignIn, redirect: string): Promi
   if (!parsed.success) return { error: "Datos de acceso inválidos" };
 
   const { tenantSlug, usuario, contrasena } = parsed.data;
-  const token = await authenticateDB(tenantSlug, usuario, contrasena);
-  if (!token) return { error: "Clínica, usuario o contraseña inválidos" };
+  const result = await authenticateDB(tenantSlug, usuario, contrasena);
+  if (!result.token) return { error: result.error ?? "Clínica, usuario o contraseña inválidos" };
 
-  setSessionCookie(token);
+  setSessionCookie(result.token);
   return { success: "Login OK", redirect };
 };
 
@@ -119,19 +119,31 @@ const usuarioWithRolArgs = Prisma.validator<Prisma.UsuariosDefaultArgs>()({
 });
 type UsuarioConRol = Prisma.UsuariosGetPayload<typeof usuarioWithRolArgs>;
 
-async function authenticateDB(tenantSlug: string, username: string, password: string): Promise<string | null> {
+async function authenticateDB(
+  tenantSlug: string,
+  username: string,
+  password: string
+): Promise<{ token: string | null; error?: string }> {
   try {
     const tenant = await prisma.tenant.findUnique({
       where: { slug: tenantSlug },
     });
 
-    if (!tenant || !tenant.activo) return null;
+    if (!tenant) {
+      return { token: null, error: "Clínica, usuario o contraseña inválidos" };
+    }
+
+    if (!tenant.activo) {
+      return { token: null, error: "Este tenant está inhabilitado. Contacte al administrador del sistema." };
+    }
 
     const user: UsuarioConRol | null = await prisma.usuarios.findFirst({
       where: { usuario: username, tenantId: tenant.id, activo: true },
       include: usuarioWithRolArgs.include,
     });
-    if (!user || !user.tenant || !user.tenantId || !(await bcrypt.compare(password, user.contrasena))) return null;
+    if (!user || !user.tenant || !user.tenantId || !(await bcrypt.compare(password, user.contrasena))) {
+      return { token: null, error: "Clínica, usuario o contraseña inválidos" };
+    }
 
     const permisos = user.rol.permisos.map(rp => rp.permiso.nombre);
 
@@ -152,10 +164,10 @@ async function authenticateDB(tenantSlug: string, username: string, password: st
       aud: "odontologia-clients",
     };
 
-    return encrypt(payload);
+    return { token: await encrypt(payload) };
   } catch (err) {
     console.error("Error en authenticateDB:", err);
-    return null;
+    return { token: null, error: "No se pudo iniciar sesión" };
   }
 }
 

@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, ShieldCheck } from "lucide-react";
 import { getAdminDashboardData } from "./actions";
 import CreateTenantForm from "./components/create-tenant-form";
+import TenantStatusToggle from "./components/tenant-status-toggle";
+import CreatePlatformAdminForm from "./components/create-platform-admin-form";
 
 export default async function DashboardAdminPage() {
   const permisos = await getSessionPermisos();
@@ -45,6 +47,21 @@ export default async function DashboardAdminPage() {
         </Card>
       )}
 
+
+
+      {permisos.includes("gestionar_tenants") && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Crear más administradores dueños del sistema</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              Estos usuarios se crean con rol OwnerPlatform para administrar todos los tenants.
+            </p>
+            <CreatePlatformAdminForm />
+          </CardContent>
+        </Card>
+      )}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Building2 size={16} /> Últimos tenants</CardTitle>
@@ -63,6 +80,7 @@ export default async function DashboardAdminPage() {
                 <div className="text-muted-foreground">
                   Usuarios: {t._count.usuarios} · Roles: {t._count.roles} · Pacientes: {t._count.pacientes}
                 </div>
+                {permisos.includes("gestionar_tenants") && <TenantStatusToggle tenantId={t.id} activo={t.activo} />}
               </div>
             ))}
           </div>

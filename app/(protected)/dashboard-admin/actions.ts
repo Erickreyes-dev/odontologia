@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { tenantCreateSchema, TenantCreateInput } from "./schema";
 import { TENANT_PERMISSIONS } from "@/lib/permission-catalog";
 import bcrypt from "bcryptjs";
+import { getSession } from "@/auth";
 
 export async function getAdminDashboardData() {
   const [
@@ -90,7 +91,7 @@ export async function createTenant(
         },
       });
 
-      const tenantPermisos: { id: string }[] = [];
+      const tenantPermisos: { id: string; nombre: string }[] = [];
       for (const permission of TENANT_PERMISSIONS) {
         const created = await tx.permiso.create({
           data: {
@@ -101,7 +102,7 @@ export async function createTenant(
             activo: true,
           },
         });
-        tenantPermisos.push({ id: created.id });
+        tenantPermisos.push({ id: created.id, nombre: created.nombre });
       }
 
       const adminRole = await tx.rol.create({
@@ -122,6 +123,11 @@ export async function createTenant(
             permisoId: permiso.id,
           },
         });
+      }
+
+      const profilePermission = tenantPermisos.find((p) => p.nombre === "ver_profile");
+      if (!profilePermission) {
+        throw new Error("No se pudo asignar permiso de perfil al administrador del tenant");
       }
 
       const adminExists = await tx.usuarios.findFirst({
@@ -151,6 +157,89 @@ export async function createTenant(
     return {
       success: false,
       error: error instanceof Error ? error.message : "Error creando tenant",
+    };
+  }
+}
+
+export async function toggleTenantStatus(
+  tenantId: string,
+  activo: boolean
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.Permiso?.includes("gestionar_tenants")) {
+      return { success: false, error: "No tiene permisos para gestionar tenants" };
+    }
+
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: { activo },
+    });
+
+    revalidatePath("/dashboard-admin");
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "No se pudo actualizar el tenant",
+    };
+  }
+}
+
+export async function createPlatformAdminUser(input: {
+  usuario: string;
+  password?: string;
+}): Promise<{ success: true; generatedPassword: string } | { success: false; error: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.Permiso?.includes("gestionar_tenants") || !session?.TenantId) {
+      return { success: false, error: "No tiene permisos para crear administradores globales" };
+    }
+
+    const usuario = input.usuario?.trim().toLowerCase();
+    if (!usuario || usuario.length < 4) {
+      return { success: false, error: "El usuario debe tener al menos 4 caracteres" };
+    }
+
+    const generatedPassword = input.password?.trim().length
+      ? input.password
+      : randomBytes(9).toString("base64").slice(0, 12);
+
+    const role = await prisma.rol.findFirst({
+      where: { tenantId: session.TenantId, nombre: "OwnerPlatform", activo: true },
+    });
+
+    if (!role) {
+      return { success: false, error: "No se encontró el rol OwnerPlatform" };
+    }
+
+    const existing = await prisma.usuarios.findFirst({
+      where: { tenantId: session.TenantId, usuario },
+    });
+
+    if (existing) {
+      return { success: false, error: "Ya existe un usuario global con ese nombre" };
+    }
+
+    await prisma.usuarios.create({
+      data: {
+        id: randomUUID(),
+        tenantId: session.TenantId,
+        usuario,
+        contrasena: await bcrypt.hash(generatedPassword, 10),
+        empleado_id: null,
+        rol_id: role.id,
+        activo: true,
+        DebeCambiarPassword: true,
+      },
+    });
+
+    revalidatePath("/dashboard-admin");
+    return { success: true, generatedPassword };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "No se pudo crear administrador global",
     };
   }
 }
