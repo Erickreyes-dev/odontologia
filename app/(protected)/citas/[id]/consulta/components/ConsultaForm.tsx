@@ -171,6 +171,45 @@ export function ConsultaForm({
     return seguimientos.find((s) => s.id === seguimientoId) ?? null;
   }, [seguimientoId, seguimientos]);
 
+  const seguimientosPorPlan = useMemo(() => {
+    const grouped = new Map<
+      string,
+      {
+        planNombre: string;
+        seguimientos: typeof seguimientos;
+      }
+    >();
+
+    seguimientos.forEach((seguimiento) => {
+      const planNombre = seguimiento.planNombre || "Plan sin nombre";
+      if (!grouped.has(planNombre)) {
+        grouped.set(planNombre, {
+          planNombre,
+          seguimientos: [],
+        });
+      }
+
+      grouped.get(planNombre)?.seguimientos.push(seguimiento);
+    });
+
+    return Array.from(grouped.values()).map((plan) => ({
+      ...plan,
+      seguimientos: [...plan.seguimientos].sort(
+        (a, b) => a.fechaProgramada.getTime() - b.fechaProgramada.getTime()
+      ),
+    }));
+  }, [seguimientos]);
+
+  const [planSeleccionado, setPlanSeleccionado] = useState<string>("none");
+
+  const etapasPlanSeleccionado = useMemo(() => {
+    if (planSeleccionado === "none") return [];
+
+    return (
+      seguimientosPorPlan.find((plan) => plan.planNombre === planSeleccionado)?.seguimientos ?? []
+    );
+  }, [planSeleccionado, seguimientosPorPlan]);
+
   const applySeguimientoServicios = useCallback(
     (seguimientoId: string | null) => {
       if (!seguimientoId) return;
@@ -212,6 +251,15 @@ export function ConsultaForm({
     }
     initializedRef.current = true;
   }, [applySeguimientoServicios, cita.id, consulta?.id, form, seguimientos]);
+
+  useEffect(() => {
+    if (!seguimientoSeleccionado) {
+      setPlanSeleccionado("none");
+      return;
+    }
+
+    setPlanSeleccionado(seguimientoSeleccionado.planNombre || "Plan sin nombre");
+  }, [seguimientoSeleccionado]);
 
   const onSubmit = async (data: Consulta) => {
     setIsSubmitting(true);
@@ -601,24 +649,34 @@ export function ConsultaForm({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Field>
-                <FieldLabel>Seguimiento del plan (opcional)</FieldLabel>
+                <FieldLabel>Plan de seguimiento (opcional)</FieldLabel>
                 <FieldContent>
                   <Select
-                    value={form.watch("seguimientoId") || "none"}
+                    value={planSeleccionado}
                     onValueChange={(value) => {
-                      const nextValue = value === "none" ? null : value;
-                      form.setValue("seguimientoId", nextValue);
-                      applySeguimientoServicios(nextValue);
+                      setPlanSeleccionado(value);
+
+                      if (value === "none") {
+                        form.setValue("seguimientoId", null);
+                        return;
+                      }
+
+                      const etapaEnOrden =
+                        seguimientosPorPlan.find((plan) => plan.planNombre === value)?.seguimientos[0] ??
+                        null;
+
+                      form.setValue("seguimientoId", etapaEnOrden?.id ?? null);
+                      applySeguimientoServicios(etapaEnOrden?.id ?? null);
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccione un seguimiento" />
+                      <SelectValue placeholder="Seleccione un plan" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Sin seguimiento</SelectItem>
-                      {seguimientos.map((seguimiento) => (
-                        <SelectItem key={seguimiento.id} value={seguimiento.id}>
-                          {(seguimiento.planNombre || "Plan")} · {(seguimiento.etapaNombre || "Etapa")}
+                      <SelectItem value="none">Sin plan</SelectItem>
+                      {seguimientosPorPlan.map((plan) => (
+                        <SelectItem key={plan.planNombre} value={plan.planNombre}>
+                          {plan.planNombre}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -626,10 +684,38 @@ export function ConsultaForm({
                 </FieldContent>
                 {seguimientoSeleccionado ? (
                   <FieldDescription>
-                    Plan: {seguimientoSeleccionado.planNombre || "Plan"} · Etapa: {seguimientoSeleccionado.etapaNombre || "Etapa"}
+                    El plan correspondiente es {seguimientoSeleccionado.planNombre || "Plan"}. Si desea cambiarlo, puede elegir otra etapa del plan.
                   </FieldDescription>
                 ) : null}
               </Field>
+
+              {planSeleccionado !== "none" && etapasPlanSeleccionado.length > 0 ? (
+                <Field>
+                  <FieldLabel>Etapa del plan</FieldLabel>
+                  <FieldContent>
+                    <Select
+                      value={form.watch("seguimientoId") || "none"}
+                      onValueChange={(value) => {
+                        const nextValue = value === "none" ? null : value;
+                        form.setValue("seguimientoId", nextValue);
+                        applySeguimientoServicios(nextValue);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione una etapa" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Etapa automática (primera)</SelectItem>
+                        {etapasPlanSeleccionado.map((etapa, index) => (
+                          <SelectItem key={etapa.id} value={etapa.id}>
+                            {`Etapa ${index + 1}: ${etapa.etapaNombre || "Etapa"}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FieldContent>
+                </Field>
+              ) : null}
 
               <Field>
                 <FieldLabel>Financiamiento (opcional)</FieldLabel>
