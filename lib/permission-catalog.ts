@@ -18,6 +18,7 @@ export const TENANT_PERMISSIONS: PermissionSeed[] = [
   { nombre: "crear_puestos", descripcion: "Permiso para crear puestos" },
   { nombre: "editar_puestos", descripcion: "Permiso para editar puestos" },
   { nombre: "ver_profile", descripcion: "Permiso para ver el perfil" },
+  { nombre: "editar_tenant", descripcion: "Permiso para editar el contacto del tenant" },
   { nombre: "ver_seguros", descripcion: "Permiso para ver seguros" },
   { nombre: "crear_seguros", descripcion: "Permiso para crear seguros" },
   { nombre: "editar_seguros", descripcion: "Permiso para editar seguros" },
