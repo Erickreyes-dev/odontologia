@@ -172,7 +172,7 @@ export async function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="flex justify-between items-center">
-            <span>Sistema Autogestión MP</span>
+            <span>{usuario?.TenantSlug || "Sistema Autogestión MP"}</span>
             <ModeToggle></ModeToggle>
           </SidebarGroupLabel>
 
