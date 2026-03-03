@@ -90,14 +90,14 @@ export function MedicoFormulario({
         control={form.control}
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
-            <FieldLabel>Paciente</FieldLabel>
+            <FieldLabel>Empleado</FieldLabel>
             <FieldContent>
               <Select
                 value={field.value || ""}
                 onValueChange={(val) => field.onChange(val || null)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un paciente" />
+                  <SelectValue placeholder="Selecciona un empleado" />
                 </SelectTrigger>
                 <SelectContent>
                   {empleados.map((p) => (
@@ -109,7 +109,7 @@ export function MedicoFormulario({
               </Select>
             </FieldContent>
             <FieldDescription>
-              Selecciona el paciente para la cita.
+              Selecciona el empleado para el medico.
             </FieldDescription>
             {fieldState.invalid && (
               <FieldError errors={[fieldState.error]} />
@@ -122,14 +122,14 @@ export function MedicoFormulario({
         control={form.control}
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
-            <FieldLabel>Paciente</FieldLabel>
+            <FieldLabel>Profesión</FieldLabel>
             <FieldContent>
               <Select
                 value={field.value || ""}
                 onValueChange={(val) => field.onChange(val || null)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un paciente" />
+                  <SelectValue placeholder="Selecciona una profesión" />
                 </SelectTrigger>
                 <SelectContent>
                   {profesiones.map((p) => (
@@ -141,7 +141,7 @@ export function MedicoFormulario({
               </Select>
             </FieldContent>
             <FieldDescription>
-              Selecciona el paciente para la cita.
+              Selecciona la profesión para el medico.
             </FieldDescription>
             {fieldState.invalid && (
               <FieldError errors={[fieldState.error]} />
