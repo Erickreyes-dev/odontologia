@@ -33,6 +33,7 @@ export default function Login() {
   const form = useForm<z.infer<typeof schemaSignIn>>({
     resolver: zodResolver(schemaSignIn),
     defaultValues: {
+      tenantSlug: "",
       usuario: "",
       contrasena: "",
     },
@@ -60,6 +61,27 @@ export default function Login() {
   return (
     <>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <Controller
+          name="tenantSlug"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Clínica</FieldLabel>
+              <Input
+                {...field}
+                id={field.name}
+                aria-invalid={fieldState.invalid}
+                type="text"
+                placeholder="slug de tu clínica"
+                disabled={isPending}
+                autoComplete="organization"
+              />
+              <FieldDescription>Identificador de la clínica (tenant).</FieldDescription>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+
         {/* Usuario */}
         <Controller
           name="usuario"

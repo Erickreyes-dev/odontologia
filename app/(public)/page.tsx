@@ -25,7 +25,7 @@ export default async function LoginPage() {
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl font-bold text-center">Bienvenido</CardTitle>
         <CardDescription className="text-center text-gray-400">
-          Ingrese sus credenciales para iniciar sesión
+          Ingrese clínica, usuario y contraseña para iniciar sesión
         </CardDescription>
       </CardHeader>
       <CardContent>
