@@ -36,7 +36,7 @@ export async function getProfile(): Promise<Employee | null> {
         })
       : null;
 
-    const canEditTenantContact = session.Rol === "Administrador";
+    const canEditTenantContact = session.Permiso?.includes("editar_tenant") === true;
 
     if (usuario.Empleados) {
       const e = usuario.Empleados;
@@ -99,7 +99,7 @@ export async function updateTenantContactInfo(input: {
   try {
     const session = await getSession();
 
-    if (!session?.TenantId || session.Rol !== "AdministradorTenant") {
+    if (!session?.TenantId || !session.Permiso?.includes("editar_tenant")) {
       return { success: false, error: "No tiene permisos para editar el contacto del tenant" };
     }
 
