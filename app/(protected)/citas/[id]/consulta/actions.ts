@@ -8,6 +8,41 @@ import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { getTenantContext } from "@/lib/tenant";
 import { Prisma } from "@/lib/generated/prisma";
 
+
+async function validarStockDisponible(
+  tx: Prisma.TransactionClient,
+  productos: { productoId: string; cantidad: number }[]
+) {
+  if (!productos.length) return;
+
+  const requeridos = new Map<string, number>();
+  for (const producto of productos) {
+    requeridos.set(
+      producto.productoId,
+      (requeridos.get(producto.productoId) ?? 0) + producto.cantidad
+    );
+  }
+
+  const productosDB = await tx.producto.findMany({
+    where: { id: { in: Array.from(requeridos.keys()) } },
+    select: { id: true, nombre: true, stock: true },
+  });
+
+  const stockPorProducto = new Map(productosDB.map((producto) => [producto.id, producto]));
+
+  for (const [productoId, cantidad] of requeridos.entries()) {
+    const producto = stockPorProducto.get(productoId);
+    if (!producto) {
+      throw new Error("Uno de los productos seleccionados no existe");
+    }
+    if (cantidad > producto.stock) {
+      throw new Error(
+        `No puede usar más de ${producto.stock} unidades de ${producto.nombre}. Solicitado: ${cantidad}`
+      );
+    }
+  }
+}
+
 /**
  * Obtiene la consulta de una cita por ID de cita
  */
@@ -183,6 +218,8 @@ export async function upsertConsulta(
     if (existingConsulta) {
       // Actualizar consulta existente
       await prisma.$transaction(async (tx) => {
+        await validarStockDisponible(tx, validatedData.productos ?? []);
+
         await tx.consulta.update({
           where: { id: existingConsulta.id },
           data: {
@@ -226,6 +263,8 @@ export async function upsertConsulta(
       // Crear nueva consulta
       consultaId = randomUUID();
       await prisma.$transaction(async (tx) => {
+        await validarStockDisponible(tx, validatedData.productos ?? []);
+
         await tx.consulta.create({
           data: await withTenantData({
             id: consultaId,
@@ -348,6 +387,8 @@ export async function finalizarConsulta(
           }),
         });
       }
+
+      await validarStockDisponible(tx, validatedData.productos ?? []);
 
       if (validatedData.servicios?.length) {
         await tx.consultaServicio.createMany({

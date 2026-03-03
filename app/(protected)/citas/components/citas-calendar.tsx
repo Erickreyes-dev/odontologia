@@ -23,7 +23,9 @@ export function CitasCalendar({ citas, initialDate }: CitasCalendarProps) {
   }, [citas, selectedDate]);
 
   const fechasConCitas = useMemo(() => {
-    return citas.map((cita) => new Date(cita.fechaHora));
+    return citas
+      .filter((cita) => cita.estado === "programada")
+      .map((cita) => new Date(cita.fechaHora));
   }, [citas]);
 
   return (

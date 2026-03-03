@@ -138,6 +138,16 @@ export function ConsultaForm({
 
   const serviciosWatch = useWatch({ control: form.control, name: "servicios" }) ?? [];
   const productosWatch = useWatch({ control: form.control, name: "productos" }) ?? [];
+
+  const getCantidadProductoSolicitada = useCallback(
+    (productoId: string, currentIndex: number) =>
+      productosWatch.reduce((acc, producto, index) => {
+        if (index === currentIndex) return acc;
+        if (producto.productoId !== productoId) return acc;
+        return acc + (producto.cantidad || 0);
+      }, 0),
+    [productosWatch]
+  );
   const seguimientoId = useWatch({ control: form.control, name: "seguimientoId" });
   const financiamientoId = useWatch({ control: form.control, name: "financiamientoId" });
 
@@ -609,15 +619,31 @@ export function ConsultaForm({
                             <Input
                               type="number"
                               min="1"
+                              max={(() => {
+                                const selected = productos.find(
+                                  (producto) => producto.id === productosWatch[index]?.productoId
+                                );
+                                if (!selected) return undefined;
+                                const yaSolicitado = getCantidadProductoSolicitada(selected.id, index);
+                                return Math.max(1, selected.stock - yaSolicitado);
+                              })()}
                               {...f}
                               value={f.value ?? ""}
-                              onChange={(event) =>
-                                f.onChange(
-                                  event.target.value
-                                    ? parseInt(event.target.value, 10)
-                                    : 1
-                                )
-                              }
+                              onChange={(event) => {
+                                const parsedValue = event.target.value
+                                  ? parseInt(event.target.value, 10)
+                                  : 1;
+                                const selected = productos.find(
+                                  (producto) => producto.id === productosWatch[index]?.productoId
+                                );
+                                if (!selected) {
+                                  f.onChange(parsedValue);
+                                  return;
+                                }
+                                const yaSolicitado = getCantidadProductoSolicitada(selected.id, index);
+                                const maximoDisponible = Math.max(1, selected.stock - yaSolicitado);
+                                f.onChange(Math.min(parsedValue, maximoDisponible));
+                              }}
                             />
                           </div>
                         )}
@@ -629,7 +655,9 @@ export function ConsultaForm({
                               (producto) => producto.id === productosWatch[index]?.productoId
                             );
                             if (!selected) return "Selecciona un producto para ver stock.";
-                            return `Stock disponible: ${selected.stock}${selected.unidad ? ` ${selected.unidad}` : ""}`;
+                            const yaSolicitado = getCantidadProductoSolicitada(selected.id, index);
+                            const disponibleReal = Math.max(0, selected.stock - yaSolicitado);
+                            return `Stock disponible: ${disponibleReal}${selected.unidad ? ` ${selected.unidad}` : ""}`;
                           })()}
                         </p>
                         <Button
