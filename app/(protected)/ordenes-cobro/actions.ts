@@ -128,7 +128,14 @@ export async function getPlanesByPaciente(pacienteId: string) {
 
 export async function getFinanciamientosByPaciente(pacienteId: string) {
   return prisma.financiamiento.findMany({
-    where: await tenantWhere<Prisma.FinanciamientoWhereInput>({ pacienteId }),
+    where: await tenantWhere<Prisma.FinanciamientoWhereInput>({
+      pacienteId,
+      cuotasFinanciamiento: {
+        some: {
+          pagada: false,
+        },
+      },
+    }),
     select: {
       id: true,
     },
