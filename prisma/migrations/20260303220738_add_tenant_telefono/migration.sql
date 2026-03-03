@@ -1,0 +1,2 @@
+ALTER TABLE `Tenant`
+ADD COLUMN `telefono` VARCHAR(20) NULL;

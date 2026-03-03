@@ -48,6 +48,11 @@ import { FinanciamientoCard } from "@/app/(protected)/pagos/components/Financiam
 
 interface PacientePerfilProps {
   paciente: Paciente;
+  clinicInfo: {
+    nombre: string;
+    correo?: string | null;
+    telefono?: string | null;
+  };
   citas: Cita[];
   cotizaciones: Cotizacion[];
   planes: PlanTratamiento[];
@@ -235,6 +240,7 @@ export function PacientePerfil({
   pagos,
   financiamientos,
   seguroNombre,
+  clinicInfo,
 }: PacientePerfilProps) {
   const initials = `${paciente.nombre?.charAt(0) ?? ""}${paciente.apellido?.charAt(0) ?? ""}`;
   const edad = paciente.fechaNacimiento
@@ -252,7 +258,7 @@ export function PacientePerfil({
   const planesActivos = planes.filter((p) => p.estado === "ACTIVO");
 
   const handleDownloadPDF = (cotizacion: Cotizacion) => {
-    generateCotizacionPDF(cotizacion, paciente);
+    generateCotizacionPDF(cotizacion, paciente, clinicInfo);
   };
 
   return (
