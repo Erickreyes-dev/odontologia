@@ -8,6 +8,8 @@ import {
   type CreateOrdenCobroInput,
   type OrdenCobroWithRelations,
 } from "./schema";
+import { tenantWhere, withTenantData } from "@/lib/tenant-query";
+import { Prisma } from "@/lib/generated/prisma";
 
 export async function createOrdenCobro(
   data: CreateOrdenCobroInput
@@ -15,8 +17,43 @@ export async function createOrdenCobro(
   try {
     const validated = CreateOrdenCobroSchema.parse(data);
 
+    const [paciente, plan, financiamiento] = await Promise.all([
+      prisma.paciente.findFirst({
+        where: await tenantWhere<Prisma.PacienteWhereInput>({ id: validated.pacienteId }),
+        select: { id: true },
+      }),
+      validated.planTratamientoId
+        ? prisma.planTratamiento.findFirst({
+            where: await tenantWhere<Prisma.PlanTratamientoWhereInput>({
+              id: validated.planTratamientoId,
+              pacienteId: validated.pacienteId,
+            }),
+            select: { id: true },
+          })
+        : null,
+      validated.financiamientoId
+        ? prisma.financiamiento.findFirst({
+            where: await tenantWhere<Prisma.FinanciamientoWhereInput>({
+              id: validated.financiamientoId,
+              pacienteId: validated.pacienteId,
+            }),
+            select: { id: true },
+          })
+        : null,
+    ]);
+
+    if (!paciente) {
+      return { success: false, error: "Paciente no válido para este tenant" };
+    }
+    if (validated.planTratamientoId && !plan) {
+      return { success: false, error: "Plan de tratamiento no válido para este tenant" };
+    }
+    if (validated.financiamientoId && !financiamiento) {
+      return { success: false, error: "Financiamiento no válido para este tenant" };
+    }
+
     const orden = await prisma.ordenDeCobro.create({
-      data: {
+      data: await withTenantData({
         id: randomUUID(),
         pacienteId: validated.pacienteId,
         planTratamientoId: validated.planTratamientoId || null,
@@ -26,7 +63,7 @@ export async function createOrdenCobro(
         monto: validated.monto,
         concepto: validated.concepto,
         estado: "PENDIENTE",
-      },
+      }),
       include: {
         paciente: true,
         planTratamiento: true,
@@ -52,6 +89,7 @@ export async function createOrdenCobro(
 export async function getOrdenesCobro(): Promise<OrdenCobroWithRelations[]> {
   try {
     const records = await prisma.ordenDeCobro.findMany({
+      where: await tenantWhere<Prisma.OrdenDeCobroWhereInput>(),
       include: {
         paciente: true,
         planTratamiento: true,
@@ -71,16 +109,16 @@ export async function getOrdenesCobro(): Promise<OrdenCobroWithRelations[]> {
 
 export async function getCuotaPendiente(financiamientoId: string) {
   return prisma.cuotaFinanciamiento.findFirst({
-    where: {
+    where: await tenantWhere<Prisma.CuotaFinanciamientoWhereInput>({
       financiamientoId,
       pagada: false,
-    },
+    }),
     orderBy: { fechaVencimiento: "asc" },
   });
 }
 export async function getPlanesByPaciente(pacienteId: string) {
   return prisma.planTratamiento.findMany({
-    where: { pacienteId },
+    where: await tenantWhere<Prisma.PlanTratamientoWhereInput>({ pacienteId }),
     select: {
       id: true,
       nombre: true,
@@ -90,7 +128,7 @@ export async function getPlanesByPaciente(pacienteId: string) {
 
 export async function getFinanciamientosByPaciente(pacienteId: string) {
   return prisma.financiamiento.findMany({
-    where: { pacienteId },
+    where: await tenantWhere<Prisma.FinanciamientoWhereInput>({ pacienteId }),
     select: {
       id: true,
     },
@@ -101,7 +139,7 @@ export async function getFinanciamientosByPaciente(pacienteId: string) {
 export async function getOrdenesCobroPendientes(): Promise<OrdenCobroWithRelations[]> {
   try {
     const records = await prisma.ordenDeCobro.findMany({
-      where: { estado: "PENDIENTE" },
+      where: await tenantWhere<Prisma.OrdenDeCobroWhereInput>({ estado: "PENDIENTE" }),
       include: {
         paciente: true,
         planTratamiento: true,
@@ -123,8 +161,8 @@ export async function anularOrdenCobro(
   ordenId: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    await prisma.ordenDeCobro.update({
-      where: { id: ordenId },
+    await prisma.ordenDeCobro.updateMany({
+      where: await tenantWhere<Prisma.OrdenDeCobroWhereInput>({ id: ordenId }),
       data: { estado: "ANULADA" },
     });
     revalidatePath("/ordenes-cobro");
