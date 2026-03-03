@@ -15,6 +15,7 @@ model Tenant {
   slug         String    @unique @db.VarChar(60)
   contactoNombre String?   @db.VarChar(120)
   contactoCorreo String?   @db.VarChar(150)
+  telefono      String?    @db.VarChar(20)
   activo       Boolean   @default(true) @db.Bit(1)
   plan         String    @default("starter") @db.VarChar(30)
   maxUsuarios  Int       @default(20)

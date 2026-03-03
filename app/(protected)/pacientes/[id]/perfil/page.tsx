@@ -1,4 +1,4 @@
-import { getSessionPermisos } from "@/auth";
+import { getSession, getSessionPermisos } from "@/auth";
 import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import { User } from "lucide-react";
@@ -10,6 +10,7 @@ import { getPlanesByPaciente } from "@/app/(protected)/planes-tratamiento/action
 import { getFinanciamientosPorPaciente, getPagosByPaciente } from "@/app/(protected)/pagos/actions";
 import { PacientePerfil } from "./components/paciente-perfil";
 import { getSegurosActivos } from "@/app/(protected)/seguros/actions";
+import { prisma } from "@/lib/prisma";
 
 export default async function PacientePerfilPage({
   params,
@@ -17,6 +18,7 @@ export default async function PacientePerfilPage({
   params: { id: string };
 }) {
   const permisos = await getSessionPermisos();
+  const session = await getSession();
 
   if (!permisos?.includes("ver_pacientes")) {
     return <NoAcceso />;
@@ -41,6 +43,19 @@ export default async function PacientePerfilPage({
     ? seguros.find(s => s.id === paciente.seguroId) 
     : null;
 
+  const tenantContactInfo = session?.TenantId
+    ? await prisma.tenant.findUnique({
+        where: { id: session.TenantId },
+        select: { contactoCorreo: true, telefono: true },
+      })
+    : null;
+
+  const clinicInfo = {
+    nombre: session?.TenantNombre ?? "Clinica",
+    correo: tenantContactInfo?.contactoCorreo ?? null,
+    telefono: tenantContactInfo?.telefono ?? null,
+  };
+
   return (
     <div className="container mx-auto py-2">
       <HeaderComponent
@@ -56,6 +71,7 @@ export default async function PacientePerfilPage({
         pagos={pagos}
         financiamientos={financiamientos}
         seguroNombre={seguro?.nombre}
+        clinicInfo={clinicInfo}
       />
     </div>
   );

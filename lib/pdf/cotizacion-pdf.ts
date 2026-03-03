@@ -6,12 +6,17 @@ import { Paciente } from "@/app/(protected)/pacientes/schema";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
-const CLINIC_NAME = "Clinica Dental";
-const CLINIC_ADDRESS = "Tegucigalpa, Honduras";
-const CLINIC_PHONE = "Tel: (504) 0000-0000";
-const CLINIC_EMAIL = "contacto@clinicadental.com";
+type ClinicInfo = {
+  nombre: string;
+  correo?: string | null;
+  telefono?: string | null;
+};
 
-export function generateCotizacionPDF(cotizacion: Cotizacion, paciente: Paciente) {
+export function generateCotizacionPDF(
+  cotizacion: Cotizacion,
+  paciente: Paciente,
+  clinicInfo: ClinicInfo
+) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
@@ -30,17 +35,23 @@ export function generateCotizacionPDF(cotizacion: Cotizacion, paciente: Paciente
 
   // Header - Clinic Info
   doc.setFont("helvetica", "bold");
-  centerText(CLINIC_NAME, yPos, 20);
+  centerText(clinicInfo.nombre, yPos, 20);
   yPos += 8;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  centerText(CLINIC_ADDRESS, yPos);
+
+  if (clinicInfo.correo) {
+    centerText(clinicInfo.correo, yPos);
+    yPos += 5;
+  }
+
+  if (clinicInfo.telefono) {
+    centerText(`Tel: ${clinicInfo.telefono}`, yPos);
+    yPos += 5;
+  }
+
   yPos += 5;
-  centerText(CLINIC_PHONE, yPos);
-  yPos += 5;
-  centerText(CLINIC_EMAIL, yPos);
-  yPos += 10;
 
   // Divider line
   doc.setDrawColor(200, 200, 200);
