@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { Cotizacion, CotizacionSchema } from "./schema";
+import { Prisma } from "@/lib/generated/prisma";
+import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 
 /**
  * Obtiene todas las cotizaciones
@@ -11,6 +13,7 @@ import { Cotizacion, CotizacionSchema } from "./schema";
 export async function getCotizaciones(): Promise<Cotizacion[]> {
   try {
     const records = await prisma.cotizacion.findMany({
+      where: await tenantWhere<Prisma.CotizacionWhereInput>(),
       include: {
         paciente: true,
         detalles: {
@@ -54,7 +57,7 @@ export async function getCotizacionesByPaciente(
 ): Promise<Cotizacion[]> {
   try {
     const records = await prisma.cotizacion.findMany({
-      where: { pacienteId },
+      where: await tenantWhere<Prisma.CotizacionWhereInput>({ pacienteId }),
       include: {
         paciente: true,
         detalles: {
@@ -97,8 +100,8 @@ export async function getCotizacionById(
   id: string
 ): Promise<Cotizacion | null> {
   try {
-    const r = await prisma.cotizacion.findUnique({
-      where: { id },
+    const r = await prisma.cotizacion.findFirst({
+      where: await tenantWhere<Prisma.CotizacionWhereInput>({ id }),
       include: {
         paciente: true,
         detalles: {
@@ -153,7 +156,7 @@ export async function createCotizacion(
       ) ?? 0;
 
     const cotizacion = await prisma.cotizacion.create({
-      data: {
+      data: await withTenantData({
         id,
         pacienteId: validatedData.pacienteId,
         fecha: validatedData.fecha,
@@ -170,7 +173,7 @@ export async function createCotizacion(
               observacion: d.observacion,
             })) ?? [],
         },
-      },
+      }),
       include: {
         paciente: true,
         detalles: {
@@ -234,13 +237,16 @@ export async function updateCotizacion(
       ) ?? data.total ?? 0;
 
     // Primero eliminamos los detalles existentes
+    const existing = await prisma.cotizacion.findFirst({ where: await tenantWhere<Prisma.CotizacionWhereInput>({ id }) });
+    if (!existing) return { success: false, error: "Cotización no encontrada en la clínica" };
+
     await prisma.cotizacionServicio.deleteMany({
-      where: { cotizacionId: id },
+      where: await tenantWhere<Prisma.CotizacionServicioWhereInput>({ cotizacionId: existing.id }),
     });
 
     // Luego actualizamos la cotización con los nuevos detalles
     const cotizacion = await prisma.cotizacion.update({
-      where: { id },
+      where: { id: existing.id },
       data: {
         pacienteId: data.pacienteId,
         fecha: data.fecha,
@@ -316,8 +322,8 @@ export async function deleteCotizacion(
       return { success: false, error: "ID de la cotización es requerido" };
     }
 
-    await prisma.cotizacion.delete({
-      where: { id },
+    await prisma.cotizacion.deleteMany({
+      where: await tenantWhere<Prisma.CotizacionWhereInput>({ id }),
     });
 
     revalidatePath("/cotizaciones");
@@ -343,8 +349,11 @@ export async function updateEstadoCotizacion(
   estado: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
+    const existing = await prisma.cotizacion.findFirst({ where: await tenantWhere<Prisma.CotizacionWhereInput>({ id }) });
+    if (!existing) return { success: false, error: "Cotización no encontrada en la clínica" };
+
     await prisma.cotizacion.update({
-      where: { id },
+      where: { id: existing.id },
       data: { estado },
     });
 
@@ -369,7 +378,7 @@ export async function getServiciosActivos(): Promise<
 > {
   try {
     const servicios = await prisma.servicio.findMany({
-      where: { activo: true },
+      where: await tenantWhere<Prisma.ServicioWhereInput>({ activo: true }),
       select: {
         id: true,
         nombre: true,

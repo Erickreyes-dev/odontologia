@@ -16,10 +16,45 @@ async function main() {
     await prisma.puesto.deleteMany();
     await prisma.rol.deleteMany();
     await prisma.permiso.deleteMany();
+    await prisma.medico.deleteMany();
+    await prisma.profesion.deleteMany();
+    await prisma.tenant.deleteMany();
     console.log("Datos anteriores eliminados");
   }
 
-  // 2. Sembrar Permisos
+  // 2. Crear tenant base (clínica)
+  let tenant = await prisma.tenant.findUnique({ where: { slug: "demo-clinica" } });
+  if (!tenant) {
+    tenant = await prisma.tenant.create({
+      data: {
+        id: randomUUID(),
+        nombre: "Clínica Demo",
+        slug: "demo-clinica",
+        activo: true,
+        plan: "starter",
+        maxUsuarios: 20,
+      },
+    });
+    console.log("Tenant demo creado");
+  }
+
+
+  let platformTenant = await prisma.tenant.findUnique({ where: { slug: "platform" } });
+  if (!platformTenant) {
+    platformTenant = await prisma.tenant.create({
+      data: {
+        id: randomUUID(),
+        nombre: "Plataforma SaaS",
+        slug: "platform",
+        activo: true,
+        plan: "enterprise",
+        maxUsuarios: 1000,
+      },
+    });
+    console.log("Tenant platform creado");
+  }
+
+  // 3. Sembrar Permisos
   const permisosData = [
     { nombre: "ver_empleados", descripcion: "Permiso para ver los empleados" },
     { nombre: "crear_empleados", descripcion: "Permiso para crear los empleados" },
@@ -92,15 +127,20 @@ async function main() {
     { nombre: "crear_inventario", descripcion: "Permiso para ver crear inventario" },
     { nombre: "editar_inventario", descripcion: "Permiso para ver editar inventario" },
 
+    // admin saas
+    { nombre: "ver_dashboard_admin", descripcion: "Permiso para ver dashboard global de tenants" },
+    { nombre: "gestionar_tenants", descripcion: "Permiso para crear y gestionar tenants" },
+
   ];
 
   const permisoIds: string[] = [];
   for (const p of permisosData) {
-    let permiso = await prisma.permiso.findUnique({ where: { nombre: p.nombre } });
+    let permiso = await prisma.permiso.findFirst({ where: { nombre: p.nombre, tenantId: tenant.id } });
     if (!permiso) {
       permiso = await prisma.permiso.create({
         data: {
           id: randomUUID(),
+          tenantId: tenant.id,
           nombre: p.nombre,
           descripcion: p.descripcion,
           activo: true,
@@ -113,12 +153,13 @@ async function main() {
     permisoIds.push(permiso.id);
   }
 
-  // 3. Crear rol Administrador
-  let adminRole = await prisma.rol.findUnique({ where: { nombre: "Administrador" } });
+  // 4. Crear rol Administrador
+  let adminRole = await prisma.rol.findFirst({ where: { nombre: "Administrador", tenantId: tenant.id } });
   if (!adminRole) {
     adminRole = await prisma.rol.create({
       data: {
         id: randomUUID(),
+        tenantId: tenant.id,
         nombre: "Administrador",
         descripcion: "Rol con acceso total al sistema",
         activo: true,
@@ -129,7 +170,7 @@ async function main() {
     console.log("Rol Administrador existente");
   }
 
-  // 4. Asignar permisos al rol
+  // 5. Asignar permisos al rol
   const existingRolePermisos = await prisma.rolPermiso.findMany({ where: { rolId: adminRole.id } });
   const existingIds = new Set(existingRolePermisos.map((rp) => rp.permisoId));
   for (const pid of permisoIds) {
@@ -139,12 +180,13 @@ async function main() {
   }
   console.log("Permisos asignados a Administrador");
 
-  // 5. Crear Puesto
-  let puesto = await prisma.puesto.findFirst({ where: { Nombre: "Desarrollador SR" } });
+  // 6. Crear Puesto
+  let puesto = await prisma.puesto.findFirst({ where: { Nombre: "Desarrollador SR", tenantId: tenant.id } });
   if (!puesto) {
     puesto = await prisma.puesto.create({
       data: {
         Id: randomUUID(),
+        tenantId: tenant.id,
         Nombre: "Desarrollador SR",
         Descripcion: "Desarrollador SR de software",
         Activo: true,
@@ -153,12 +195,13 @@ async function main() {
     console.log("Puesto creado");
   }
 
-  // 6. Crear Empleado
-  let empleado = await prisma.empleados.findFirst({ where: { correo: "erickjosepineda33@gmail.com" } });
+  // 7. Crear Empleado
+  let empleado = await prisma.empleados.findFirst({ where: { correo: "erickjosepineda33@gmail.com", tenantId: tenant.id } });
   if (!empleado) {
     empleado = await prisma.empleados.create({
       data: {
         id: randomUUID(),
+        tenantId: tenant.id,
         nombre: "Erick",
         apellido: "Reyes",
         puesto_id: puesto.Id,
@@ -175,12 +218,13 @@ async function main() {
     console.log("Empleado creado: " + empleado.nombre);
   }
 
-  // 7. Crear Usuario
-  let usuario = await prisma.usuarios.findFirst({ where: { usuario: "erick.reyes" } });
+  // 8. Crear Usuario
+  let usuario = await prisma.usuarios.findFirst({ where: { usuario: "erick.reyes", tenantId: tenant.id } });
   if (!usuario) {
     usuario = await prisma.usuarios.create({
       data: {
         id: randomUUID(),
+        tenantId: tenant.id,
         usuario: "erick.reyes",
         contrasena: await bcrypt.hash("erick.reyes", 10),
         empleado_id: empleado.id,
@@ -191,12 +235,13 @@ async function main() {
     });
     console.log("Usuario creado: " + usuario.usuario);
   }
-  // 8. Crear Profesion
-let profesion = await prisma.profesion.findFirst({ where: { nombre: "Odontólogo General" } });
+  // 9. Crear Profesion
+let profesion = await prisma.profesion.findFirst({ where: { nombre: "Odontólogo General", tenantId: tenant.id } });
 if (!profesion) {
   profesion = await prisma.profesion.create({
     data: {
       id: randomUUID(),
+      tenantId: tenant.id,
       nombre: "Odontólogo General",
       descripcion: "Medico especialista en odontología general",
       activo: true,
@@ -205,12 +250,13 @@ if (!profesion) {
   console.log("Profesión creada: " + profesion.nombre);
 }
 
-// 9. Crear Medico y asociarlo al Empleado y Profesion
-let medico = await prisma.medico.findFirst({ where: { idEmpleado: empleado.id } });
+// 10. Crear Medico y asociarlo al Empleado y Profesion
+let medico = await prisma.medico.findFirst({ where: { idEmpleado: empleado.id, tenantId: tenant.id } });
 if (!medico) {
   medico = await prisma.medico.create({
     data: {
       id: randomUUID(),
+      tenantId: tenant.id,
       idEmpleado: empleado.id,
       profesionId: profesion.id,
       activo: true,
@@ -218,6 +264,102 @@ if (!medico) {
   });
   console.log("Medico creado para el empleado: " + empleado.nombre);
 }
+
+
+
+  let platformRole = await prisma.rol.findFirst({ where: { nombre: "OwnerPlatform", tenantId: platformTenant.id } });
+  if (!platformRole) {
+    platformRole = await prisma.rol.create({
+      data: {
+        id: randomUUID(),
+        tenantId: platformTenant.id,
+        nombre: "OwnerPlatform",
+        descripcion: "Rol dueño del SaaS con acceso global de administración",
+        activo: true,
+      },
+    });
+  }
+
+  const platformPermisosData = [
+    { nombre: "ver_dashboard_admin", descripcion: "Permiso para ver dashboard global de tenants" },
+    { nombre: "gestionar_tenants", descripcion: "Permiso para crear y gestionar tenants" },
+  ];
+
+  const platformPermisos: { id: string }[] = [];
+  for (const pp of platformPermisosData) {
+    let p = await prisma.permiso.findFirst({ where: { tenantId: platformTenant.id, nombre: pp.nombre } });
+    if (!p) {
+      p = await prisma.permiso.create({
+        data: {
+          id: randomUUID(),
+          tenantId: platformTenant.id,
+          nombre: pp.nombre,
+          descripcion: pp.descripcion,
+          activo: true,
+        },
+      });
+    }
+    platformPermisos.push({ id: p.id });
+  }
+
+  for (const perm of platformPermisos) {
+    const exists = await prisma.rolPermiso.findFirst({
+      where: { rolId: platformRole.id, permisoId: perm.id },
+    });
+    if (!exists) {
+      await prisma.rolPermiso.create({ data: { rolId: platformRole.id, permisoId: perm.id } });
+    }
+  }
+
+  let ownerPuesto = await prisma.puesto.findFirst({ where: { Nombre: "Owner SaaS", tenantId: platformTenant.id } });
+  if (!ownerPuesto) {
+    ownerPuesto = await prisma.puesto.create({
+      data: {
+        Id: randomUUID(),
+        tenantId: platformTenant.id,
+        Nombre: "Owner SaaS",
+        Descripcion: "Administrador principal de la plataforma",
+        Activo: true,
+      },
+    });
+  }
+
+  let ownerEmpleado = await prisma.empleados.findFirst({ where: { correo: "owner@platform.local", tenantId: platformTenant.id } });
+  if (!ownerEmpleado) {
+    ownerEmpleado = await prisma.empleados.create({
+      data: {
+        id: randomUUID(),
+        tenantId: platformTenant.id,
+        nombre: "Owner",
+        apellido: "Platform",
+        puesto_id: ownerPuesto.Id,
+        correo: "owner@platform.local",
+        FechaNacimiento: new Date(1990, 1, 1),
+        fechaIngreso: new Date(),
+        telefono: "0000-0000",
+        identidad: `OWNER-${Date.now()}`,
+        Vacaciones: 0,
+        genero: "N/A",
+        activo: true,
+      },
+    });
+  }
+
+  let ownerUsuario = await prisma.usuarios.findFirst({ where: { usuario: "owner.platform", tenantId: platformTenant.id } });
+  if (!ownerUsuario) {
+    ownerUsuario = await prisma.usuarios.create({
+      data: {
+        id: randomUUID(),
+        tenantId: platformTenant.id,
+        usuario: "owner.platform",
+        contrasena: await bcrypt.hash("owner.platform", 10),
+        empleado_id: ownerEmpleado.id,
+        rol_id: platformRole.id,
+        activo: true,
+        DebeCambiarPassword: false,
+      },
+    });
+  }
 
   console.log("Seed completado exitosamente");
 }

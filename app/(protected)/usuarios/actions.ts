@@ -6,12 +6,15 @@ import { generateUserCreatedEmailHtml } from "@/lib/templates/createUserEmail";
 import bcrypt from "bcryptjs";
 import { randomBytes, randomUUID } from "crypto";
 import { Usuario } from "./schema";
+import { Prisma } from "@/lib/generated/prisma";
+import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 
 /**
  * Obtener todos los usuarios con rol y empleado
  */
 export async function getUsuarios(): Promise<Usuario[]> {
   const records = await prisma.usuarios.findMany({
+    where: await tenantWhere<Prisma.UsuariosWhereInput>(),
     include: {
       rol: { select: { id: true, nombre: true } },
       Empleados: { select: { id: true, nombre: true, apellido: true } },
@@ -42,7 +45,7 @@ export async function createUsuario(data: Usuario): Promise<Usuario> {
 
   // 3️⃣ Crear el usuario en la base de datos
   const newUser = await prisma.usuarios.create({
-    data: {
+    data: await withTenantData({
       id: randomUUID(),
       usuario: data.usuario,
       rol_id: data.rol_id,
@@ -50,12 +53,12 @@ export async function createUsuario(data: Usuario): Promise<Usuario> {
       contrasena: hashed,
       activo: true,
       DebeCambiarPassword: true,
-    },
+    }),
   });
 
   // 4️⃣ Obtener datos del empleado asociado
-  const empleado = await prisma.empleados.findUnique({
-    where: { id: data.empleado_id },
+  const empleado = await prisma.empleados.findFirst({
+    where: await tenantWhere<Prisma.EmpleadosWhereInput>({ id: data.empleado_id }),
     select: { correo: true, nombre: true, apellido: true },
   });
 
@@ -100,8 +103,11 @@ export async function createUsuario(data: Usuario): Promise<Usuario> {
  * Actualizar un usuario existente
  */
 export async function updateUsuario(data: Usuario): Promise<Usuario> {
+  const existing = await prisma.usuarios.findFirst({ where: await tenantWhere<Prisma.UsuariosWhereInput>({ id: data.id }) });
+  if (!existing) throw new Error("Usuario no encontrado en la clínica");
+
   const updated = await prisma.usuarios.update({
-    where: { id: data.id },
+    where: { id: existing.id },
     data: {
       usuario: data.usuario,
       rol_id: data.rol_id,
@@ -129,8 +135,8 @@ export async function updateUsuario(data: Usuario): Promise<Usuario> {
  * Obtener usuario por ID
  */
 export async function getUsuarioById(id: string): Promise<Usuario | null> {
-  const r = await prisma.usuarios.findUnique({
-    where: { id },
+  const r = await prisma.usuarios.findFirst({
+    where: await tenantWhere<Prisma.UsuariosWhereInput>({ id }),
     include: {
       rol: { select: { nombre: true } },
       Empleados: { select: { nombre: true, apellido: true } },

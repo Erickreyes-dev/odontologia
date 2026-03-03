@@ -9,14 +9,57 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Tenant {
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  nombre       String    @db.VarChar(120)
+  slug         String    @unique @db.VarChar(60)
+  activo       Boolean   @default(true) @db.Bit(1)
+  plan         String    @default("starter") @db.VarChar(30)
+  maxUsuarios  Int       @default(20)
+  createAt     DateTime  @default(now())
+  updateAt     DateTime  @updatedAt
+
+  permisos         Permiso[]
+  roles            Rol[]
+  empleados        Empleados[]
+  puestos          Puesto[]
+  usuarios         Usuarios[]
+  seguros          Seguro[]
+  pacientes        Paciente[]
+  profesiones      Profesion[]
+  servicios        Servicio[]
+  medicos          Medico[]
+  consultorios     Consultorio[]
+  citas            Cita[]
+  consultas        Consulta[]
+  consultaServicios ConsultaServicio[]
+  productos        Producto[]
+  consultaProductos ConsultaProducto[]
+  cotizaciones     Cotizacion[]
+  cotizacionServicios CotizacionServicio[]
+  planTratamientos PlanTratamiento[]
+  planEtapas       PlanEtapa[]
+  planEtapaServicios PlanEtapaServicio[]
+  seguimientos     Seguimiento[]
+  pagos            Pago[]
+  financiamientos  Financiamiento[]
+  ordenesCobro     OrdenDeCobro[]
+  cuotasFinanciamiento CuotaFinanciamiento[]
+}
+
 model Permiso {
   id          String       @id @default(uuid())
-  nombre      String       @unique
+  tenantId    String?      @db.VarChar(36)
+  nombre      String       @db.VarChar(100)
   descripcion String
   createAt    DateTime     @default(now())
   updateAt    DateTime     @updatedAt
   activo      Boolean
   roles       RolPermiso[]
+  tenant      Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
 }
 
 model RolPermiso {
@@ -34,17 +77,23 @@ model RolPermiso {
 
 model Rol {
   id          String       @id @default(uuid())
-  nombre      String       @unique
+  tenantId    String?      @db.VarChar(36)
+  nombre      String       @db.VarChar(80)
   descripcion String
   createAt    DateTime     @default(now())
   updateAt    DateTime     @updatedAt
   activo      Boolean
   permisos    RolPermiso[]
   usuarios    Usuarios[]
+  tenant      Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
 }
 
 model Empleados {
   id        String @id @default(uuid()) @db.VarChar(36)
+  tenantId  String? @db.VarChar(36)
   puesto_id String @db.VarChar(36)
 
   identidad       String    @db.VarChar(50)
@@ -61,28 +110,34 @@ model Empleados {
   createAt   DateTime @default(now())
   updateAt   DateTime @updatedAt
 
-  // Relaciones existentes
+  tenant   Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   Puesto   Puesto    @relation(fields: [puesto_id], references: [Id], onDelete: Cascade, onUpdate: NoAction)
   Usuarios Usuarios?
+  Medico   Medico?
 
-  // NUEVA relación opcional 1-1
-  Medico Medico?
-
+  @@unique([tenantId, identidad])
+  @@index([tenantId])
   @@index([puesto_id])
 }
 
 model Puesto {
   Id          String      @id @db.VarChar(36)
+  tenantId    String?     @db.VarChar(36)
   Nombre      String      @db.VarChar(100)
   Descripcion String      @db.VarChar(100)
   Activo      Boolean     @db.Bit(1)
   createAt    DateTime    @default(now())
   updateAt    DateTime    @updatedAt
   Empleados   Empleados[]
+  tenant      Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, Nombre])
+  @@index([tenantId])
 }
 
 model Usuarios {
   id                  String               @id @db.VarChar(36)
+  tenantId            String?              @db.VarChar(36)
   empleado_id         String               @unique(map: "IX_Usuarios_empleado_id") @db.VarChar(36)
   usuario             String               @db.VarChar(50)
   contrasena          String               @db.LongText
@@ -91,10 +146,13 @@ model Usuarios {
   updateAt            DateTime             @updatedAt
   rol_id              String               @db.VarChar(36)
   activo              Boolean              @db.Bit(1)
+  tenant              Tenant?               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   Empleados           Empleados            @relation(fields: [empleado_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Usuarios_Empleados_empleado_id")
   rol                 Rol                  @relation(fields: [rol_id], references: [id])
   PasswordResetToken  PasswordResetToken[]
 
+  @@unique([tenantId, usuario])
+  @@index([tenantId])
   @@index([rol_id], map: "IX_Usuarios_rol_id")
 }
 
@@ -112,19 +170,24 @@ model PasswordResetToken {
 
 model Seguro {
   id          String   @id @default(uuid()) @db.VarChar(36)
+  tenantId    String?  @db.VarChar(36)
   nombre      String   @db.VarChar(100)
   descripcion String?  @db.VarChar(255)
   activo      Boolean  @db.Bit(1)
   createAt    DateTime @default(now())
   updateAt    DateTime @updatedAt
 
-  // Relaciones
+  tenant    Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   pacientes Paciente[]
+
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
 }
 
 model Paciente {
   id              String    @id @default(uuid()) @db.VarChar(36)
-  identidad       String    @unique @db.VarChar(50)
+  tenantId        String?   @db.VarChar(36)
+  identidad       String    @db.VarChar(50)
   nombre          String    @db.VarChar(100)
   apellido        String    @db.VarChar(100)
   fechaNacimiento DateTime? @db.DateTime(6)
@@ -133,7 +196,6 @@ model Paciente {
   correo          String?   @db.VarChar(150)
   direccion       String?   @db.VarChar(255)
 
-  // Seguro opcional
   seguroId String? @db.VarChar(36)
   seguro   Seguro? @relation(fields: [seguroId], references: [id])
 
@@ -141,32 +203,38 @@ model Paciente {
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
 
+  tenant           Tenant?            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   citas            Cita[]
   cotizaciones     Cotizacion[]
   planTratamientos PlanTratamiento[]
   seguimientos     Seguimiento[]
+  financiamientos  Financiamiento[]
+  ordenesCobro     OrdenDeCobro[]
 
-  // ---- ADICIONES (pagos/financiamientos/ordenes) ----
-  financiamientos Financiamiento[]
-  ordenesCobro    OrdenDeCobro[]
-
+  @@unique([tenantId, identidad])
+  @@index([tenantId])
   @@index([seguroId])
 }
 
 model Profesion {
   id          String   @id @default(uuid()) @db.VarChar(36)
-  nombre      String   @unique @db.VarChar(100) // Ej: Odontólogo, Médico General
+  tenantId    String?  @db.VarChar(36)
+  nombre      String   @db.VarChar(100)
   descripcion String?  @db.VarChar(255)
   activo      Boolean  @db.Bit(1)
   createAt    DateTime @default(now())
   updateAt    DateTime @updatedAt
 
-  // Relaciones
+  tenant  Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   medicos Medico[]
+
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
 }
 
 model Servicio {
   id          String   @id @default(uuid()) @db.VarChar(36)
+  tenantId    String?  @db.VarChar(36)
   nombre      String   @db.VarChar(150)
   descripcion String?  @db.VarChar(255)
   precioBase  Decimal  @db.Decimal(10, 2)
@@ -175,17 +243,20 @@ model Servicio {
   createAt    DateTime @default(now())
   updateAt    DateTime @updatedAt
 
-  // Relación muchos a muchos con Medico
-  medicosServicios    MedicoServicio[]
-  consultasServicios  ConsultaServicio[]
-  cotizacionServicios CotizacionServicio[]
-  planEtapaServicios  PlanEtapaServicio[]
+  tenant               Tenant?               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  medicosServicios     MedicoServicio[]
+  consultasServicios   ConsultaServicio[]
+  cotizacionServicios  CotizacionServicio[]
+  planEtapaServicios   PlanEtapaServicio[]
 
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
   @@map("Servicios")
 }
 
 model Medico {
   id String @id @default(uuid()) @db.VarChar(36)
+  tenantId String? @db.VarChar(36)
 
   idEmpleado String    @unique @db.VarChar(36)
   empleado   Empleados @relation(fields: [idEmpleado], references: [id], onDelete: Cascade)
@@ -197,12 +268,13 @@ model Medico {
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
 
-  serviciosMedicos MedicoServicio[]
-  citas            Cita[]
+  tenant            Tenant?            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  serviciosMedicos  MedicoServicio[]
+  citas             Cita[]
+  planTratamientos  PlanTratamiento[]
+  planEtapas        PlanEtapa[]
 
-  planTratamientos PlanTratamiento[]
-  planEtapas       PlanEtapa[]
-
+  @@index([tenantId])
   @@map("Medicos")
 }
 
@@ -217,28 +289,34 @@ model MedicoServicio {
 
   @@unique([medicoId, servicioId])
   @@index([servicioId])
-  @@map("Medicos_Servicios") // nombre de tabla intermedia
+  @@map("Medicos_Servicios")
 }
 
 model Consultorio {
   id        String   @id @default(uuid()) @db.VarChar(36)
-  nombre    String   @db.VarChar(50) // Ej: "Consultorio 1", "Dental A"
+  tenantId  String?  @db.VarChar(36)
+  nombre    String   @db.VarChar(50)
   ubicacion String?  @db.VarChar(150)
   activo    Boolean  @db.Bit(1)
   createAt  DateTime @default(now())
   updateAt  DateTime @updatedAt
 
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   citas Cita[]
+
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
 }
 
 model Cita {
   id            String @id @default(uuid()) @db.VarChar(36)
+  tenantId      String? @db.VarChar(36)
   pacienteId    String @db.VarChar(36)
   medicoId      String @db.VarChar(36)
   consultorioId String @db.VarChar(36)
 
   fechaHora DateTime @db.DateTime(6)
-  estado    String   @db.VarChar(20) // programada, atendida, cancelada
+  estado    String   @db.VarChar(20)
 
   motivo      String? @db.VarChar(255)
   observacion String? @db.VarChar(255)
@@ -246,6 +324,7 @@ model Cita {
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
 
+  tenant      Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   paciente    Paciente    @relation(fields: [pacienteId], references: [id])
   medico      Medico      @relation(fields: [medicoId], references: [idEmpleado])
   consultorio Consultorio @relation(fields: [consultorioId], references: [id])
@@ -253,6 +332,7 @@ model Cita {
   consulta     Consulta?
   seguimientos Seguimiento[]
 
+  @@index([tenantId])
   @@index([pacienteId])
   @@index([medicoId])
   @@index([consultorioId])
@@ -260,6 +340,7 @@ model Cita {
 
 model Consulta {
   id     String @id @default(uuid()) @db.VarChar(36)
+  tenantId String? @db.VarChar(36)
   citaId String @unique @db.VarChar(36)
 
   fechaConsulta DateTime? @db.DateTime(6)
@@ -273,22 +354,24 @@ model Consulta {
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
 
-  cita Cita @relation(fields: [citaId], references: [id], onDelete: Cascade)
-  seguimiento Seguimiento? @relation(fields: [seguimientoId], references: [id])
-  financiamiento Financiamiento? @relation(fields: [financiamientoId], references: [id])
+  tenant          Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cita            Cita             @relation(fields: [citaId], references: [id], onDelete: Cascade)
+  seguimiento     Seguimiento?     @relation(fields: [seguimientoId], references: [id])
+  financiamiento  Financiamiento?  @relation(fields: [financiamientoId], references: [id])
 
   detalles ConsultaServicio[]
   productos ConsultaProducto[]
-
   planEtapas PlanEtapa[]
   ordenesCobro OrdenDeCobro[]
 
+  @@index([tenantId])
   @@index([seguimientoId])
   @@index([financiamientoId])
 }
 
 model ConsultaServicio {
   id         String @id @default(uuid()) @db.VarChar(36)
+  tenantId   String? @db.VarChar(36)
   consultaId String @db.VarChar(36)
   servicioId String @db.VarChar(36)
 
@@ -297,15 +380,18 @@ model ConsultaServicio {
 
   createAt DateTime @default(now())
 
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   consulta Consulta @relation(fields: [consultaId], references: [id], onDelete: Cascade)
   servicio Servicio @relation(fields: [servicioId], references: [id])
 
+  @@index([tenantId])
   @@index([consultaId])
   @@index([servicioId])
 }
 
 model Producto {
   id          String   @id @default(uuid()) @db.VarChar(36)
+  tenantId    String?  @db.VarChar(36)
   nombre      String   @db.VarChar(150)
   descripcion String?  @db.VarChar(255)
   unidad      String?  @db.VarChar(50)
@@ -315,51 +401,56 @@ model Producto {
   createAt    DateTime @default(now())
   updateAt    DateTime @updatedAt
 
+  tenant             Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   consultasProductos ConsultaProducto[]
 
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
   @@index([nombre])
 }
 
 model ConsultaProducto {
   id         String   @id @default(uuid()) @db.VarChar(36)
+  tenantId   String?  @db.VarChar(36)
   consultaId String   @db.VarChar(36)
   productoId String   @db.VarChar(36)
   cantidad   Int      @default(1)
   createAt   DateTime @default(now())
 
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   consulta Consulta @relation(fields: [consultaId], references: [id], onDelete: Cascade)
   producto Producto @relation(fields: [productoId], references: [id])
 
+  @@index([tenantId])
   @@index([consultaId])
   @@index([productoId])
 }
 
 model Cotizacion {
   id         String @id @default(uuid()) @db.VarChar(36)
+  tenantId   String? @db.VarChar(36)
   pacienteId String @db.VarChar(36)
 
   fecha  DateTime @default(now())
   estado String   @db.VarChar(20)
-  // borrador | enviada | aceptada | rechazada | parcial
-
   total Decimal @db.Decimal(10, 2)
-
   observacion String? @db.VarChar(255)
 
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
 
-  paciente Paciente             @relation(fields: [pacienteId], references: [id])
-  detalles CotizacionServicio[]
-
-  // ---- ADICIONES (financiamientos ligados a cotización) ----
+  tenant          Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  paciente        Paciente             @relation(fields: [pacienteId], references: [id])
+  detalles        CotizacionServicio[]
   financiamientos Financiamiento[]
 
+  @@index([tenantId])
   @@index([pacienteId])
 }
 
 model CotizacionServicio {
   id           String @id @default(uuid()) @db.VarChar(36)
+  tenantId     String? @db.VarChar(36)
   cotizacionId String @db.VarChar(36)
   servicioId   String @db.VarChar(36)
 
@@ -368,14 +459,15 @@ model CotizacionServicio {
 
   observacion String? @db.VarChar(255)
 
+  tenant     Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   cotizacion Cotizacion @relation(fields: [cotizacionId], references: [id], onDelete: Cascade)
   servicio   Servicio   @relation(fields: [servicioId], references: [id])
 
   @@unique([cotizacionId, servicioId])
+  @@index([tenantId])
   @@index([servicioId])
 }
 
-// Estados para planes y seguimientos
 enum PlanEstado {
   ACTIVO
   PAUSADO
@@ -390,54 +482,56 @@ enum SeguimientoEstado {
 
 model PlanTratamiento {
   id                  String     @id @default(uuid()) @db.VarChar(36)
+  tenantId            String?    @db.VarChar(36)
   pacienteId          String     @db.VarChar(36)
-  nombre              String     @db.VarChar(150) // p.ej. "Brackets - Ortodoncia completa"
+  nombre              String     @db.VarChar(150)
   descripcion         String?    @db.VarChar(255)
   estado              PlanEstado @default(ACTIVO)
   fechaInicio         DateTime   @db.DateTime(6)
   fechaFin            DateTime?  @db.DateTime(6)
-  medicoResponsableId String?    @db.VarChar(36) // opcional: quien lidera el plan
+  medicoResponsableId String?    @db.VarChar(36)
 
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
 
-  // Relaciones
-  paciente          Paciente    @relation(fields: [pacienteId], references: [id])
-  medicoResponsable Medico?     @relation(fields: [medicoResponsableId], references: [idEmpleado])
+  tenant            Tenant?            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  paciente          Paciente          @relation(fields: [pacienteId], references: [id])
+  medicoResponsable Medico?           @relation(fields: [medicoResponsableId], references: [idEmpleado])
   etapas            PlanEtapa[]
+  financiamientos   Financiamiento[]
+  ordenesCobro      OrdenDeCobro[]
 
-  // ---- ADICIONES (financiamientos y ordenes ligados a plan) ----
-  financiamientos Financiamiento[]
-  ordenesCobro    OrdenDeCobro[]
-
+  @@index([tenantId])
   @@index([pacienteId])
   @@index([medicoResponsableId])
 }
 
 model PlanEtapa {
   id          String  @id @default(uuid()) @db.VarChar(36)
+  tenantId    String? @db.VarChar(36)
   planId      String  @db.VarChar(36)
-  nombre      String  @db.VarChar(150) // p.ej. "Ajuste Mensual"
+  nombre      String  @db.VarChar(150)
   descripcion String? @db.VarChar(255)
-  orden       Int     @default(1) // orden en el plan
+  orden       Int     @default(1)
 
-  // Reglas de programación
-  intervaloDias       Int? // cada cuántos días se repite (si aplica)
-  repeticiones        Int? // cuántas veces (null = indefinido)
-  programarCita       Boolean @default(true) @db.Bit(1) // si se crea una cita por cada seguimiento
-  responsableMedicoId String? @db.VarChar(36) // si necesita un médico específico
-
-  crearDesdeConsultaId String? @db.VarChar(36) // opcional: si la etapa se originó desde una consulta
+  intervaloDias       Int?
+  repeticiones        Int?
+  programarCita       Boolean @default(true) @db.Bit(1)
+  responsableMedicoId String? @db.VarChar(36)
+  crearDesdeConsultaId String? @db.VarChar(36)
 
   createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
 
-  // Relaciones
-  plan               PlanTratamiento @relation(fields: [planId], references: [id], onDelete: Cascade)
-  responsableMedico  Medico?         @relation(fields: [responsableMedicoId], references: [idEmpleado])
-  crearDesdeConsulta Consulta?       @relation(fields: [crearDesdeConsultaId], references: [id])
-  servicios          PlanEtapaServicio[]
-  seguimientos       Seguimiento[]
+  tenant            Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan              PlanTratamiento      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  responsableMedico Medico?              @relation(fields: [responsableMedicoId], references: [idEmpleado])
+  crearDesdeConsulta Consulta?           @relation(fields: [crearDesdeConsultaId], references: [id])
+  seguimientos      Seguimiento[]
+  servicios         PlanEtapaServicio[]
 
+  @@unique([planId, orden])
+  @@index([tenantId])
   @@index([planId])
   @@index([responsableMedicoId])
   @@index([crearDesdeConsultaId])
@@ -445,55 +539,52 @@ model PlanEtapa {
 
 model PlanEtapaServicio {
   id         String   @id @default(uuid()) @db.VarChar(36)
+  tenantId   String?  @db.VarChar(36)
   etapaId    String   @db.VarChar(36)
   servicioId String   @db.VarChar(36)
-  precioAplicado Decimal @db.Decimal(10, 2)
-  cantidad       Int     @default(1)
+  cantidad   Int      @default(1)
+  precioAplicado Decimal? @db.Decimal(10, 2)
   createAt   DateTime @default(now())
 
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   etapa    PlanEtapa @relation(fields: [etapaId], references: [id], onDelete: Cascade)
   servicio Servicio @relation(fields: [servicioId], references: [id])
 
   @@unique([etapaId, servicioId])
+  @@index([tenantId])
   @@index([etapaId])
   @@index([servicioId])
 }
 
 model Seguimiento {
   id              String            @id @default(uuid()) @db.VarChar(36)
+  tenantId        String?           @db.VarChar(36)
   etapaId         String            @db.VarChar(36)
   pacienteId      String            @db.VarChar(36)
   fechaProgramada DateTime          @db.DateTime(6)
   fechaRealizada  DateTime?         @db.DateTime(6)
   estado          SeguimientoEstado @default(PENDIENTE)
   nota            String?           @db.VarChar(255)
-  citaId          String?           @db.VarChar(36) // si se creó una cita vinculada
-  creadoPorId     String?           @db.VarChar(36) // usuario que creó el seguimiento
+  citaId          String?           @db.VarChar(36)
+  creadoPorId     String?           @db.VarChar(36)
 
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
 
-  etapa    PlanEtapa @relation(fields: [etapaId], references: [id], onDelete: Cascade)
-  paciente Paciente  @relation(fields: [pacienteId], references: [id])
-  cita     Cita?     @relation(fields: [citaId], references: [id])
+  tenant      Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  etapa       PlanEtapa      @relation(fields: [etapaId], references: [id], onDelete: Cascade)
+  paciente    Paciente       @relation(fields: [pacienteId], references: [id])
+  cita        Cita?          @relation(fields: [citaId], references: [id])
   ordenesCobro OrdenDeCobro[]
+  consultas   Consulta[]
 
+  @@index([tenantId])
   @@index([etapaId])
   @@index([pacienteId])
   @@index([citaId])
   @@index([fechaProgramada])
-  consultas Consulta[]
 }
 
-/**
- * =========================
- * PAGOS / FINANCIAMIENTO (SOLO AÑADIDOS)
- * - Solo estas entidades y relaciones fueron añadidas
- * - No se cambiaron otros modelos (salvo añadir arrays de relación)
- * =========================
- */
-
-// Métodos y estados
 enum MetodoPago {
   EFECTIVO
   TARJETA
@@ -517,6 +608,7 @@ enum FinanciamientoEstado {
 
 model Pago {
   id         String     @id @default(uuid()) @db.VarChar(36)
+  tenantId   String?    @db.VarChar(36)
   ordenCobroId String   @unique @db.VarChar(36)
   monto      Decimal    @db.Decimal(10, 2)
   metodo     MetodoPago
@@ -525,20 +617,20 @@ model Pago {
   estado     PagoEstado @default(REGISTRADO)
   comentario String?    @db.VarChar(255)
 
-  // Relación obligatoria: siempre se paga a través de una orden de cobro
+  tenant     Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   ordenCobro OrdenDeCobro @relation(fields: [ordenCobroId], references: [id], onDelete: Cascade)
-
-  // Relación pasiva: una colección de cuotas puede apuntar a este pago (una pago puede cubrir varias cuotas)
-  cuotas CuotaFinanciamiento[]
+  cuotas     CuotaFinanciamiento[]
 
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
 
+  @@index([tenantId])
   @@index([ordenCobroId])
 }
 
 model Financiamiento {
   id                String               @id @default(uuid()) @db.VarChar(36)
+  tenantId          String?              @db.VarChar(36)
   pacienteId        String               @db.VarChar(36)
   cotizacionId      String?              @db.VarChar(36)
   planTratamientoId String?              @db.VarChar(36)
@@ -553,17 +645,18 @@ model Financiamiento {
   createAt          DateTime             @default(now())
   updateAt          DateTime             @updatedAt
 
-  paciente        Paciente         @relation(fields: [pacienteId], references: [id])
-  cotizacion      Cotizacion?      @relation(fields: [cotizacionId], references: [id])
-  planTratamiento PlanTratamiento? @relation(fields: [planTratamientoId], references: [id])
-
+  tenant           Tenant?            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  paciente         Paciente          @relation(fields: [pacienteId], references: [id])
+  cotizacion       Cotizacion?       @relation(fields: [cotizacionId], references: [id])
+  planTratamiento  PlanTratamiento?  @relation(fields: [planTratamientoId], references: [id])
   cuotasFinanciamiento CuotaFinanciamiento[]
-  ordenesCobro          OrdenDeCobro[]
+  ordenesCobro     OrdenDeCobro[]
+  consultas        Consulta[]
 
+  @@index([tenantId])
   @@index([pacienteId])
   @@index([cotizacionId])
   @@index([planTratamientoId])
-  consultas Consulta[]
 }
 
 enum OrdenCobroEstado {
@@ -574,6 +667,7 @@ enum OrdenCobroEstado {
 
 model OrdenDeCobro {
   id                String           @id @default(uuid()) @db.VarChar(36)
+  tenantId          String?          @db.VarChar(36)
   pacienteId        String           @db.VarChar(36)
   planTratamientoId String?          @db.VarChar(36)
   financiamientoId  String?          @db.VarChar(36)
@@ -585,37 +679,42 @@ model OrdenDeCobro {
   fechaEmision      DateTime         @default(now()) @db.DateTime(6)
   fechaPago         DateTime?        @db.DateTime(6)
 
-  paciente        Paciente        @relation(fields: [pacienteId], references: [id])
+  tenant          Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  paciente        Paciente         @relation(fields: [pacienteId], references: [id])
   planTratamiento PlanTratamiento? @relation(fields: [planTratamientoId], references: [id])
   financiamiento  Financiamiento?  @relation(fields: [financiamientoId], references: [id])
   consulta        Consulta?        @relation(fields: [consultaId], references: [id])
   seguimiento     Seguimiento?     @relation(fields: [seguimientoId], references: [id])
   pago            Pago?
 
+  @@index([tenantId])
   @@index([pacienteId])
   @@index([planTratamientoId])
   @@index([financiamientoId])
   @@index([consultaId])
   @@index([seguimientoId])
 }
+
 model CuotaFinanciamiento {
   id               String    @id @default(uuid()) @db.VarChar(36)
+  tenantId         String?   @db.VarChar(36)
   financiamientoId String    @db.VarChar(36)
   numero           Int
   monto            Decimal   @db.Decimal(10, 2)
   fechaVencimiento DateTime  @db.DateTime(6)
   pagada           Boolean   @default(false) @db.Bit(1)
   fechaPago        DateTime?
-  // La FK hacia Pago está en esta tabla: muchas cuotas pueden apuntar al mismo pago (flexible)
   pagoId           String?   @db.VarChar(36)
 
-  financiamiento Financiamiento @relation(fields: [financiamientoId], references: [id], onDelete: Cascade)
-  pago           Pago?          @relation(fields: [pagoId], references: [id], onDelete: SetNull)
+  tenant         Tenant?          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  financiamiento Financiamiento  @relation(fields: [financiamientoId], references: [id], onDelete: Cascade)
+  pago           Pago?           @relation(fields: [pagoId], references: [id], onDelete: SetNull)
 
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
 
   @@unique([financiamientoId, numero])
+  @@index([tenantId])
   @@index([financiamientoId])
   @@index([pagoId])
 }
