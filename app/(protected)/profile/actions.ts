@@ -36,7 +36,7 @@ export async function getProfile(): Promise<Employee | null> {
         })
       : null;
 
-    const canEditTenantContact = session.Rol === "AdministradorTenant";
+    const canEditTenantContact = session.Rol === "Administrador";
 
     if (usuario.Empleados) {
       const e = usuario.Empleados;
