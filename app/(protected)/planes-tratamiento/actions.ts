@@ -10,16 +10,20 @@ import {
   Seguimiento,
 } from "./schema";
 import { PlanEstado, SeguimientoEstado } from "@/lib/generated/prisma";
+import { Prisma } from "@/lib/generated/prisma";
+import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 
 /**
  * Genera seguimientos automáticamente para las etapas de un plan
  */
 async function generarSeguimientos(planId: string, pacienteId: string) {
   const etapas = await prisma.planEtapa.findMany({
-    where: { planId },
+    where: await tenantWhere<Prisma.PlanEtapaWhereInput>({ planId }),
     orderBy: { orden: "asc" },
   });
-  const plan = await prisma.planTratamiento.findUnique({ where: { id: planId } });
+  const plan = await prisma.planTratamiento.findFirst({
+    where: await tenantWhere<Prisma.PlanTratamientoWhereInput>({ id: planId }),
+  });
   if (!plan || !plan.fechaInicio) return;
 
   const fechaBase = new Date(plan.fechaInicio);
@@ -33,13 +37,13 @@ async function generarSeguimientos(planId: string, pacienteId: string) {
       fechaProgramada.setDate(fechaProgramada.getDate() + i * intervalo);
 
       await prisma.seguimiento.create({
-        data: {
+        data: await withTenantData({
           id: randomUUID(),
           etapaId: etapa.id,
           pacienteId,
           fechaProgramada,
           estado: "PENDIENTE" as SeguimientoEstado,
-        },
+        }),
       });
     }
 
@@ -53,6 +57,7 @@ async function generarSeguimientos(planId: string, pacienteId: string) {
 export async function getPlanesTratamiento(): Promise<PlanTratamiento[]> {
   try {
     const records = await prisma.planTratamiento.findMany({
+      where: await tenantWhere<Prisma.PlanTratamientoWhereInput>(),
       include: {
         paciente: true,
         medicoResponsable: { include: { empleado: true } },
@@ -160,7 +165,7 @@ export async function createPlanTratamiento(
     const planId = randomUUID();
 
     const plan = await prisma.planTratamiento.create({
-      data: {
+      data: await withTenantData({
         id: planId,
         pacienteId: validatedData.pacienteId,
         nombre: validatedData.nombre,
@@ -190,7 +195,7 @@ export async function createPlanTratamiento(
               },
             })) ?? [],
         },
-      },
+      }),
       include: {
         paciente: true,
         medicoResponsable: { include: { empleado: true } },
@@ -222,10 +227,17 @@ export async function updatePlanTratamiento(
     if (!id) return { success: false, error: "ID del plan es requerido" };
 
     // Eliminar etapas existentes y sus seguimientos
-    await prisma.planEtapa.deleteMany({ where: { planId: id } });
+    await prisma.planEtapa.deleteMany({ where: await tenantWhere<Prisma.PlanEtapaWhereInput>({ planId: id }) });
+
+    const existingPlan = await prisma.planTratamiento.findFirst({
+      where: await tenantWhere<Prisma.PlanTratamientoWhereInput>({ id }),
+      select: { id: true },
+    });
+
+    if (!existingPlan) return { success: false, error: "Plan no válido para este tenant" };
 
     const plan = await prisma.planTratamiento.update({
-      where: { id },
+      where: { id: existingPlan.id },
       data: {
         pacienteId: data.pacienteId,
         nombre: data.nombre,
@@ -278,7 +290,8 @@ export async function updatePlanTratamiento(
 export async function deletePlanTratamiento(id: string): Promise<{ success: true } | { success: false; error: string }> {
   try {
     if (!id) return { success: false, error: "ID del plan es requerido" };
-    await prisma.planTratamiento.delete({ where: { id } });
+    const deleted = await prisma.planTratamiento.deleteMany({ where: await tenantWhere<Prisma.PlanTratamientoWhereInput>({ id }) });
+    if (deleted.count === 0) return { success: false, error: "Plan no válido para este tenant" };
     revalidatePath("/planes-tratamiento");
     return { success: true };
   } catch (error) {
@@ -292,10 +305,12 @@ export async function deletePlanTratamiento(id: string): Promise<{ success: true
  */
 export async function updateEstadoPlan(id: string, estado: PlanEstado): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    await prisma.planTratamiento.update({
-      where: { id },
+    const updated = await prisma.planTratamiento.updateMany({
+      where: await tenantWhere<Prisma.PlanTratamientoWhereInput>({ id }),
       data: { estado, fechaFin: estado === "COMPLETADO" || estado === "CANCELADO" ? new Date() : null },
     });
+
+    if (updated.count === 0) return { success: false, error: "Plan no válido para este tenant" };
     revalidatePath("/planes-tratamiento");
     revalidatePath(`/planes-tratamiento/${id}`);
     return { success: true };
@@ -313,10 +328,16 @@ export async function updateSeguimiento(
   data: { estado?: SeguimientoEstado; fechaRealizada?: Date | null; nota?: string | null; citaId?: string | null }
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const seguimiento = await prisma.seguimiento.update({
-      where: { id },
-      data: { estado: data.estado, fechaRealizada: data.fechaRealizada ?? null, nota: data.nota ?? null, citaId: data.citaId ?? null },
+    const seguimiento = await prisma.seguimiento.findFirst({
+      where: await tenantWhere<Prisma.SeguimientoWhereInput>({ id }),
       include: { etapa: { include: { plan: true } } },
+    });
+
+    if (!seguimiento) return { success: false, error: "Seguimiento no válido para este tenant" };
+
+    await prisma.seguimiento.update({
+      where: { id: seguimiento.id },
+      data: { estado: data.estado, fechaRealizada: data.fechaRealizada ?? null, nota: data.nota ?? null, citaId: data.citaId ?? null },
     });
     revalidatePath("/planes-tratamiento");
     revalidatePath(`/planes-tratamiento/${seguimiento.etapa.planId}`);
@@ -333,7 +354,7 @@ export async function updateSeguimiento(
 export async function getSeguimientosPendientes(pacienteId: string): Promise<Seguimiento[]> {
   try {
     const records = await prisma.seguimiento.findMany({
-      where: { pacienteId, estado: "PENDIENTE" },
+      where: await tenantWhere<Prisma.SeguimientoWhereInput>({ pacienteId, estado: "PENDIENTE" }),
       include: {
         etapa: {
           include: {
@@ -379,7 +400,7 @@ export async function getSeguimientosPendientes(pacienteId: string): Promise<Seg
 export async function getServiciosActivos(): Promise<{ id: string; nombre: string; precioBase: number; duracionMin: number }[]> {
   try {
     const servicios = await prisma.servicio.findMany({
-      where: { activo: true },
+      where: await tenantWhere<Prisma.ServicioWhereInput>({ activo: true }),
       select: { id: true, nombre: true, precioBase: true, duracionMin: true },
       orderBy: { nombre: "asc" },
     });
