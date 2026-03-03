@@ -3,6 +3,8 @@
 import { getSession } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Employee } from "./type"; // Asegúrate de que este tipo tenga los campos correctos
+import { Prisma } from "@/lib/generated/prisma";
+import { tenantWhere } from "@/lib/tenant-query";
 
 /**
  * Obtiene el perfil del empleado autenticado.
@@ -14,7 +16,7 @@ export async function getProfile(): Promise<Employee | null> {
     if (!idEmpleado) throw new Error("Empleado no autenticado");
 
     const e = await prisma.empleados.findFirst({
-      where: { id: idEmpleado },
+      where: await tenantWhere<Prisma.EmpleadosWhereInput>({ id: idEmpleado }),
       include: {
         Usuarios: true,
         Puesto: true,

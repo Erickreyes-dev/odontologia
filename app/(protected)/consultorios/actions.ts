@@ -4,13 +4,15 @@ import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { Consultorio, ConsultorioSchema } from './schema';
+import { Prisma } from '@/lib/generated/prisma';
+import { tenantWhere, withTenantData } from '@/lib/tenant-query';
 
 /**
  * Obtiene todos los consultorios
  */
 export async function getConsultorios(): Promise<Consultorio[]> {
   try {
-    const records = await prisma.consultorio.findMany();
+    const records = await prisma.consultorio.findMany({ where: await tenantWhere<Prisma.ConsultorioWhereInput>() });
     return records.map(r => ({
       id: r.id,
       nombre: r.nombre,
@@ -28,7 +30,7 @@ export async function getConsultorios(): Promise<Consultorio[]> {
  */
 export async function getConsultoriosActios(): Promise<Consultorio[]> {
   try {
-    const records = await prisma.consultorio.findMany({ where: { activo: true } });
+    const records = await prisma.consultorio.findMany({ where: await tenantWhere<Prisma.ConsultorioWhereInput>({ activo: true }) });
     return records.map(r => ({
       id: r.id,
       nombre: r.nombre,
@@ -51,8 +53,8 @@ export async function deleteConsultorio(id: string): Promise<{ success: true } |
       return { success: false, error: "ID del consultorio es requerido" };
     }
 
-    await prisma.consultorio.delete({
-      where: { id },
+    await prisma.consultorio.deleteMany({
+      where: await tenantWhere<Prisma.ConsultorioWhereInput>({ id }),
     });
 
     // Revalidar la página de consultorio
@@ -73,7 +75,7 @@ export async function deleteConsultorio(id: string): Promise<{ success: true } |
  */
 export async function getConsultorioById(id: string): Promise<Consultorio | null> {
   try {
-    const r = await prisma.consultorio.findUnique({ where: { id } });
+    const r = await prisma.consultorio.findFirst({ where: await tenantWhere<Prisma.ConsultorioWhereInput>({ id }) });
     if (!r) return null;
     return {
       id: r.id,
@@ -100,12 +102,12 @@ export async function createConsultorio(data: Consultorio): Promise<{ success: t
 
     const id = randomUUID();
     const r = await prisma.consultorio.create({
-      data: {
+      data: await withTenantData({
         id: id,
         nombre: validatedData.nombre,
         ubicacion: validatedData.ubicacion,
         activo: validatedData.activo,
-      },
+      }),
     });
     
     const result = {
@@ -140,8 +142,13 @@ export async function updateConsultorio(id: string, data: Partial<Consultorio>):
     // Validar datos con Zod (permitir campos parciales)
     const validatedData = ConsultorioSchema.partial().parse(data);
 
+    const existing = await prisma.consultorio.findFirst({ where: await tenantWhere<Prisma.ConsultorioWhereInput>({ id }) });
+    if (!existing) {
+      return { success: false, error: "Registro no encontrado en la clínica" };
+    }
+
     const r = await prisma.consultorio.update({
-      where: { id },
+      where: { id: existing.id },
       data: {
         ...(validatedData.nombre && { nombre: validatedData.nombre }),
         ...(validatedData.ubicacion !== undefined && { ubicacion: validatedData.ubicacion }),

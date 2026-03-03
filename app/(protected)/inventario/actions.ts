@@ -3,9 +3,12 @@
 import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { Producto } from "./schema";
+import { Prisma } from "@/lib/generated/prisma";
+import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 
 export async function getProductos(): Promise<Producto[]> {
   const productos = await prisma.producto.findMany({
+    where: await tenantWhere<Prisma.ProductoWhereInput>(),
     orderBy: { nombre: "asc" },
   });
 
@@ -21,8 +24,8 @@ export async function getProductos(): Promise<Producto[]> {
 }
 
 export async function getProductoById(id: string): Promise<Producto | null> {
-  const p = await prisma.producto.findUnique({
-    where: { id },
+  const p = await prisma.producto.findFirst({
+    where: await tenantWhere<Prisma.ProductoWhereInput>({ id }),
   });
 
   if (!p) return null;
@@ -40,7 +43,7 @@ export async function getProductoById(id: string): Promise<Producto | null> {
 
 export async function postProducto(data: Producto) {
   return prisma.producto.create({
-    data: {
+    data: await withTenantData({
       id: randomUUID(),
       nombre: data.nombre,
       descripcion: data.descripcion,
@@ -48,13 +51,16 @@ export async function postProducto(data: Producto) {
       stock: data.stock,
       stockMinimo: data.stockMinimo,
       activo: data.activo ?? true,
-    },
+    }),
   });
 }
 
 export async function putProducto(data: Producto) {
+  const existing = await prisma.producto.findFirst({ where: await tenantWhere<Prisma.ProductoWhereInput>({ id: data.id! }) });
+  if (!existing) throw new Error("Producto no encontrado en la clínica");
+
   return prisma.producto.update({
-    where: { id: data.id! },
+    where: { id: existing.id },
     data: {
       nombre: data.nombre,
       descripcion: data.descripcion,

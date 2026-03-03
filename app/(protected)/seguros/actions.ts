@@ -4,13 +4,15 @@ import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { Seguro, SeguroSchema } from './schema';
+import { Prisma } from '@/lib/generated/prisma';
+import { tenantWhere, withTenantData } from '@/lib/tenant-query';
 
 /**
  * Obtiene todos los puestos
  */
 export async function getSeguros(): Promise<Seguro[]> {
   try {
-    const records = await prisma.seguro.findMany();
+    const records = await prisma.seguro.findMany({ where: await tenantWhere<Prisma.SeguroWhereInput>() });
     return records.map(r => ({
       id: r.id,
       nombre: r.nombre,
@@ -28,7 +30,7 @@ export async function getSeguros(): Promise<Seguro[]> {
  */
 export async function getSegurosActivos(): Promise<Seguro[]> {
   try {
-    const records = await prisma.seguro.findMany({ where: { activo: true } });
+    const records = await prisma.seguro.findMany({ where: await tenantWhere<Prisma.SeguroWhereInput>({ activo: true }) });
     return records.map(r => ({
       id: r.id,
       nombre: r.nombre,
@@ -51,8 +53,8 @@ export async function deleteSeguro(id: string): Promise<{ success: true } | { su
       return { success: false, error: "ID del seguro es requerido" };
     }
 
-    await prisma.seguro.delete({
-      where: { id },
+    await prisma.seguro.deleteMany({
+      where: await tenantWhere<Prisma.SeguroWhereInput>({ id }),
     });
 
     // Revalidar la página de seguros
@@ -73,7 +75,7 @@ export async function deleteSeguro(id: string): Promise<{ success: true } | { su
  */
 export async function getSeguroById(id: string): Promise<Seguro | null> {
   try {
-    const r = await prisma.seguro.findUnique({ where: { id } });
+    const r = await prisma.seguro.findFirst({ where: await tenantWhere<Prisma.SeguroWhereInput>({ id }) });
     if (!r) return null;
     return {
       id: r.id,
@@ -100,12 +102,12 @@ export async function createSeguro(data: Seguro): Promise<{ success: true; data:
 
     const id = randomUUID();
     const r = await prisma.seguro.create({
-      data: {
+      data: await withTenantData({
         id: id,
         nombre: validatedData.nombre,
         descripcion: validatedData.descripcion,
         activo: validatedData.activo,
-      },
+      }),
     });
     
     const result = {
@@ -140,8 +142,13 @@ export async function updateSeguro(id: string, data: Partial<Seguro>): Promise<{
     // Validar datos con Zod (permitir campos parciales)
     const validatedData = SeguroSchema.partial().parse(data);
 
+    const existing = await prisma.seguro.findFirst({ where: await tenantWhere<Prisma.SeguroWhereInput>({ id }) });
+    if (!existing) {
+      return { success: false, error: "Registro no encontrado en la clínica" };
+    }
+
     const r = await prisma.seguro.update({
-      where: { id },
+      where: { id: existing.id },
       data: {
         ...(validatedData.nombre && { nombre: validatedData.nombre }),
         ...(validatedData.descripcion !== undefined && { descripcion: validatedData.descripcion }),
