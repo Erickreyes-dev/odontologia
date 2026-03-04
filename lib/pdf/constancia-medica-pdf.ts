@@ -11,6 +11,8 @@ type ConstanciaPdfInput = {
   motivo: string;
   diasReposo: number;
   fechaGeneracion?: Date;
+  clinicTelefono?: string | null;
+  clinicCorreo?: string | null;
 };
 
 export function generateConstanciaMedicaPDF(data: ConstanciaPdfInput) {
@@ -30,9 +32,16 @@ export function generateConstanciaMedicaPDF(data: ConstanciaPdfInput) {
   const fecha = data.fechaGeneracion ?? new Date();
 
   doc.setFont("helvetica", "bold");
-  centerText(data.clinicName, 18, 10);
+  centerText(data.clinicName, 18, 8);
 
   doc.setFont("helvetica", "normal");
+  if (data.clinicTelefono) {
+    centerText(`Teléfono: ${data.clinicTelefono}`, 10, 5);
+  }
+  if (data.clinicCorreo) {
+    centerText(`Correo: ${data.clinicCorreo}`, 10, 7);
+  }
+
   centerText("CONSTANCIA MÉDICA", 14, 12);
 
   doc.setDrawColor(180, 180, 180);

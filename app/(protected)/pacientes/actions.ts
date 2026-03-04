@@ -368,3 +368,133 @@ export async function createConstanciaMedica({
         return { success: false, error: 'Error desconocido al crear la constancia médica.' };
     }
 }
+
+export type ConstanciaMedicaResumen = {
+    id: string;
+    fechaGeneracion: Date;
+    motivo: string;
+    diasReposo: number;
+    medicoNombre: string;
+};
+
+export async function getConstanciasMedicasByPaciente(pacienteId: string): Promise<ConstanciaMedicaResumen[]> {
+    try {
+        if (!pacienteId) return [];
+
+        const records = await prisma.constanciaMedica.findMany({
+            where: await tenantWhere<Prisma.ConstanciaMedicaWhereInput>({ pacienteId }),
+            include: {
+                medico: {
+                    include: {
+                        empleado: {
+                            select: {
+                                nombre: true,
+                                apellido: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: { fechaGeneracion: "desc" },
+        });
+
+        return records.map((record) => ({
+            id: record.id,
+            fechaGeneracion: record.fechaGeneracion,
+            motivo: record.motivo,
+            diasReposo: record.diasReposo,
+            medicoNombre: `${record.medico?.empleado?.nombre ?? ""} ${record.medico?.empleado?.apellido ?? ""}`.trim() || "No especificado",
+        }));
+    } catch (error) {
+        console.error("Error al obtener constancias médicas del paciente:", error);
+        return [];
+    }
+}
+
+export async function updateConstanciaMedica({
+    constanciaId,
+    motivo,
+    diasReposo,
+}: {
+    constanciaId: string;
+    motivo: string;
+    diasReposo: number;
+}): Promise<{
+    success: boolean;
+    error?: string;
+    data?: {
+        id: string;
+        fechaGeneracion: Date;
+        pacienteNombre: string;
+        medicoNombre: string;
+        motivo: string;
+        diasReposo: number;
+    };
+}> {
+    try {
+        const motivoLimpio = motivo.trim();
+        if (!motivoLimpio) {
+            return { success: false, error: "El motivo es requerido." };
+        }
+
+        if (!Number.isInteger(diasReposo) || diasReposo < 1 || diasReposo > 365) {
+            return { success: false, error: "Los días de reposo deben estar entre 1 y 365." };
+        }
+
+        const constancia = await prisma.constanciaMedica.findFirst({
+            where: await tenantWhere<Prisma.ConstanciaMedicaWhereInput>({ id: constanciaId }),
+            include: {
+                paciente: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                        apellido: true,
+                    },
+                },
+                medico: {
+                    include: {
+                        empleado: {
+                            select: {
+                                nombre: true,
+                                apellido: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!constancia) {
+            return { success: false, error: "Constancia no encontrada." };
+        }
+
+        const updated = await prisma.constanciaMedica.update({
+            where: { id: constancia.id },
+            data: {
+                motivo: motivoLimpio,
+                diasReposo,
+            },
+        });
+
+        revalidatePath(`/pacientes/${constancia.paciente.id}/perfil`);
+
+        return {
+            success: true,
+            data: {
+                id: updated.id,
+                fechaGeneracion: updated.fechaGeneracion,
+                pacienteNombre: `${constancia.paciente.nombre} ${constancia.paciente.apellido}`.trim(),
+                medicoNombre: `${constancia.medico?.empleado?.nombre ?? ""} ${constancia.medico?.empleado?.apellido ?? ""}`.trim() || "No especificado",
+                motivo: updated.motivo,
+                diasReposo: updated.diasReposo,
+            },
+        };
+    } catch (error) {
+        console.error("Error al actualizar constancia médica:", error);
+        if (error instanceof Error) {
+            return { success: false, error: error.message };
+        }
+
+        return { success: false, error: "Error desconocido al actualizar la constancia médica." };
+    }
+}

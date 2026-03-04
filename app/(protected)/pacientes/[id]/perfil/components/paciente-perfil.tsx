@@ -49,7 +49,7 @@ import { generateCotizacionPDF } from "@/lib/pdf/cotizacion-pdf";
 import { ClipboardList } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { createConstanciaMedica } from "@/app/(protected)/pacientes/actions";
+import { ConstanciaMedicaResumen, createConstanciaMedica, updateConstanciaMedica } from "@/app/(protected)/pacientes/actions";
 import { generateConstanciaMedicaPDF } from "@/lib/pdf/constancia-medica-pdf";
 import { FinanciamientoCard } from "@/app/(protected)/pagos/components/FinanciamientoCard";
 
@@ -65,6 +65,7 @@ interface PacientePerfilProps {
   planes: PlanTratamiento[];
   pagos: PagoWithRelations[];
   financiamientos: FinanciamientoDetalle[];
+  constancias: ConstanciaMedicaResumen[];
   seguroNombre?: string;
 }
 
@@ -246,6 +247,7 @@ export function PacientePerfil({
   planes,
   pagos,
   financiamientos,
+  constancias,
   seguroNombre,
   clinicInfo,
 }: PacientePerfilProps) {
@@ -272,6 +274,12 @@ export function PacientePerfil({
   const [motivoConstancia, setMotivoConstancia] = useState("");
   const [diasReposo, setDiasReposo] = useState(1);
   const [isGenerating, startGenerating] = useTransition();
+  const [constanciasState, setConstanciasState] = useState(constancias);
+  const [openEditConstanciaDialog, setOpenEditConstanciaDialog] = useState(false);
+  const [constanciaEditingId, setConstanciaEditingId] = useState<string | null>(null);
+  const [motivoConstanciaEdit, setMotivoConstanciaEdit] = useState("");
+  const [diasReposoEdit, setDiasReposoEdit] = useState(1);
+  const [isUpdatingConstancia, startUpdatingConstancia] = useTransition();
 
   const handleGenerarConstancia = () => {
     startGenerating(async () => {
@@ -290,12 +298,25 @@ export function PacientePerfil({
 
       generateConstanciaMedicaPDF({
         clinicName: clinicInfo.nombre,
+        clinicTelefono: clinicInfo.telefono,
+        clinicCorreo: clinicInfo.correo,
         pacienteNombre: result.data.pacienteNombre,
         medicoNombre: result.data.medicoNombre,
         motivo: result.data.motivo,
         diasReposo: result.data.diasReposo,
         fechaGeneracion: new Date(result.data.fechaGeneracion),
       });
+
+      setConstanciasState((prev) => [
+        {
+          id: result.data.id,
+          fechaGeneracion: new Date(result.data.fechaGeneracion),
+          motivo: result.data.motivo,
+          diasReposo: result.data.diasReposo,
+          medicoNombre: result.data.medicoNombre,
+        },
+        ...prev,
+      ]);
 
       toast.success("Constancia médica generada", {
         description: "El PDF se descargó correctamente.",
@@ -306,6 +327,63 @@ export function PacientePerfil({
       setOpenConstanciaDialog(false);
     });
   };
+
+  const handleOpenEditConstancia = (constancia: ConstanciaMedicaResumen) => {
+    setConstanciaEditingId(constancia.id);
+    setMotivoConstanciaEdit(constancia.motivo);
+    setDiasReposoEdit(constancia.diasReposo);
+    setOpenEditConstanciaDialog(true);
+  };
+
+  const handleEditarConstancia = () => {
+    if (!constanciaEditingId) return;
+
+    startUpdatingConstancia(async () => {
+      const result = await updateConstanciaMedica({
+        constanciaId: constanciaEditingId,
+        motivo: motivoConstanciaEdit,
+        diasReposo: diasReposoEdit,
+      });
+
+      if (!result.success || !result.data) {
+        toast.error("No se pudo actualizar la constancia", {
+          description: result.error ?? "Intente nuevamente.",
+        });
+        return;
+      }
+
+      setConstanciasState((prev) =>
+        prev.map((item) =>
+          item.id === result.data?.id
+            ? {
+                ...item,
+                motivo: result.data.motivo,
+                diasReposo: result.data.diasReposo,
+              }
+            : item
+        )
+      );
+
+      generateConstanciaMedicaPDF({
+        clinicName: clinicInfo.nombre,
+        clinicTelefono: clinicInfo.telefono,
+        clinicCorreo: clinicInfo.correo,
+        pacienteNombre: result.data.pacienteNombre,
+        medicoNombre: result.data.medicoNombre,
+        motivo: result.data.motivo,
+        diasReposo: result.data.diasReposo,
+        fechaGeneracion: new Date(result.data.fechaGeneracion),
+      });
+
+      toast.success("Constancia médica actualizada", {
+        description: "El PDF actualizado se descargó correctamente.",
+      });
+
+      setOpenEditConstanciaDialog(false);
+      setConstanciaEditingId(null);
+    });
+  };
+
 
   return (
     <div className="space-y-6">
@@ -732,6 +810,101 @@ export function PacientePerfil({
           )}
         </CardContent>
       </Card>
+
+      {/* Historial de Constancias */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Historial de Constancias
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {constanciasState.length > 0 ? (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Médico</TableHead>
+                    <TableHead>Días reposo</TableHead>
+                    <TableHead>Motivo</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {constanciasState.map((constancia) => (
+                    <TableRow key={constancia.id}>
+                      <TableCell>
+                        {format(new Date(constancia.fechaGeneracion), "PPP p", { locale: es })}
+                      </TableCell>
+                      <TableCell>{constancia.medicoNombre}</TableCell>
+                      <TableCell>{constancia.diasReposo}</TableCell>
+                      <TableCell className="max-w-[360px] truncate">{constancia.motivo}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenEditConstancia(constancia)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-10 bg-muted/30 rounded-lg">
+              <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground">
+                Este paciente no tiene constancias médicas registradas.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={openEditConstanciaDialog} onOpenChange={setOpenEditConstanciaDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar constancia médica</DialogTitle>
+            <DialogDescription>
+              Actualice los datos de la constancia y se descargará un PDF con la versión actualizada.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Días de reposo</p>
+              <Input
+                type="number"
+                min={1}
+                max={365}
+                value={diasReposoEdit}
+                onChange={(e) => setDiasReposoEdit(Number(e.target.value || 1))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Motivo</p>
+              <Textarea
+                placeholder="Redacte el motivo de la constancia médica"
+                value={motivoConstanciaEdit}
+                onChange={(e) => setMotivoConstanciaEdit(e.target.value)}
+                rows={5}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              disabled={isUpdatingConstancia || !motivoConstanciaEdit.trim() || diasReposoEdit < 1}
+              onClick={handleEditarConstancia}
+            >
+              {isUpdatingConstancia ? "Guardando..." : "Guardar y generar PDF"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Cotizaciones */}
       <Card>
