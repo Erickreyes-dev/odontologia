@@ -202,6 +202,15 @@ export async function upsertConsulta(
   try {
     const validatedData = ConsultaSchema.parse(data);
     const { tenantId } = await getTenantContext();
+    const cita = await prisma.cita.findFirst({
+      where: await tenantWhere<Prisma.CitaWhereInput>({ id: validatedData.citaId }),
+      select: { pacienteId: true },
+    });
+
+    if (!cita) {
+      return { success: false, error: "La cita no existe" };
+    }
+
     const totalServicios =
       validatedData.servicios?.reduce(
         (acc, servicio) => acc + servicio.precioAplicado * servicio.cantidad,
@@ -257,6 +266,24 @@ export async function upsertConsulta(
             })),
           });
         }
+
+        if (validatedData.seguimientoId) {
+          const seguimiento = await tx.seguimiento.findUnique({
+            where: { id: validatedData.seguimientoId },
+            select: { id: true, pacienteId: true, etapa: { select: { planId: true } } },
+          });
+          if (!seguimiento || seguimiento.pacienteId !== cita.pacienteId) {
+            throw new Error("El seguimiento seleccionado no pertenece al paciente");
+          }
+          await tx.seguimiento.update({
+            where: { id: validatedData.seguimientoId },
+            data: {
+              estado: "REALIZADO",
+              fechaRealizada: new Date(),
+              citaId: validatedData.citaId,
+            },
+          });
+        }
       });
       consultaId = existingConsulta.id;
     } else {
@@ -305,6 +332,24 @@ export async function upsertConsulta(
           where: { id: validatedData.citaId },
           data: { estado: "atendida" },
         });
+
+        if (validatedData.seguimientoId) {
+          const seguimiento = await tx.seguimiento.findUnique({
+            where: { id: validatedData.seguimientoId },
+            select: { id: true, pacienteId: true, etapa: { select: { planId: true } } },
+          });
+          if (!seguimiento || seguimiento.pacienteId !== cita.pacienteId) {
+            throw new Error("El seguimiento seleccionado no pertenece al paciente");
+          }
+          await tx.seguimiento.update({
+            where: { id: validatedData.seguimientoId },
+            data: {
+              estado: "REALIZADO",
+              fechaRealizada: new Date(),
+              citaId: validatedData.citaId,
+            },
+          });
+        }
       });
     }
 
@@ -313,6 +358,7 @@ export async function upsertConsulta(
 
     revalidatePath("/citas");
     revalidatePath(`/citas/${validatedData.citaId}/consulta`);
+    revalidatePath("/planes-tratamiento");
 
     return { success: true, data: consulta! };
   } catch (error) {
