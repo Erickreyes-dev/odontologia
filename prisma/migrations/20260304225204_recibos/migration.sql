@@ -1,3 +1,12 @@
+-- AlterTable
+ALTER TABLE `CuotaFinanciamiento` MODIFY `pagada` BIT(1) NOT NULL DEFAULT false;
+
+-- AlterTable
+ALTER TABLE `PlanEtapa` MODIFY `programarCita` BIT(1) NOT NULL DEFAULT true;
+
+-- AlterTable
+ALTER TABLE `Tenant` MODIFY `activo` BIT(1) NOT NULL DEFAULT true;
+
 -- CreateTable
 CREATE TABLE `Recibo` (
     `id` VARCHAR(36) NOT NULL,
@@ -19,10 +28,10 @@ CREATE TABLE `Recibo` (
     `updateAt` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `Recibo_pagoId_key`(`pagoId`),
-    UNIQUE INDEX `Recibo_tenantId_numero_key`(`tenantId`, `numero`),
     INDEX `Recibo_tenantId_idx`(`tenantId`),
     INDEX `Recibo_pagoId_idx`(`pagoId`),
     INDEX `Recibo_emitidoPorUsuario_idx`(`emitidoPorUsuario`),
+    UNIQUE INDEX `Recibo_tenantId_numero_key`(`tenantId`, `numero`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
