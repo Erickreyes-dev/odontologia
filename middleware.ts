@@ -158,10 +158,6 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (path.startsWith("/dashboard-admin") && req.cookies.get("role")?.value !== "ADMIN") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
-  }
-
   return NextResponse.next();
 }
 
