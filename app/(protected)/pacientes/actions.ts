@@ -8,6 +8,12 @@ import { paginate } from '@/app/type';
 import { Prisma } from '@/lib/generated/prisma';
 import { tenantWhere, withTenantData } from '@/lib/tenant-query';
 
+function normalizeOptionalEmail(value?: string | null): string | null {
+    if (value == null) return null;
+    const normalized = value.trim();
+    return normalized === "" ? null : normalized;
+}
+
 /**
  * Obtiene todos los pacientes
  */
@@ -165,7 +171,7 @@ export async function createPaciente(data: Paciente): Promise<{ success: true; d
                 fechaNacimiento: validatedData.fechaNacimiento ? new Date(validatedData.fechaNacimiento) : null,
                 genero: validatedData.genero,
                 telefono: validatedData.telefono,
-                correo: validatedData.correo,
+                correo: normalizeOptionalEmail(validatedData.correo),
                 direccion: validatedData.direccion,
                 seguroId: validatedData.seguroId,
                 activo: validatedData.activo,
@@ -225,7 +231,7 @@ export async function updatePaciente(id: string, data: Partial<Paciente>): Promi
                 ...(validatedData.fechaNacimiento !== undefined && { fechaNacimiento: validatedData.fechaNacimiento ? new Date(validatedData.fechaNacimiento) : null }),
                 ...(validatedData.genero !== undefined && { genero: validatedData.genero }),
                 ...(validatedData.telefono !== undefined && { telefono: validatedData.telefono }),
-                ...(validatedData.correo !== undefined && { correo: validatedData.correo }),
+                ...(validatedData.correo !== undefined && { correo: normalizeOptionalEmail(validatedData.correo) }),
                 ...(validatedData.direccion !== undefined && { direccion: validatedData.direccion }),
                 ...(validatedData.seguroId !== undefined && { seguroId: validatedData.seguroId }),
                 ...(validatedData.activo !== undefined && { activo: validatedData.activo }),
