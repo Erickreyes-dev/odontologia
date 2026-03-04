@@ -7,6 +7,7 @@ import { Paciente, PacienteSchema } from './schema';
 import { paginate } from '@/app/type';
 import { Prisma } from '@/lib/generated/prisma';
 import { tenantWhere, withTenantData } from '@/lib/tenant-query';
+import { getSession } from '@/auth';
 
 function normalizeOptionalEmail(value?: string | null): string | null {
     if (value == null) return null;
@@ -263,5 +264,107 @@ export async function updatePaciente(id: string, data: Partial<Paciente>): Promi
             return { success: false, error: error.message };
         }
         return { success: false, error: "Error desconocido al actualizar paciente" };
+    }
+}
+
+
+export async function createConstanciaMedica({
+    pacienteId,
+    motivo,
+    diasReposo,
+}: {
+    pacienteId: string;
+    motivo: string;
+    diasReposo: number;
+}): Promise<{
+    success: boolean;
+    error?: string;
+    data?: {
+        id: string;
+        fechaGeneracion: Date;
+        pacienteNombre: string;
+        medicoNombre: string;
+        motivo: string;
+        diasReposo: number;
+    };
+}> {
+    try {
+        const session = await getSession();
+        if (!session?.TenantId) {
+            return { success: false, error: 'No hay una sesión activa.' };
+        }
+
+        if (!session.IdEmpleado) {
+            return { success: false, error: 'El usuario activo no está asociado a un médico.' };
+        }
+
+        const motivoLimpio = motivo.trim();
+        if (!motivoLimpio) {
+            return { success: false, error: 'El motivo es requerido.' };
+        }
+
+        if (!Number.isInteger(diasReposo) || diasReposo < 1 || diasReposo > 365) {
+            return { success: false, error: 'Los días de reposo deben estar entre 1 y 365.' };
+        }
+
+        const [paciente, medico] = await Promise.all([
+            prisma.paciente.findFirst({
+                where: await tenantWhere<Prisma.PacienteWhereInput>({ id: pacienteId }),
+            }),
+            prisma.medico.findFirst({
+                where: {
+                    tenantId: session.TenantId,
+                    idEmpleado: session.IdEmpleado,
+                    activo: true,
+                },
+                include: {
+                    empleado: {
+                        select: {
+                            nombre: true,
+                            apellido: true,
+                        },
+                    },
+                },
+            }),
+        ]);
+
+        if (!paciente) {
+            return { success: false, error: 'Paciente no encontrado en este tenant.' };
+        }
+
+        if (!medico) {
+            return { success: false, error: 'No se encontró un médico activo para esta sesión.' };
+        }
+
+        const constancia = await prisma.constanciaMedica.create({
+            data: await withTenantData({
+                id: randomUUID(),
+                pacienteId: paciente.id,
+                medicoId: medico.idEmpleado,
+                motivo: motivoLimpio,
+                diasReposo,
+            }),
+        });
+
+        revalidatePath(`/pacientes/${pacienteId}/perfil`);
+
+        return {
+            success: true,
+            data: {
+                id: constancia.id,
+                fechaGeneracion: constancia.fechaGeneracion,
+                pacienteNombre: `${paciente.nombre} ${paciente.apellido}`.trim(),
+                medicoNombre: `${medico.empleado.nombre} ${medico.empleado.apellido}`.trim(),
+                motivo: constancia.motivo,
+                diasReposo: constancia.diasReposo,
+            },
+        };
+    } catch (error) {
+        console.error('Error al crear constancia médica:', error);
+        if (error instanceof Error) {
+            return { success: false, error: error.message };
+        }
+
+        return { success: false, error: 'Error desconocido al crear la constancia médica.' };
     }
 }

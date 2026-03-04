@@ -3,6 +3,9 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -44,6 +47,10 @@ import { METODOS_PAGO, ESTADOS_PAGO } from "@/app/(protected)/pagos/schema";
 import { Progress } from "@/components/ui/progress";
 import { generateCotizacionPDF } from "@/lib/pdf/cotizacion-pdf";
 import { ClipboardList } from "lucide-react";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
+import { createConstanciaMedica } from "@/app/(protected)/pacientes/actions";
+import { generateConstanciaMedicaPDF } from "@/lib/pdf/constancia-medica-pdf";
 import { FinanciamientoCard } from "@/app/(protected)/pagos/components/FinanciamientoCard";
 
 interface PacientePerfilProps {
@@ -261,6 +268,45 @@ export function PacientePerfil({
     generateCotizacionPDF(cotizacion, paciente, clinicInfo);
   };
 
+  const [openConstanciaDialog, setOpenConstanciaDialog] = useState(false);
+  const [motivoConstancia, setMotivoConstancia] = useState("");
+  const [diasReposo, setDiasReposo] = useState(1);
+  const [isGenerating, startGenerating] = useTransition();
+
+  const handleGenerarConstancia = () => {
+    startGenerating(async () => {
+      const result = await createConstanciaMedica({
+        pacienteId: paciente.id ?? "",
+        motivo: motivoConstancia,
+        diasReposo,
+      });
+
+      if (!result.success || !result.data) {
+        toast.error("No se pudo generar la constancia", {
+          description: result.error ?? "Intente nuevamente.",
+        });
+        return;
+      }
+
+      generateConstanciaMedicaPDF({
+        clinicName: clinicInfo.nombre,
+        pacienteNombre: result.data.pacienteNombre,
+        medicoNombre: result.data.medicoNombre,
+        motivo: result.data.motivo,
+        diasReposo: result.data.diasReposo,
+        fechaGeneracion: new Date(result.data.fechaGeneracion),
+      });
+
+      toast.success("Constancia médica generada", {
+        description: "El PDF se descargó correctamente.",
+      });
+
+      setMotivoConstancia("");
+      setDiasReposo(1);
+      setOpenConstanciaDialog(false);
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Card */}
@@ -300,13 +346,69 @@ export function PacientePerfil({
               </div>
             </div>
 
-            <div className="flex gap-2 w-full sm:w-auto">
+            <div className="flex gap-2 w-full sm:w-auto flex-wrap">
               <Link href={`/pacientes/${paciente.id}/edit`} className="flex-1 sm:flex-none">
                 <Button variant="outline" className="w-full">
                   <Pencil className="h-4 w-4 mr-2" />
                   Editar
                 </Button>
               </Link>
+
+              <Dialog open={openConstanciaDialog} onOpenChange={setOpenConstanciaDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="flex-1 sm:flex-none">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Constancia Médica
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Generar constancia médica</DialogTitle>
+                    <DialogDescription>
+                      Se generará para {paciente.nombre} {paciente.apellido}. Complete el motivo y los días de reposo.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Paciente</p>
+                      <Input value={`${paciente.nombre} ${paciente.apellido}`} disabled />
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Días de reposo</p>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={diasReposo}
+                        onChange={(e) => setDiasReposo(Number(e.target.value || 1))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Motivo</p>
+                      <Textarea
+                        placeholder="Redacte el motivo de la constancia médica"
+                        value={motivoConstancia}
+                        onChange={(e) => setMotivoConstancia(e.target.value)}
+                        rows={5}
+                      />
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      disabled={isGenerating || !motivoConstancia.trim() || diasReposo < 1}
+                      onClick={handleGenerarConstancia}
+                    >
+                      {isGenerating ? "Generando..." : "Generar PDF"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
               <Link
                 href={`/citas/create?pacienteId=${paciente.id}`}
                 className="flex-1 sm:flex-none"
