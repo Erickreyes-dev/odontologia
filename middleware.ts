@@ -1,9 +1,36 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { jwtVerify, type JWTPayload } from "jose";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 type Bucket = { count: number; reset: number };
 type RateLimitConfig = { limit: number; windowMs: number };
+
+interface SessionPayload extends JWTPayload {
+  Permiso?: string[];
+}
+
+const authSecret = process.env.AUTH_SECRET
+  ? new TextEncoder().encode(process.env.AUTH_SECRET)
+  : null;
+
+async function getSessionPermissions(req: NextRequest): Promise<string[]> {
+  if (!authSecret) return [];
+
+  const token =
+    req.cookies.get("session")?.value ??
+    req.cookies.get("next-auth.session-token")?.value ??
+    req.cookies.get("__Secure-next-auth.session-token")?.value;
+
+  if (!token) return [];
+
+  try {
+    const { payload } = await jwtVerify<SessionPayload>(token, authSecret, { algorithms: ["HS256"] });
+    return Array.isArray(payload.Permiso) ? payload.Permiso : [];
+  } catch {
+    return [];
+  }
+}
 
 const DEFAULT_RATE_LIMIT: RateLimitConfig = { limit: 120, windowMs: 60_000 };
 
@@ -93,7 +120,7 @@ function cleanupExpiredEntries(now: number) {
   });
 }
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
   if (!shouldSkipRateLimit(path)) {
@@ -158,8 +185,14 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (path.startsWith("/dashboard-admin") && req.cookies.get("role")?.value !== "ADMIN") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+  if (path.startsWith("/dashboard-admin")) {
+    const permisos = await getSessionPermissions(req);
+    const canAccessAdminDashboard =
+      permisos.includes("ver_dashboard_admin") && permisos.includes("gestionar_tenants");
+
+    if (!canAccessAdminDashboard) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
   }
 
   return NextResponse.next();
