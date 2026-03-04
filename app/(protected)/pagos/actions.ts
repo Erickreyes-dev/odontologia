@@ -76,9 +76,17 @@ async function crearReciboPago(tx: Prisma.TransactionClient, payload: {
   pagoId: string;
   ordenCobroId: string;
   monto: number;
-  concepto: string;
   tipoConcepto: ReciboTipoConcepto;
   fechaPago: Date;
+  notas?: string;
+  detalles: Array<{
+    descripcion: string;
+    cantidad: number;
+    precioUnitario: number;
+    subtotal: number;
+    referenciaTipo?: string;
+    referenciaId?: string;
+  }>;
 }) {
   const session = await getSession();
   const numero = await generarNumeroRecibo(tx);
@@ -95,20 +103,22 @@ async function crearReciboPago(tx: Prisma.TransactionClient, payload: {
       descuento: 0,
       impuesto: 0,
       total: payload.monto,
-      notas: `Recibo generado desde pago #${payload.pagoId.slice(0, 8)}`,
+      notas: payload.notas ?? `Recibo generado desde pago #${payload.pagoId.slice(0, 8)}`,
       emitidoPorUsuario: session?.IdUser,
       detalles: {
-        create: [
-          await withTenantData({
+        create: await Promise.all(
+          payload.detalles.map(async (detalle) =>
+            withTenantData({
             id: randomUUID(),
-            descripcion: payload.concepto,
-            cantidad: 1,
-            precioUnitario: payload.monto,
-            subtotal: payload.monto,
-            referenciaTipo: "ORDEN_COBRO",
-            referenciaId: payload.ordenCobroId,
-          }),
-        ],
+              descripcion: detalle.descripcion,
+              cantidad: detalle.cantidad,
+              precioUnitario: detalle.precioUnitario,
+              subtotal: detalle.subtotal,
+              referenciaTipo: detalle.referenciaTipo ?? "ORDEN_COBRO",
+              referenciaId: detalle.referenciaId ?? payload.ordenCobroId,
+            })
+          )
+        ),
       },
     }),
   });
@@ -276,7 +286,19 @@ export async function createPago(
     const pago = await prisma.$transaction(async (tx) => {
       const orden = await tx.ordenDeCobro.findFirst({
         where: await tenantWhere<Prisma.OrdenDeCobroWhereInput>({ id: validated.ordenCobroId }),
-        include: { financiamiento: true, paciente: true },
+        include: {
+          financiamiento: true,
+          paciente: true,
+          consulta: {
+            include: {
+              detalles: {
+                include: {
+                  servicio: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!orden) {
@@ -301,6 +323,16 @@ export async function createPago(
 
       let estadoFinal = PagoEstado.REGISTRADO;
       let tipoConcepto: ReciboTipoConcepto = ReciboTipoConcepto.OTRO;
+      const cuotasAplicadas: number[] = [];
+      let notasRecibo: string | undefined;
+      let detalleRecibo: Array<{
+        descripcion: string;
+        cantidad: number;
+        precioUnitario: number;
+        subtotal: number;
+        referenciaTipo?: string;
+        referenciaId?: string;
+      }> = [];
 
       if (orden.financiamientoId && validated.cuotaId) {
         tipoConcepto = ReciboTipoConcepto.CUOTA_FINANCIAMIENTO;
@@ -315,6 +347,7 @@ export async function createPago(
 
         if (cuota && Number(cuota.monto) <= monto) {
           const montoCuota = Number(cuota.monto);
+          cuotasAplicadas.push(cuota.numero);
           await tx.cuotaFinanciamiento.update({
             where: { id: cuota.id },
             data: {
@@ -356,6 +389,7 @@ export async function createPago(
           if (montoRestante <= 0) break;
           const montoCuota = Number(cuota.monto);
           if (montoRestante >= montoCuota) {
+            cuotasAplicadas.push(cuota.numero);
             await tx.cuotaFinanciamiento.update({
               where: { id: cuota.id },
               data: {
@@ -392,6 +426,76 @@ export async function createPago(
         tipoConcepto = ReciboTipoConcepto.CONSULTA;
       }
 
+      if (orden.consultaId && orden.consulta?.detalles?.length) {
+        detalleRecibo = orden.consulta.detalles.map((detalle) => {
+          const precioUnitario = Number(detalle.precioAplicado);
+          const cantidad = detalle.cantidad;
+          return {
+            descripcion: detalle.servicio.nombre,
+            cantidad,
+            precioUnitario,
+            subtotal: precioUnitario * cantidad,
+            referenciaTipo: "CONSULTA_SERVICIO",
+            referenciaId: detalle.id,
+          };
+        });
+      }
+
+      if (orden.financiamientoId) {
+        const cuotasFinanciamiento = await tx.cuotaFinanciamiento.findMany({
+          where: await tenantWhere<Prisma.CuotaFinanciamientoWhereInput>({
+            financiamientoId: orden.financiamientoId,
+          }),
+          orderBy: { numero: "asc" },
+        });
+
+        if (cuotasAplicadas.length > 0) {
+          detalleRecibo = cuotasFinanciamiento
+            .filter((cuota) => cuotasAplicadas.includes(cuota.numero))
+            .map((cuota) => {
+              const montoCuota = Number(cuota.monto);
+              return {
+                descripcion: `Pago cuota #${cuota.numero}`,
+                cantidad: 1,
+                precioUnitario: montoCuota,
+                subtotal: montoCuota,
+                referenciaTipo: "CUOTA_FINANCIAMIENTO",
+                referenciaId: cuota.id,
+              };
+            });
+        }
+
+        const cuotasPagadas = cuotasFinanciamiento
+          .filter((cuota) => cuota.pagada)
+          .map((cuota) => `#${cuota.numero}`)
+          .join(", ");
+        const cuotasPendientes = cuotasFinanciamiento
+          .filter((cuota) => !cuota.pagada)
+          .map((cuota) => `#${cuota.numero}`)
+          .join(", ");
+
+        notasRecibo = [
+          `Cuotas abonadas en este pago: ${
+            cuotasAplicadas.length ? cuotasAplicadas.map((numero) => `#${numero}`).join(", ") : "Ninguna"
+          }`,
+          `Cuotas pagadas: ${cuotasPagadas || "Ninguna"}`,
+          `Cuotas restantes: ${cuotasPendientes || "Ninguna"}`,
+        ].join("\n");
+      }
+
+      if (detalleRecibo.length === 0) {
+        detalleRecibo = [
+          {
+            descripcion: orden.concepto,
+            cantidad: 1,
+            precioUnitario: monto,
+            subtotal: monto,
+            referenciaTipo: "ORDEN_COBRO",
+            referenciaId: orden.id,
+          },
+        ];
+      }
+
       await tx.ordenDeCobro.update({
         where: { id: orden.id },
         data: { estado: "PAGADA", fechaPago: new Date() },
@@ -401,9 +505,10 @@ export async function createPago(
         pagoId: pagoCreado.id,
         ordenCobroId: orden.id,
         monto,
-        concepto: orden.concepto,
         tipoConcepto,
         fechaPago: pagoCreado.fechaPago,
+        notas: notasRecibo,
+        detalles: detalleRecibo,
       });
 
       return { ...pagoCreado, estado: estadoFinal, ordenPacienteId: orden.pacienteId };
