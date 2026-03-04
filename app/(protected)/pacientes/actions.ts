@@ -336,7 +336,7 @@ export async function createConstanciaMedica({
             return { success: false, error: 'No se encontró un médico activo para esta sesión.' };
         }
 
-        const constancia = await prisma.constanciaMedica.create({
+        const constancia = await (prisma as any).constanciaMedica.create({
             data: await withTenantData({
                 id: randomUUID(),
                 pacienteId: paciente.id,
@@ -381,8 +381,8 @@ export async function getConstanciasMedicasByPaciente(pacienteId: string): Promi
     try {
         if (!pacienteId) return [];
 
-        const records = await prisma.constanciaMedica.findMany({
-            where: await tenantWhere<Prisma.ConstanciaMedicaWhereInput>({ pacienteId }),
+        const records = await (prisma as any).constanciaMedica.findMany({
+            where: await tenantWhere<any>({ pacienteId }),
             include: {
                 medico: {
                     include: {
@@ -398,7 +398,7 @@ export async function getConstanciasMedicasByPaciente(pacienteId: string): Promi
             orderBy: { fechaGeneracion: "desc" },
         });
 
-        return records.map((record) => ({
+        return records.map((record: any) => ({
             id: record.id,
             fechaGeneracion: record.fechaGeneracion,
             motivo: record.motivo,
@@ -441,8 +441,8 @@ export async function updateConstanciaMedica({
             return { success: false, error: "Los días de reposo deben estar entre 1 y 365." };
         }
 
-        const constancia = await prisma.constanciaMedica.findFirst({
-            where: await tenantWhere<Prisma.ConstanciaMedicaWhereInput>({ id: constanciaId }),
+        const constancia = await (prisma as any).constanciaMedica.findFirst({
+            where: await tenantWhere<any>({ id: constanciaId }),
             include: {
                 paciente: {
                     select: {
@@ -468,7 +468,7 @@ export async function updateConstanciaMedica({
             return { success: false, error: "Constancia no encontrada." };
         }
 
-        const updated = await prisma.constanciaMedica.update({
+        const updated = await (prisma as any).constanciaMedica.update({
             where: { id: constancia.id },
             data: {
                 motivo: motivoLimpio,

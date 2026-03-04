@@ -296,24 +296,26 @@ export function PacientePerfil({
         return;
       }
 
+      const constanciaGenerada = result.data;
+
       generateConstanciaMedicaPDF({
         clinicName: clinicInfo.nombre,
         clinicTelefono: clinicInfo.telefono,
         clinicCorreo: clinicInfo.correo,
-        pacienteNombre: result.data.pacienteNombre,
-        medicoNombre: result.data.medicoNombre,
-        motivo: result.data.motivo,
-        diasReposo: result.data.diasReposo,
-        fechaGeneracion: new Date(result.data.fechaGeneracion),
+        pacienteNombre: constanciaGenerada.pacienteNombre,
+        medicoNombre: constanciaGenerada.medicoNombre,
+        motivo: constanciaGenerada.motivo,
+        diasReposo: constanciaGenerada.diasReposo,
+        fechaGeneracion: new Date(constanciaGenerada.fechaGeneracion),
       });
 
       setConstanciasState((prev) => [
         {
-          id: result.data.id,
-          fechaGeneracion: new Date(result.data.fechaGeneracion),
-          motivo: result.data.motivo,
-          diasReposo: result.data.diasReposo,
-          medicoNombre: result.data.medicoNombre,
+          id: constanciaGenerada.id,
+          fechaGeneracion: new Date(constanciaGenerada.fechaGeneracion),
+          motivo: constanciaGenerada.motivo,
+          diasReposo: constanciaGenerada.diasReposo,
+          medicoNombre: constanciaGenerada.medicoNombre,
         },
         ...prev,
       ]);
