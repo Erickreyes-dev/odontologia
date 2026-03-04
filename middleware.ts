@@ -153,7 +153,7 @@ export function middleware(req: NextRequest) {
   const isProtectedRoute = protectedPrefixes.some((prefix) => path.startsWith(prefix));
 
   if (isProtectedRoute && !sessionCookie) {
-    const loginUrl = new URL("/", req.url);
+    const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", path + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
