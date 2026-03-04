@@ -3,6 +3,7 @@ import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PagosUltimos12MesesChart } from "./components/pagos-ultimos-12-meses-chart";
 import {
   Table,
   TableBody,
@@ -27,6 +28,7 @@ import {
   format,
   startOfDay,
   startOfMonth,
+  subMonths,
 } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -86,11 +88,15 @@ export default async function DashboardPage() {
   const todayEndUtc = toUtcFromCentralAmerica(endOfDay(today));
   const monthStartUtc = toUtcFromCentralAmerica(startOfMonth(today));
   const monthEndUtc = toUtcFromCentralAmerica(endOfMonth(today));
+  const startLast12MonthsUtc = toUtcFromCentralAmerica(
+    startOfMonth(subMonths(today, 11))
+  );
   const [
     gananciasDia,
     gananciasMes,
     citasHoy,
     pagosRecientes,
+    pagosUltimos12Meses,
     financiamientosRecientes,
     ordenesRecientes,
     ordenesPendientes,
@@ -137,6 +143,19 @@ export default async function DashboardPage() {
         },
       },
     }),
+    prisma.pago.findMany({
+      where: {
+        fechaPago: {
+          gte: startLast12MonthsUtc,
+          lte: monthEndUtc,
+        },
+        estado: { not: "REVERTIDO" },
+      },
+      select: {
+        fechaPago: true,
+        monto: true,
+      },
+    }),
     prisma.financiamiento.findMany({
       take: 5,
       orderBy: { createAt: "desc" },
@@ -163,6 +182,31 @@ export default async function DashboardPage() {
 
   const totalDia = Number(gananciasDia._sum.monto ?? 0);
   const totalMes = Number(gananciasMes._sum.monto ?? 0);
+  const monthDates = Array.from({ length: 12 }, (_, index) =>
+    startOfMonth(subMonths(today, 11 - index))
+  );
+
+  const pagosByMonth = pagosUltimos12Meses.reduce<Record<string, number>>(
+    (acc, pago) => {
+      const monthKey = format(
+        startOfMonth(toCentralAmericaTime(new Date(pago.fechaPago))),
+        "yyyy-MM"
+      );
+
+      acc[monthKey] = (acc[monthKey] ?? 0) + Number(pago.monto);
+      return acc;
+    },
+    {}
+  );
+
+  const pagosChartData = monthDates.map((monthDate) => {
+    const monthKey = format(monthDate, "yyyy-MM");
+
+    return {
+      month: format(monthDate, "MMM", { locale: es }),
+      total: pagosByMonth[monthKey] ?? 0,
+    };
+  });
 
   return (
     <div className="container mx-auto py-2 space-y-6">
@@ -245,6 +289,8 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <PagosUltimos12MesesChart data={pagosChartData} />
+
         <Card>
           <CardHeader>
             <CardTitle>Últimos 5 pagos</CardTitle>
