@@ -300,7 +300,7 @@ export async function createPago(
       });
 
       let estadoFinal = PagoEstado.REGISTRADO;
-      let tipoConcepto = ReciboTipoConcepto.OTRO;
+      let tipoConcepto: ReciboTipoConcepto = ReciboTipoConcepto.OTRO;
 
       if (orden.financiamientoId && validated.cuotaId) {
         tipoConcepto = ReciboTipoConcepto.CUOTA_FINANCIAMIENTO;
