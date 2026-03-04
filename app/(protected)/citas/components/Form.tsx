@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
+import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -58,6 +59,19 @@ export function CitaFormulario({
   defaultPacienteId,
 }: CitaFormularioProps) {
   const router = useRouter();
+  const [pacienteSearchTerm, setPacienteSearchTerm] = useState("");
+
+  const pacientesFiltrados = useMemo(() => {
+    const term = pacienteSearchTerm.trim().toLowerCase();
+
+    if (!term) return pacientes;
+
+    return pacientes.filter((paciente) =>
+      `${paciente.nombre} ${paciente.apellido} ${paciente.identidad}`
+        .toLowerCase()
+        .includes(term)
+    );
+  }, [pacientes, pacienteSearchTerm]);
 
   const form = useForm<z.infer<typeof CitaSchema>>({
     resolver: zodResolver(CitaSchema),
@@ -124,16 +138,35 @@ export function CitaFormulario({
                 <Select
                   value={field.value || ""}
                   onValueChange={(val) => field.onChange(val || null)}
+                  onOpenChange={(open) => {
+                    if (!open) {
+                      setPacienteSearchTerm("");
+                    }
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona un paciente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {pacientes.map((p) => (
-                      <SelectItem key={p.id} value={p.id!}>
-                        {p.nombre} {p.apellido} - {p.identidad}
-                      </SelectItem>
-                    ))}
+                    <div className="p-2">
+                      <Input
+                        value={pacienteSearchTerm}
+                        onChange={(event) => setPacienteSearchTerm(event.target.value)}
+                        onKeyDown={(event) => event.stopPropagation()}
+                        placeholder="Buscar paciente..."
+                      />
+                    </div>
+                    {pacientesFiltrados.length > 0 ? (
+                      pacientesFiltrados.map((p) => (
+                        <SelectItem key={p.id} value={p.id!}>
+                          {p.nombre} {p.apellido} - {p.identidad}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-3 text-sm text-muted-foreground">
+                        No se encontraron pacientes.
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
               </FieldContent>
