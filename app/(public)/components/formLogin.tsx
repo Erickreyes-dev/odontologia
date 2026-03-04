@@ -159,7 +159,7 @@ export default function Login() {
             onCancel={() => setOpen(false)}
             onSuccess={() => {
               setOpen(false);
-              router.push("/"); // ruta después de enviar
+              router.push("/login"); // ruta después de enviar
             }}
           />
         </DialogContent>
