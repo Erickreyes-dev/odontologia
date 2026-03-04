@@ -27,7 +27,7 @@ type PagosUltimos12MesesChartProps = {
 const chartConfig = {
   total: {
     label: "Ganancias",
-    color: "var(--chart-1)",
+    color: "hsl(var(--chart-1))",
   },
 } satisfies ChartConfig;
 
