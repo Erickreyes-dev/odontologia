@@ -8,7 +8,6 @@ import HeaderComponent from "@/components/HeaderComponent";
 export default async function EstadoServicio() {
 
     const permisos = await getSessionPermisos();
-    console.log("🚀 ~ EstadoServicio ~ permisos:", permisos)
 
 
 
@@ -17,7 +16,6 @@ export default async function EstadoServicio() {
     }
 
     const employeeData = await getProfile();
-    console.log("🚀 ~ EstadoServicio ~ employeeData:", employeeData)
     if (!employeeData) {
         return <NoAcceso />;
     }
