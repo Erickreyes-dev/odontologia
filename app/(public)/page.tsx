@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { RequestAccessForm } from "@/components/request-access-form";
 
 const services = [
   {
@@ -100,6 +101,14 @@ export default async function LandingPage() {
               >
                 <Link href="#servicios">Ver servicios</Link>
               </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="w-full border-cyan-500 bg-transparent text-cyan-300 hover:bg-slate-800 sm:w-auto"
+              >
+                <Link href="#pedir-acceso">Pedir acceso</Link>
+              </Button>
             </div>
           </div>
 
@@ -181,6 +190,19 @@ export default async function LandingPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      </section>
+
+      <section id="pedir-acceso" className="border-t border-slate-800 bg-slate-900/30">
+        <div className="mx-auto w-full max-w-6xl px-4 py-14 text-center sm:px-6 lg:py-16">
+          <div className="mb-8 space-y-2">
+            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">Acceso anticipado</p>
+            <h3 className="text-2xl font-bold sm:text-3xl">Solicita acceso y te contactamos</h3>
+            <p className="mx-auto max-w-2xl text-sm text-slate-300">
+              Déjanos tus datos y enviaremos tu solicitud directamente a nuestro equipo comercial.
+            </p>
+          </div>
+          <RequestAccessForm />
         </div>
       </section>
 
