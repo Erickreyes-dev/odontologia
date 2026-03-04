@@ -11,10 +11,12 @@ import {
   type CreatePagoInput,
   PagoWithRelations,
   FinanciamientoDetalle,
+  Recibo,
 } from "./schema";
-import { MetodoPago, PagoEstado, FinanciamientoEstado } from "@/lib/generated/prisma";
+import { MetodoPago, PagoEstado, FinanciamientoEstado, ReciboTipoConcepto } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { Prisma } from "@/lib/generated/prisma";
+import { getSession } from "@/auth";
 
 const CENTRAL_AMERICA_OFFSET_MS = 6 * 60 * 60 * 1000;
 
@@ -54,6 +56,62 @@ async function calcularMontoPendientePlan(planTratamientoId: string): Promise<nu
   );
 
   return Math.max(totalPlan - totalPagadoSinFinanciamiento, 0);
+}
+
+async function generarNumeroRecibo(tx: Prisma.TransactionClient): Promise<string> {
+  const actualYear = new Date().getFullYear();
+  const conteo = await tx.recibo.count({
+    where: await tenantWhere<Prisma.ReciboWhereInput>({
+      fechaEmision: {
+        gte: new Date(actualYear, 0, 1),
+        lte: new Date(actualYear, 11, 31, 23, 59, 59, 999),
+      },
+    }),
+  });
+
+  return `REC-${actualYear}-${String(conteo + 1).padStart(6, "0")}`;
+}
+
+async function crearReciboPago(tx: Prisma.TransactionClient, payload: {
+  pagoId: string;
+  ordenCobroId: string;
+  monto: number;
+  concepto: string;
+  tipoConcepto: ReciboTipoConcepto;
+  fechaPago: Date;
+}) {
+  const session = await getSession();
+  const numero = await generarNumeroRecibo(tx);
+
+  await tx.recibo.create({
+    data: await withTenantData({
+      id: randomUUID(),
+      pagoId: payload.pagoId,
+      numero,
+      fechaEmision: payload.fechaPago,
+      tipoConcepto: payload.tipoConcepto,
+      moneda: "HNL",
+      subtotal: payload.monto,
+      descuento: 0,
+      impuesto: 0,
+      total: payload.monto,
+      notas: `Recibo generado desde pago #${payload.pagoId.slice(0, 8)}`,
+      emitidoPorUsuario: session?.IdUser,
+      detalles: {
+        create: [
+          await withTenantData({
+            id: randomUUID(),
+            descripcion: payload.concepto,
+            cantidad: 1,
+            precioUnitario: payload.monto,
+            subtotal: payload.monto,
+            referenciaTipo: "ORDEN_COBRO",
+            referenciaId: payload.ordenCobroId,
+          }),
+        ],
+      },
+    }),
+  });
 }
 
 /**
@@ -242,8 +300,10 @@ export async function createPago(
       });
 
       let estadoFinal = PagoEstado.REGISTRADO;
+      let tipoConcepto = ReciboTipoConcepto.OTRO;
 
       if (orden.financiamientoId && validated.cuotaId) {
+        tipoConcepto = ReciboTipoConcepto.CUOTA_FINANCIAMIENTO;
         const cuota = await tx.cuotaFinanciamiento.findFirst({
           where: await tenantWhere<Prisma.CuotaFinanciamientoWhereInput>({
             id: validated.cuotaId,
@@ -281,6 +341,7 @@ export async function createPago(
           estadoFinal = PagoEstado.REGISTRADO;
         }
       } else if (orden.financiamientoId && !validated.cuotaId) {
+        tipoConcepto = ReciboTipoConcepto.CUOTA_FINANCIAMIENTO;
         const cuotasPendientes = await tx.cuotaFinanciamiento.findMany({
           where: await tenantWhere<Prisma.CuotaFinanciamientoWhereInput>({
             financiamientoId: orden.financiamientoId,
@@ -325,11 +386,24 @@ export async function createPago(
           });
           estadoFinal = PagoEstado.REGISTRADO;
         }
+      } else if (orden.planTratamientoId) {
+        tipoConcepto = ReciboTipoConcepto.PLAN_TRATAMIENTO;
+      } else if (orden.consultaId) {
+        tipoConcepto = ReciboTipoConcepto.CONSULTA;
       }
 
       await tx.ordenDeCobro.update({
         where: { id: orden.id },
         data: { estado: "PAGADA", fechaPago: new Date() },
+      });
+
+      await crearReciboPago(tx, {
+        pagoId: pagoCreado.id,
+        ordenCobroId: orden.id,
+        monto,
+        concepto: orden.concepto,
+        tipoConcepto,
+        fechaPago: pagoCreado.fechaPago,
       });
 
       return { ...pagoCreado, estado: estadoFinal, ordenPacienteId: orden.pacienteId };
@@ -374,6 +448,7 @@ export async function getPagosByPaciente(
             financiamiento: true,
           },
         },
+        recibo: true,
       },
       orderBy: { fechaPago: "desc" },
     });
@@ -399,6 +474,7 @@ export async function getPagos(): Promise<PagoWithRelations[]> {
             financiamiento: true,
           },
         },
+        recibo: true,
       },
       orderBy: { fechaPago: "desc" },
     });
@@ -424,6 +500,7 @@ export async function getPagoById(id: string): Promise<PagoWithRelations | null>
             financiamiento: true,
           },
         },
+        recibo: true,
       },
     });
     return r ? mapPagoToWithRelations(r) : null;
@@ -446,6 +523,10 @@ function mapPagoToWithRelations(r: {
     paciente?: { nombre: string; apellido: string } | null;
     financiamiento?: { id: string } | null;
   } | null;
+  recibo?: {
+    id: string;
+    numero: string;
+  } | null;
 }): PagoWithRelations {
   return {
     id: r.id,
@@ -463,7 +544,65 @@ function mapPagoToWithRelations(r: {
       ? `Fin. #${r.ordenCobro.financiamiento.id.slice(0, 8)}`
       : undefined,
     ordenRef: `Orden #${r.ordenCobroId.slice(0, 8)}`,
+    reciboId: r.recibo?.id,
+    reciboNumero: r.recibo?.numero,
   };
+}
+
+export async function getReciboByPagoId(pagoId: string): Promise<Recibo | null> {
+  try {
+    const recibo = await prisma.recibo.findFirst({
+      where: await tenantWhere<Prisma.ReciboWhereInput>({ pagoId }),
+      include: {
+        detalles: true,
+        pago: {
+          include: {
+            ordenCobro: {
+              include: {
+                paciente: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!recibo) return null;
+
+    const pacienteNombre = `${recibo.pago.ordenCobro.paciente.nombre} ${recibo.pago.ordenCobro.paciente.apellido}`;
+
+    return {
+      id: recibo.id,
+      numero: recibo.numero,
+      fechaEmision: recibo.fechaEmision,
+      tipoConcepto: recibo.tipoConcepto,
+      moneda: recibo.moneda,
+      subtotal: Number(recibo.subtotal),
+      descuento: Number(recibo.descuento),
+      impuesto: Number(recibo.impuesto),
+      total: Number(recibo.total),
+      saldoAnterior: recibo.saldoAnterior !== null ? Number(recibo.saldoAnterior) : null,
+      saldoPosterior: recibo.saldoPosterior !== null ? Number(recibo.saldoPosterior) : null,
+      notas: recibo.notas,
+      metodoPago: recibo.pago.metodo,
+      referenciaPago: recibo.pago.referencia,
+      fechaPago: toCentralAmericaTime(recibo.pago.fechaPago) ?? recibo.pago.fechaPago,
+      pacienteNombre,
+      pacienteIdentidad: recibo.pago.ordenCobro.paciente.identidad,
+      pacienteTelefono: recibo.pago.ordenCobro.paciente.telefono,
+      ordenConcepto: recibo.pago.ordenCobro.concepto,
+      detalles: recibo.detalles.map((detalle) => ({
+        id: detalle.id,
+        descripcion: detalle.descripcion,
+        cantidad: Number(detalle.cantidad),
+        precioUnitario: Number(detalle.precioUnitario),
+        subtotal: Number(detalle.subtotal),
+      })),
+    };
+  } catch (error) {
+    console.error("Error al obtener recibo por pago:", error);
+    return null;
+  }
 }
 
 /**

@@ -2,13 +2,16 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PagoWithRelations } from "../schema";
 import { METODOS_PAGO, ESTADOS_PAGO } from "../schema";
+import { Download } from "lucide-react";
 
 interface PagosListMobileProps {
   pagos: PagoWithRelations[];
+  onDownloadRecibo?: (pagoId: string) => void;
 }
 
 const getMetodoLabel = (metodo: string) =>
@@ -36,7 +39,7 @@ const getEstadoBadge = (estado: string) => {
   }
 };
 
-export function PagosListMobile({ pagos }: PagosListMobileProps) {
+export function PagosListMobile({ pagos, onDownloadRecibo }: PagosListMobileProps) {
   if (pagos.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -65,6 +68,20 @@ export function PagosListMobile({ pagos }: PagosListMobileProps) {
                 {getEstadoBadge(pago.estado)}
               </div>
             </div>
+            {onDownloadRecibo && (
+              <div className="mt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => onDownloadRecibo(pago.id)}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Descargar recibo
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}

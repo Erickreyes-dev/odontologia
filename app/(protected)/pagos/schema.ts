@@ -22,6 +22,14 @@ export const ESTADOS_FINANCIAMIENTO = [
   { value: "CANCELADO", label: "Cancelado" },
 ] as const;
 
+export const TIPOS_CONCEPTO_RECIBO = [
+  { value: "CONSULTA", label: "Consulta" },
+  { value: "PLAN_TRATAMIENTO", label: "Plan de tratamiento" },
+  { value: "CUOTA_FINANCIAMIENTO", label: "Cuota de financiamiento" },
+  { value: "ANTICIPO", label: "Anticipo" },
+  { value: "OTRO", label: "Otro" },
+] as const;
+
 // Schema para crear Pago
 export const CreatePagoSchema = z.object({
   monto: z.number().min(0.01, "El monto debe ser mayor a 0"),
@@ -76,6 +84,39 @@ export const PagoWithRelationsSchema = z.object({
   pacienteNombre: z.string().optional(),
   financiamientoRef: z.string().optional(),
   ordenRef: z.string().optional(),
+  reciboId: z.string().optional(),
+  reciboNumero: z.string().optional(),
+});
+
+export const ReciboDetalleSchema = z.object({
+  id: z.string(),
+  descripcion: z.string(),
+  cantidad: z.number(),
+  precioUnitario: z.number(),
+  subtotal: z.number(),
+});
+
+export const ReciboSchema = z.object({
+  id: z.string(),
+  numero: z.string(),
+  fechaEmision: z.date(),
+  tipoConcepto: z.string(),
+  moneda: z.string(),
+  subtotal: z.number(),
+  descuento: z.number(),
+  impuesto: z.number(),
+  total: z.number(),
+  saldoAnterior: z.number().nullable().optional(),
+  saldoPosterior: z.number().nullable().optional(),
+  notas: z.string().nullable().optional(),
+  metodoPago: z.string(),
+  referenciaPago: z.string().nullable().optional(),
+  fechaPago: z.date(),
+  pacienteNombre: z.string(),
+  pacienteIdentidad: z.string().nullable().optional(),
+  pacienteTelefono: z.string().nullable().optional(),
+  ordenConcepto: z.string(),
+  detalles: z.array(ReciboDetalleSchema),
 });
 
 // Financiamiento con cuotas (para detalle)
@@ -102,3 +143,4 @@ export type CreateFinanciamientoInput = z.infer<typeof CreateFinanciamientoSchem
 export type PagoWithRelations = z.infer<typeof PagoWithRelationsSchema>;
 export type CuotaFinanciamiento = z.infer<typeof CuotaFinanciamientoSchema>;
 export type FinanciamientoDetalle = z.infer<typeof FinanciamientoDetalleSchema>;
+export type Recibo = z.infer<typeof ReciboSchema>;

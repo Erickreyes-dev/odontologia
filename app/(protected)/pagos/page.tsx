@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { getSessionPermisos } from "@/auth";
+import { getSession, getSessionPermisos } from "@/auth";
 import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import { DollarSign } from "lucide-react";
@@ -13,6 +13,7 @@ import {
 } from "./actions";
 import { PagosPageClient } from "./components/PagosPageClient";
 import { getOrdenesCobroPendientes } from "@/app/(protected)/ordenes-cobro/actions";
+import { prisma } from "@/lib/prisma";
 
 export default async function PagosPage({
   searchParams,
@@ -20,6 +21,7 @@ export default async function PagosPage({
   searchParams: Promise<{ pacienteId?: string }>;
 }) {
   const permisos = await getSessionPermisos();
+  const session = await getSession();
 
   if (!permisos?.includes("ver_pagos")) {
     return <NoAcceso />;
@@ -53,6 +55,19 @@ export default async function PagosPage({
     pacienteId: p.pacienteId || "", // Asegura que el contrato de TS se cumpla
   }));
 
+  const tenantContactInfo = session?.TenantId
+    ? await prisma.tenant.findUnique({
+        where: { id: session.TenantId },
+        select: { contactoCorreo: true, telefono: true },
+      })
+    : null;
+
+  const clinicInfo = {
+    nombre: session?.TenantNombre ?? "Clínica",
+    correo: tenantContactInfo?.contactoCorreo ?? null,
+    telefono: tenantContactInfo?.telefono ?? null,
+  };
+
   return (
     <div className="container mx-auto py-2">
       <HeaderComponent
@@ -69,6 +84,7 @@ export default async function PagosPage({
         planes={planes}             // Ahora tiene pacienteId
         ordenesCobro={ordenesCobro}
         defaultPacienteId={pacienteIdFromUrl}
+        clinicInfo={clinicInfo}
       />
     </div>
   );

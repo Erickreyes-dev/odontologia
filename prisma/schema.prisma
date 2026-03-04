@@ -49,6 +49,8 @@ model Tenant {
   ordenesCobro         OrdenDeCobro[]
   cuotasFinanciamiento CuotaFinanciamiento[]
   constanciasMedicas   ConstanciaMedica[]
+  recibos              Recibo[]
+  reciboDetalles       ReciboDetalle[]
 }
 
 model Permiso {
@@ -154,6 +156,7 @@ model Usuarios {
   Empleados           Empleados?           @relation(fields: [empleado_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Usuarios_Empleados_empleado_id")
   rol                 Rol                  @relation(fields: [rol_id], references: [id])
   PasswordResetToken  PasswordResetToken[]
+  recibosEmitidos     Recibo[]             @relation("ReciboEmitidoPor")
 
   @@unique([tenantId, usuario])
   @@index([tenantId])
@@ -605,6 +608,14 @@ enum PagoEstado {
   REVERTIDO
 }
 
+enum ReciboTipoConcepto {
+  CONSULTA
+  PLAN_TRATAMIENTO
+  CUOTA_FINANCIAMIENTO
+  ANTICIPO
+  OTRO
+}
+
 enum FinanciamientoEstado {
   ACTIVO
   PAGADO
@@ -626,12 +637,66 @@ model Pago {
   tenant     Tenant?               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   ordenCobro OrdenDeCobro          @relation(fields: [ordenCobroId], references: [id], onDelete: Cascade)
   cuotas     CuotaFinanciamiento[]
+  recibo     Recibo?
 
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
 
   @@index([tenantId])
   @@index([ordenCobroId])
+}
+
+model Recibo {
+  id                String             @id @default(uuid()) @db.VarChar(36)
+  tenantId          String?            @db.VarChar(36)
+  pagoId            String             @unique @db.VarChar(36)
+  numero            String             @db.VarChar(30)
+  fechaEmision      DateTime           @default(now()) @db.DateTime(6)
+  tipoConcepto      ReciboTipoConcepto @default(OTRO)
+  moneda            String             @default("HNL") @db.VarChar(10)
+  subtotal          Decimal            @db.Decimal(10, 2)
+  descuento         Decimal            @default(0) @db.Decimal(10, 2)
+  impuesto          Decimal            @default(0) @db.Decimal(10, 2)
+  total             Decimal            @db.Decimal(10, 2)
+  saldoAnterior     Decimal?           @db.Decimal(10, 2)
+  saldoPosterior    Decimal?           @db.Decimal(10, 2)
+  notas             String?            @db.VarChar(255)
+  emitidoPorUsuario String?            @db.VarChar(36)
+
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+
+  tenant     Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pago       Pago            @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  emitidoPor Usuarios?       @relation("ReciboEmitidoPor", fields: [emitidoPorUsuario], references: [id])
+  detalles   ReciboDetalle[]
+
+  @@unique([tenantId, numero])
+  @@index([tenantId])
+  @@index([pagoId])
+  @@index([emitidoPorUsuario])
+}
+
+model ReciboDetalle {
+  id             String  @id @default(uuid()) @db.VarChar(36)
+  tenantId       String? @db.VarChar(36)
+  reciboId       String  @db.VarChar(36)
+  descripcion    String  @db.VarChar(255)
+  cantidad       Decimal @default(1) @db.Decimal(10, 2)
+  precioUnitario Decimal @db.Decimal(10, 2)
+  subtotal       Decimal @db.Decimal(10, 2)
+  referenciaTipo String? @db.VarChar(40)
+  referenciaId   String? @db.VarChar(36)
+
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recibo Recibo  @relation(fields: [reciboId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([reciboId])
+  @@index([referenciaTipo, referenciaId])
 }
 
 model Financiamiento {

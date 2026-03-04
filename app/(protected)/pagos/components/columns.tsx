@@ -11,16 +11,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, RotateCcw } from "lucide-react";
+import { Download, MoreHorizontal, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PagoWithRelations } from "../schema";
 import { METODOS_PAGO, ESTADOS_PAGO } from "../schema";
 
-type GetColumnsOptions = { onRevertPago?: (id: string) => void };
+type GetColumnsOptions = { onRevertPago?: (id: string) => void; onDownloadRecibo?: (id: string) => void };
 
 export function getColumns(options?: GetColumnsOptions): ColumnDef<PagoWithRelations>[] {
-  const { onRevertPago } = options ?? {};
+  const { onRevertPago, onDownloadRecibo } = options ?? {};
 
 const getMetodoLabel = (metodo: string) =>
   METODOS_PAGO.find((m) => m.value === metodo)?.label ?? metodo;
@@ -115,6 +115,15 @@ const getEstadoBadge = (estado: string) => {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {onDownloadRecibo && (
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => onDownloadRecibo(pago.id)}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Descargar recibo PDF
+              </DropdownMenuItem>
+            )}
             {pago.estado === "REGISTRADO" && onRevertPago && (
               <DropdownMenuItem
                 className="cursor-pointer text-amber-600"

@@ -11,11 +11,12 @@ import { PagosListMobile } from "./pagos-list-mobile";
 import { PagoFormModal } from "./PagoFormModal";
 import { FinanciamientoFormModal } from "./FinanciamientoFormModal";
 import { getColumns } from "./columns";
-import { revertPago } from "../actions";
+import { getReciboByPagoId, revertPago } from "../actions";
 import { toast } from "sonner";
 import type { PagoWithRelations } from "../schema";
 import type { FinanciamientoDetalle } from "../schema";
 import type { OrdenCobroWithRelations } from "@/app/(protected)/ordenes-cobro/schema";
+import { generateReciboPDF } from "@/lib/pdf/recibo-pdf";
 
 interface PagosPageClientProps {
   pagos: PagoWithRelations[];
@@ -37,6 +38,11 @@ interface PagosPageClientProps {
   }[];
   ordenesCobro: OrdenCobroWithRelations[];
   defaultPacienteId?: string;
+  clinicInfo: {
+    nombre: string;
+    correo?: string | null;
+    telefono?: string | null;
+  };
 }
 
 export function PagosPageClient({
@@ -47,6 +53,7 @@ export function PagosPageClient({
   planes,
   ordenesCobro,
   defaultPacienteId,
+  clinicInfo,
 }: PagosPageClientProps) {
   const router = useRouter();
   const [pagoModalOpen, setPagoModalOpen] = useState(false);
@@ -68,7 +75,18 @@ export function PagosPageClient({
     }
   };
 
-  const columns = getColumns({ onRevertPago: handleRevert });
+  const handleDownloadRecibo = async (pagoId: string) => {
+    const recibo = await getReciboByPagoId(pagoId);
+    if (!recibo) {
+      toast.error("No se encontró recibo para este pago");
+      return;
+    }
+
+    generateReciboPDF(recibo, clinicInfo);
+    toast.success("Recibo generado en PDF");
+  };
+
+  const columns = getColumns({ onRevertPago: handleRevert, onDownloadRecibo: handleDownloadRecibo });
 
   const refresh = () => router.refresh();
 
@@ -126,7 +144,7 @@ export function PagosPageClient({
       <div className="md:hidden space-y-6">
         <section>
           <h2 className="text-lg font-semibold mb-3">Pagos Recientes</h2>
-          <PagosListMobile pagos={pagos} />
+          <PagosListMobile pagos={pagos} onDownloadRecibo={handleDownloadRecibo} />
         </section>
 
         <section>
