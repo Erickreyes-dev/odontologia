@@ -14,9 +14,7 @@ const authSecret = process.env.AUTH_SECRET
   ? new TextEncoder().encode(process.env.AUTH_SECRET)
   : null;
 
-async function getSessionPermissions(req: NextRequest): Promise<string[]> {
-  if (!authSecret) return [];
-
+async function getSessionPermissions(req: NextRequest): Promise<string[] | null> {
   const token =
     req.cookies.get("session")?.value ??
     req.cookies.get("next-auth.session-token")?.value ??
@@ -24,11 +22,13 @@ async function getSessionPermissions(req: NextRequest): Promise<string[]> {
 
   if (!token) return [];
 
+  if (!authSecret) return null;
+
   try {
     const { payload } = await jwtVerify<SessionPayload>(token, authSecret, { algorithms: ["HS256"] });
     return Array.isArray(payload.Permiso) ? payload.Permiso : [];
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -187,11 +187,14 @@ export async function middleware(req: NextRequest) {
 
   if (path.startsWith("/dashboard-admin")) {
     const permisos = await getSessionPermissions(req);
-    const canAccessAdminDashboard =
-      permisos.includes("ver_dashboard_admin") && permisos.includes("gestionar_tenants");
 
-    if (!canAccessAdminDashboard) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+    if (permisos) {
+      const canAccessAdminDashboard =
+        permisos.includes("ver_dashboard_admin") && permisos.includes("gestionar_tenants");
+
+      if (!canAccessAdminDashboard) {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
     }
   }
 
