@@ -72,6 +72,29 @@ async function generarNumeroRecibo(tx: Prisma.TransactionClient): Promise<string
   return `REC-${actualYear}-${String(conteo + 1).padStart(6, "0")}`;
 }
 
+async function recalcularSaldoFinanciamiento(
+  tx: Prisma.TransactionClient,
+  financiamientoId: string
+): Promise<void> {
+  const cuotasPendientes = await tx.cuotaFinanciamiento.findMany({
+    where: await tenantWhere<Prisma.CuotaFinanciamientoWhereInput>({
+      financiamientoId,
+      pagada: false,
+    }),
+    select: { monto: true },
+  });
+
+  const nuevoSaldo = cuotasPendientes.reduce((acc, cuota) => acc + Number(cuota.monto), 0);
+
+  await tx.financiamiento.update({
+    where: { id: financiamientoId },
+    data: {
+      saldo: nuevoSaldo,
+      estado: nuevoSaldo <= 0 ? FinanciamientoEstado.PAGADO : FinanciamientoEstado.ACTIVO,
+    },
+  });
+}
+
 async function crearReciboPago(tx: Prisma.TransactionClient, payload: {
   pagoId: string;
   ordenCobroId: string;
@@ -188,7 +211,9 @@ export async function createFinanciamiento(
     }
 
     const montoConInteres = saldoInicial * (1 + interes / 100);
-    const montoPorCuota = montoConInteres / cuotas;
+    const montoConInteresCentavos = Math.round(montoConInteres * 100);
+    const cuotaBaseCentavos = Math.floor(montoConInteresCentavos / cuotas);
+    const cuotasConCentavoExtra = montoConInteresCentavos % cuotas;
 
     const result = await prisma.$transaction(async (tx) => {
       const financiamiento = await tx.financiamiento.create({
@@ -199,7 +224,7 @@ export async function createFinanciamiento(
           planTratamientoId: validated.planTratamientoId || null,
           montoTotal,
           anticipo,
-          saldo: saldoInicial,
+          saldo: montoConInteresCentavos / 100,
           cuotas,
           interes,
           fechaInicio: validated.fechaInicio,
@@ -211,12 +236,14 @@ export async function createFinanciamiento(
       const cuotasLista = [];
       for (let i = 1; i <= cuotas; i++) {
         const fechaVenc = addMonths(validated.fechaInicio, i);
+        const montoCuotaCentavos =
+          cuotaBaseCentavos + (i <= cuotasConCentavoExtra ? 1 : 0);
         const cuota = await tx.cuotaFinanciamiento.create({
           data: await withTenantData({
             id: randomUUID(),
             financiamientoId: financiamiento.id,
             numero: i,
-            monto: montoPorCuota,
+            monto: montoCuotaCentavos / 100,
             fechaVencimiento: fechaVenc,
             pagada: false,
           }),
@@ -357,15 +384,7 @@ export async function createPago(
             },
           });
 
-          const nuevoSaldo = Number(cuota.financiamiento.saldo) - montoCuota;
-          await tx.financiamiento.update({
-            where: { id: cuota.financiamientoId },
-            data: {
-              saldo: nuevoSaldo,
-              estado:
-                nuevoSaldo <= 0 ? FinanciamientoEstado.PAGADO : FinanciamientoEstado.ACTIVO,
-            },
-          });
+          await recalcularSaldoFinanciamiento(tx, cuota.financiamientoId);
 
           await tx.pago.update({
             where: { id: pagoCreado.id },
@@ -400,15 +419,7 @@ export async function createPago(
             });
             montoRestante -= montoCuota;
 
-            const nuevoSaldo = Number(cuota.financiamiento.saldo) - montoCuota;
-            await tx.financiamiento.update({
-              where: { id: cuota.financiamientoId },
-              data: {
-                saldo: nuevoSaldo,
-                estado:
-                  nuevoSaldo <= 0 ? FinanciamientoEstado.PAGADO : FinanciamientoEstado.ACTIVO,
-              },
-            });
+            await recalcularSaldoFinanciamiento(tx, cuota.financiamientoId);
           }
         }
         if (montoRestante < monto) {
@@ -883,27 +894,14 @@ export async function revertPago(
 
     await prisma.$transaction(async (tx) => {
       if (pago.cuotas && pago.cuotas.length > 0 && pago.ordenCobro?.financiamientoId) {
-        const financiamiento = await tx.financiamiento.findUnique({
-          where: { id: pago.ordenCobro.financiamientoId },
-        });
-        if (financiamiento) {
-          let saldoAjustar = 0;
-          for (const cuota of pago.cuotas) {
-            await tx.cuotaFinanciamiento.update({
-              where: { id: cuota.id },
-              data: { pagada: false, fechaPago: null, pagoId: null },
-            });
-            saldoAjustar += Number(cuota.monto);
-          }
-          const nuevoSaldo = Number(financiamiento.saldo) + saldoAjustar;
-          await tx.financiamiento.update({
-            where: { id: pago.ordenCobro.financiamientoId },
-            data: {
-              saldo: nuevoSaldo,
-              estado: FinanciamientoEstado.ACTIVO,
-            },
+        for (const cuota of pago.cuotas) {
+          await tx.cuotaFinanciamiento.update({
+            where: { id: cuota.id },
+            data: { pagada: false, fechaPago: null, pagoId: null },
           });
         }
+
+        await recalcularSaldoFinanciamiento(tx, pago.ordenCobro.financiamientoId);
       }
 
       await tx.ordenDeCobro.update({
