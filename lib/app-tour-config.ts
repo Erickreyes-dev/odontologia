@@ -40,14 +40,14 @@ function moduleSteps(moduleName: string, purpose: string, nextAction: string): T
     },
     {
       selector: "[data-tour='sidebar']",
-      title: "Cómo continuar el flujo",
+      title: `Cómo continuar desde ${moduleName}`,
       description: nextAction,
     },
     {
       selector: "[data-tour='sidebar-trigger']",
-      title: "Tip de productividad",
+      title: `Tip de productividad en ${moduleName}`,
       description:
-        "Colapsa o expande el menú lateral para concentrarte en esta pantalla sin perder acceso rápido a otros módulos.",
+        `Colapsa o expande el menú lateral mientras trabajas en ${moduleName} para ganar espacio sin perder acceso rápido a otros módulos.`,
     },
   ];
 }
