@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { prisma } from "@/lib/prisma";
 import { tenantWhere } from "@/lib/tenant-query";
+import { FinanciamientoEstado, OrdenCobroEstado, PagoEstado } from "@/lib/generated/prisma";
 import {
   CalendarDays,
   DollarSign,
@@ -111,7 +112,7 @@ export default async function DashboardPage() {
           gte: todayStartUtc,
           lte: todayEndUtc,
         },
-        estado: { not: "REVERTIDO" },
+        estado: { not: PagoEstado.REVERTIDO },
       }),
     }),
     prisma.pago.aggregate({
@@ -121,7 +122,7 @@ export default async function DashboardPage() {
           gte: monthStartUtc,
           lte: monthEndUtc,
         },
-        estado: { not: "REVERTIDO" },
+        estado: { not: PagoEstado.REVERTIDO },
       }),
     }),
     prisma.cita.count({
@@ -151,7 +152,7 @@ export default async function DashboardPage() {
           gte: startLast12MonthsUtc,
           lte: monthEndUtc,
         },
-        estado: { not: "REVERTIDO" },
+        estado: { not: PagoEstado.REVERTIDO },
       }),
       select: {
         fechaPago: true,
@@ -174,10 +175,10 @@ export default async function DashboardPage() {
       },
     }),
     prisma.ordenDeCobro.count({
-      where: await tenantWhere({ estado: "PENDIENTE" }),
+      where: await tenantWhere({ estado: OrdenCobroEstado.PENDIENTE }),
     }),
     prisma.financiamiento.count({
-      where: await tenantWhere({ estado: "ACTIVO" }),
+      where: await tenantWhere({ estado: FinanciamientoEstado.ACTIVO }),
     }),
     prisma.paciente.count({
       where: await tenantWhere({ activo: true }),
