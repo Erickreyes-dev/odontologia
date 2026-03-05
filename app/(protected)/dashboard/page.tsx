@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { prisma } from "@/lib/prisma";
+import { tenantWhere } from "@/lib/tenant-query";
 import {
   CalendarDays,
   DollarSign,
@@ -105,33 +106,34 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     prisma.pago.aggregate({
       _sum: { monto: true },
-      where: {
+      where: await tenantWhere({
         fechaPago: {
           gte: todayStartUtc,
           lte: todayEndUtc,
         },
         estado: { not: "REVERTIDO" },
-      },
+      }),
     }),
     prisma.pago.aggregate({
       _sum: { monto: true },
-      where: {
+      where: await tenantWhere({
         fechaPago: {
           gte: monthStartUtc,
           lte: monthEndUtc,
         },
         estado: { not: "REVERTIDO" },
-      },
+      }),
     }),
     prisma.cita.count({
-      where: {
+      where: await tenantWhere({
         fechaHora: {
           gte: startOfDay(today),
           lte: endOfDay(today),
         },
-      },
+      }),
     }),
     prisma.pago.findMany({
+      where: await tenantWhere(),
       take: 5,
       orderBy: { fechaPago: "desc" },
       include: {
@@ -144,24 +146,26 @@ export default async function DashboardPage() {
       },
     }),
     prisma.pago.findMany({
-      where: {
+      where: await tenantWhere({
         fechaPago: {
           gte: startLast12MonthsUtc,
           lte: monthEndUtc,
         },
         estado: { not: "REVERTIDO" },
-      },
+      }),
       select: {
         fechaPago: true,
         monto: true,
       },
     }),
     prisma.financiamiento.findMany({
+      where: await tenantWhere(),
       take: 5,
       orderBy: { createAt: "desc" },
       include: { paciente: true },
     }),
     prisma.ordenDeCobro.findMany({
+      where: await tenantWhere(),
       take: 5,
       orderBy: { fechaEmision: "desc" },
       include: {
@@ -170,13 +174,13 @@ export default async function DashboardPage() {
       },
     }),
     prisma.ordenDeCobro.count({
-      where: { estado: "PENDIENTE" },
+      where: await tenantWhere({ estado: "PENDIENTE" }),
     }),
     prisma.financiamiento.count({
-      where: { estado: "ACTIVO" },
+      where: await tenantWhere({ estado: "ACTIVO" }),
     }),
     prisma.paciente.count({
-      where: { activo: true },
+      where: await tenantWhere({ activo: true }),
     }),
   ]);
 
