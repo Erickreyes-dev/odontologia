@@ -15,6 +15,12 @@ function normalizeOptionalEmail(value?: string | null): string | null {
     return normalized === "" ? null : normalized;
 }
 
+function normalizeOptionalSeguroId(value?: string | null): string | null {
+    if (value == null) return null;
+    const normalized = value.trim();
+    return normalized === "" ? null : normalized;
+}
+
 /**
  * Obtiene todos los pacientes
  */
@@ -174,7 +180,7 @@ export async function createPaciente(data: Paciente): Promise<{ success: true; d
                 telefono: validatedData.telefono,
                 correo: normalizeOptionalEmail(validatedData.correo),
                 direccion: validatedData.direccion,
-                seguroId: validatedData.seguroId,
+                seguroId: normalizeOptionalSeguroId(validatedData.seguroId),
                 activo: validatedData.activo,
             }),
         });
@@ -234,7 +240,7 @@ export async function updatePaciente(id: string, data: Partial<Paciente>): Promi
                 ...(validatedData.telefono !== undefined && { telefono: validatedData.telefono }),
                 ...(validatedData.correo !== undefined && { correo: normalizeOptionalEmail(validatedData.correo) }),
                 ...(validatedData.direccion !== undefined && { direccion: validatedData.direccion }),
-                ...(validatedData.seguroId !== undefined && { seguroId: validatedData.seguroId }),
+                ...(validatedData.seguroId !== undefined && { seguroId: normalizeOptionalSeguroId(validatedData.seguroId) }),
                 ...(validatedData.activo !== undefined && { activo: validatedData.activo }),
             },
         });

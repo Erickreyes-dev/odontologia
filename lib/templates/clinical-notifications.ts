@@ -1,5 +1,7 @@
-import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { es } from "date-fns/locale";
+
+const HONDURAS_TIMEZONE = "America/Tegucigalpa";
 
 function layout(title: string, subtitle: string, content: string) {
   return `
@@ -28,7 +30,12 @@ export function generateAppointmentEmailHtml(params: {
   motivo?: string | null;
   observacion?: string | null;
 }) {
-  const fecha = format(params.fechaHora, "EEEE d 'de' MMMM 'de' yyyy, hh:mm a", { locale: es });
+  const fecha = formatInTimeZone(
+    params.fechaHora,
+    HONDURAS_TIMEZONE,
+    "EEEE d 'de' MMMM 'de' yyyy, hh:mm a",
+    { locale: es }
+  );
 
   return layout(
     "Confirmación de cita",
@@ -36,7 +43,7 @@ export function generateAppointmentEmailHtml(params: {
     `<p>Estimado(a) <strong>${params.pacienteNombre}</strong>,</p>
      <p>Se ha programado una cita en la clínica con los siguientes detalles:</p>
      <table style="width:100%; border-collapse:collapse; margin:16px 0;">
-      <tr><td style="padding:8px 0; color:#334155;"><strong>Fecha y hora:</strong></td><td>${fecha}</td></tr>
+      <tr><td style="padding:8px 0; color:#334155;"><strong>Fecha y hora:</strong></td><td>${fecha} (UTC-6)</td></tr>
       <tr><td style="padding:8px 0; color:#334155;"><strong>Médico:</strong></td><td>Dr(a). ${params.medicoNombre}</td></tr>
       <tr><td style="padding:8px 0; color:#334155;"><strong>Consultorio:</strong></td><td>${params.consultorioNombre}</td></tr>
       <tr><td style="padding:8px 0; color:#334155;"><strong>Motivo:</strong></td><td>${params.motivo || "Consulta general"}</td></tr>
@@ -60,7 +67,7 @@ export function generateCotizacionEmailHtml(params: {
     `Documento compartido por Dr(a). ${params.medicoNombre}`,
     `<p>Estimado(a) <strong>${params.pacienteNombre}</strong>,</p>
      <p>Hemos preparado su cotización con un enfoque clínico y financiero transparente.</p>
-     <p><strong>Fecha:</strong> ${format(params.fecha, "dd/MM/yyyy", { locale: es })}<br/>
+     <p><strong>Fecha:</strong> ${formatInTimeZone(params.fecha, HONDURAS_TIMEZONE, "dd/MM/yyyy", { locale: es })}<br/>
      <strong>Estado:</strong> ${params.estado}<br/>
      <strong>Total estimado:</strong> L. ${params.total.toLocaleString("es-HN", { minimumFractionDigits: 2 })}</p>
      <p><strong>Servicios considerados:</strong></p>
@@ -84,7 +91,7 @@ export function generatePlanEmailHtml(params: {
     `<p>Estimado(a) <strong>${params.pacienteNombre}</strong>,</p>
      <p>Le compartimos su plan de tratamiento para acompañar su proceso de manera ordenada y profesional.</p>
      <p><strong>Plan:</strong> ${params.planNombre}<br/>
-     <strong>Fecha de inicio:</strong> ${format(params.fechaInicio, "dd/MM/yyyy", { locale: es })}<br/>
+     <strong>Fecha de inicio:</strong> ${formatInTimeZone(params.fechaInicio, HONDURAS_TIMEZONE, "dd/MM/yyyy", { locale: es })}<br/>
      <strong>Estado:</strong> ${params.estado}</p>
      <p><strong>Etapas consideradas:</strong></p>
      <ol>${params.etapas.map((e) => `<li>${e}</li>`).join("")}</ol>

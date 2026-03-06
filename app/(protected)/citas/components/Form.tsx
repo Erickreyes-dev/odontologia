@@ -107,16 +107,7 @@ export function CitaFormulario({
           return;
         }
 
-        if (sendEmailToPaciente) {
-          const confirmar = window.confirm("¿Deseas enviar la confirmación de cita al paciente por correo?");
-          if (!confirmar) {
-            result = await createCita(data);
-          } else {
-            result = await createCita(data, { sendEmailToPaciente: true });
-          }
-        } else {
-          result = await createCita(data);
-        }
+        result = await createCita(data, { sendEmailToPaciente });
       }
 
       if (result.success) {
