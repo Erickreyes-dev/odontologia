@@ -4,10 +4,11 @@
 import { Prisma } from '@/lib/generated/prisma';
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { TSchemaResetPassword, schemaResetPassword } from "./app/(public)/reset-password/schema";
 import { schemaSignIn, TSchemaSignIn } from './lib/shemas';
 import { prisma } from './lib/prisma';
+import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
 
 const key = new TextEncoder().encode(process.env.AUTH_SECRET!);
 
@@ -84,12 +85,32 @@ export const signOut = async () => {
   cookies().delete("session");
 };
 
+async function resolveTenantSlugForAuth(explicitTenantSlug: string): Promise<string | null> {
+  const slugFromInput = explicitTenantSlug.trim().toLowerCase();
+  if (slugFromInput) return slugFromInput;
+
+  const requestHeaders = headers();
+  const forwardedSlug = requestHeaders.get("x-tenant-slug")?.trim().toLowerCase();
+  if (forwardedSlug) return forwardedSlug;
+
+  const hostSlug = resolveTenantSlugFromHost(requestHeaders.get("host"));
+  if (hostSlug) return hostSlug;
+
+  return null;
+}
+
 export const login = async (credentials: TSchemaSignIn, redirect: string): Promise<LoginResult> => {
   const parsed = schemaSignIn.safeParse(credentials);
   if (!parsed.success) return { error: "Datos de acceso inválidos" };
 
   const { tenantSlug, usuario, contrasena } = parsed.data;
-  const result = await authenticateDB(tenantSlug, usuario, contrasena);
+  const tenantSlugResolved = await resolveTenantSlugForAuth(tenantSlug);
+
+  if (!tenantSlugResolved) {
+    return { error: "No se pudo resolver la clínica desde el subdominio. Verifica la URL de acceso." };
+  }
+
+  const result = await authenticateDB(tenantSlugResolved, usuario, contrasena);
   if (!result.token) return { error: result.error ?? "Clínica, usuario o contraseña inválidos" };
 
   setSessionCookie(result.token);

@@ -2,6 +2,7 @@
 import { jwtVerify, type JWTPayload } from "jose";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
 
 type Bucket = { count: number; reset: number };
 type RateLimitConfig = { limit: number; windowMs: number };
@@ -38,6 +39,8 @@ const ROUTE_RATE_LIMITS: Record<string, RateLimitConfig> = {
   "/api/auth": { limit: 20, windowMs: 60_000 },
   "/api": { limit: 80, windowMs: 60_000 },
   "/dashboard-admin": { limit: 90, windowMs: 60_000 },
+  "/tenants": { limit: 80, windowMs: 60_000 },
+  "/paquetes": { limit: 80, windowMs: 60_000 },
   "/dashboard": { limit: 120, windowMs: 60_000 },
   "/citas": { limit: 90, windowMs: 60_000 },
   "/pacientes": { limit: 80, windowMs: 60_000 },
@@ -122,6 +125,18 @@ function cleanupExpiredEntries(now: number) {
 
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
+  const tenantSlugFromHost = resolveTenantSlugFromHost(req.headers.get("host"));
+  const requestHeaders = new Headers(req.headers);
+
+  if (tenantSlugFromHost) {
+    requestHeaders.set("x-tenant-slug", tenantSlugFromHost);
+  }
+
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 
   if (!shouldSkipRateLimit(path)) {
     const clientIp = getClientIp(req);
@@ -156,6 +171,8 @@ export async function middleware(req: NextRequest) {
   const protectedPrefixes = [
     "/dashboard",
     "/dashboard-admin",
+    "/tenants",
+    "/paquetes",
     "/seguros",
     "/pacientes",
     "/medicos",
@@ -198,7 +215,7 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {

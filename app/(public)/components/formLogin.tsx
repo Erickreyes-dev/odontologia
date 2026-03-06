@@ -16,6 +16,18 @@ import { getSession, login } from "../../../auth";
 import ForgotPasswordForm from "./forworgot"; // revisa el nombre real
 import { schemaSignIn, TSchemaSignIn } from "@/lib/shemas";
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+
+function getTenantSlugFromBrowserHost(): string {
+  const host = window.location.hostname.toLowerCase();
+  const labels = host.split(".").filter(Boolean);
+
+  if (labels.length >= 3) return labels[0];
+  if (labels.length === 2 && LOCAL_HOSTS.has(labels[1])) return labels[0];
+
+  return "";
+}
+
 export default function Login() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -23,12 +35,9 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false); // controla el Dialog
+  const [tenantSlugFromHost, setTenantSlugFromHost] = useState("");
 
   const redirectTo = searchParams.get("redirect") ?? "/profile";
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const form = useForm<z.infer<typeof schemaSignIn>>({
     resolver: zodResolver(schemaSignIn),
@@ -38,6 +47,15 @@ export default function Login() {
       contrasena: "",
     },
   });
+
+  useEffect(() => {
+    setMounted(true);
+    const slug = getTenantSlugFromBrowserHost();
+    if (slug) {
+      setTenantSlugFromHost(slug);
+      form.setValue("tenantSlug", slug, { shouldValidate: true });
+    }
+  }, [form]);
 
   const onSubmit = (values: TSchemaSignIn) => {
     startTransition(async () => {
@@ -73,16 +91,19 @@ export default function Login() {
                 aria-invalid={fieldState.invalid}
                 type="text"
                 placeholder="slug de tu clínica"
-                disabled={isPending}
+                disabled={isPending || Boolean(tenantSlugFromHost)}
                 autoComplete="organization"
               />
-              <FieldDescription>Identificador de la clínica (tenant).</FieldDescription>
+              <FieldDescription>
+                {tenantSlugFromHost
+                  ? `Se detectó automáticamente desde el subdominio: ${tenantSlugFromHost}`
+                  : "Identificador de la clínica (tenant). Si accedes por subdominio no es necesario ingresarlo."}
+              </FieldDescription>
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}
         />
 
-        {/* Usuario */}
         <Controller
           name="usuario"
           control={form.control}
@@ -104,7 +125,6 @@ export default function Login() {
           )}
         />
 
-        {/* Contraseña */}
         <Controller
           name="contrasena"
           control={form.control}
@@ -118,7 +138,7 @@ export default function Login() {
                   type={showPassword ? "text" : "password"}
                   placeholder="*******"
                   disabled={isPending}
-                  className="pr-10" // deja espacio para el ojo
+                  className="pr-10"
                 />
                 <button
                   type="button"
@@ -129,13 +149,10 @@ export default function Login() {
                 </button>
               </div>
               <FieldDescription>Agrega tu contraseña.</FieldDescription>
-              {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}
         />
-
 
         <Button type="submit" disabled={isPending}>
           {isPending ? "Iniciando..." : "Iniciar sesión"}
@@ -146,7 +163,6 @@ export default function Login() {
         </Button>
       </form>
 
-      {/* Dialog fuera del form */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -159,7 +175,7 @@ export default function Login() {
             onCancel={() => setOpen(false)}
             onSuccess={() => {
               setOpen(false);
-              router.push("/login"); // ruta después de enviar
+              router.push("/login");
             }}
           />
         </DialogContent>

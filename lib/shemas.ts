@@ -1,11 +1,10 @@
-
 import { z } from "zod";
 
 export const schemaSignIn = z.object({
     tenantSlug: z
         .string({ message: "La clínica es requerida" })
-        .min(2, { message: "La clínica es requerida" })
-        .max(50, { message: "La clínica no puede exceder 50 caracteres" }),
+        .max(50, { message: "La clínica no puede exceder 50 caracteres" })
+        .transform((value) => value.trim().toLowerCase()),
     usuario: z
         .string({ message: "El nombre de usuario es requerido" })
         .min(1, { message: "El nombre de usuario es requerido" })

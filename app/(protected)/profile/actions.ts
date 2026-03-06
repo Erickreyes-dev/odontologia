@@ -7,10 +7,6 @@ import { Prisma } from "@/lib/generated/prisma";
 import { tenantWhere } from "@/lib/tenant-query";
 import { revalidatePath } from "next/cache";
 
-/**
- * Obtiene el perfil del usuario autenticado.
- * Soporta usuarios con empleado asociado y usuarios admins globales sin empleado.
- */
 export async function getProfile(): Promise<Employee | null> {
   try {
     const session = await getSession();
@@ -32,7 +28,7 @@ export async function getProfile(): Promise<Employee | null> {
     const tenant = session.TenantId
       ? await prisma.tenant.findUnique({
           where: { id: session.TenantId },
-          select: { contactoCorreo: true, telefono: true },
+          select: { contactoCorreo: true, telefono: true, logoBase64: true },
         })
       : null;
 
@@ -58,6 +54,7 @@ export async function getProfile(): Promise<Employee | null> {
         telefono: e.telefono || "No especificado",
         tenantCorreo: tenant?.contactoCorreo ?? null,
         tenantTelefono: tenant?.telefono ?? null,
+        tenantLogoBase64: tenant?.logoBase64 ?? null,
         canEditTenantContact,
         createAt: e.createAt ?? new Date(0),
         updateAt: e.updateAt ?? new Date(0),
@@ -82,6 +79,7 @@ export async function getProfile(): Promise<Employee | null> {
       telefono: "No especificado",
       tenantCorreo: tenant?.contactoCorreo ?? null,
       tenantTelefono: tenant?.telefono ?? null,
+      tenantLogoBase64: tenant?.logoBase64 ?? null,
       canEditTenantContact,
       createAt: usuario.createAt ?? new Date(0),
       updateAt: usuario.updateAt ?? new Date(0),
@@ -93,8 +91,9 @@ export async function getProfile(): Promise<Employee | null> {
 }
 
 export async function updateTenantContactInfo(input: {
-  telefono: string;
-  correo: string;
+  telefono?: string | null;
+  correo?: string | null;
+  logoBase64?: string | null;
 }): Promise<{ success: true } | { success: false; error: string }> {
   try {
     const session = await getSession();
@@ -103,23 +102,31 @@ export async function updateTenantContactInfo(input: {
       return { success: false, error: "No tiene permisos para editar el contacto del tenant" };
     }
 
-    const telefono = input.telefono.trim();
-    const correo = input.correo.trim().toLowerCase();
+    const telefonoRaw = input.telefono?.trim() ?? "";
+    const correoRaw = input.correo?.trim().toLowerCase() ?? "";
+    const logoBase64 = input.logoBase64?.trim() || null;
 
-    if (!telefono || telefono.length > 20) {
-      return { success: false, error: "El teléfono es requerido y debe tener máximo 20 caracteres" };
+    if (telefonoRaw.length > 20) {
+      return { success: false, error: "El teléfono debe tener máximo 20 caracteres" };
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!correo || correo.length > 150 || !emailRegex.test(correo)) {
-      return { success: false, error: "Ingrese un correo válido con máximo 150 caracteres" };
+    if (correoRaw.length > 0) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (correoRaw.length > 150 || !emailRegex.test(correoRaw)) {
+        return { success: false, error: "Ingrese un correo válido con máximo 150 caracteres" };
+      }
+    }
+
+    if (logoBase64 && logoBase64.length > 2_800_000) {
+      return { success: false, error: "El logo es demasiado grande (máximo aproximado 2 MB)" };
     }
 
     await prisma.tenant.update({
       where: { id: session.TenantId },
       data: {
-        telefono,
-        contactoCorreo: correo,
+        telefono: telefonoRaw || null,
+        contactoCorreo: correoRaw || null,
+        logoBase64,
       },
     });
 

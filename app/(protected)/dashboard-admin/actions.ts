@@ -4,11 +4,42 @@ import { prisma } from "@/lib/prisma";
 import { randomBytes, randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { tenantCreateSchema, TenantCreateInput } from "./schema";
-import { TENANT_PERMISSIONS } from "@/lib/permission-catalog";
+import { PLATFORM_PERMISSIONS, TENANT_PERMISSIONS } from "@/lib/permission-catalog";
 import bcrypt from "bcryptjs";
 import { getSession } from "@/auth";
+import { buildTenantLoginUrl } from "@/lib/tenant-url";
 
+
+async function ensurePlatformPermissions(tenantId: string) {
+  const role = await prisma.rol.findFirst({
+    where: { tenantId, nombre: "OwnerPlatform", activo: true },
+  });
+
+  if (!role) return;
+
+  for (const permission of PLATFORM_PERMISSIONS) {
+    const permiso = await prisma.permiso.upsert({
+      where: { tenantId_nombre: { tenantId, nombre: permission.nombre } },
+      update: { descripcion: permission.descripcion, activo: true },
+      create: {
+        id: randomUUID(),
+        tenantId,
+        nombre: permission.nombre,
+        descripcion: permission.descripcion,
+        activo: true,
+      },
+    });
+
+    await prisma.rolPermiso.upsert({
+      where: { rolId_permisoId: { rolId: role.id, permisoId: permiso.id } },
+      update: {},
+      create: { id: randomUUID(), rolId: role.id, permisoId: permiso.id },
+    });
+  }
+}
 export async function getAdminDashboardData() {
+  const session = await getSession();
+  if (session?.TenantId) await ensurePlatformPermissions(session.TenantId);
   const [
     totalTenants,
     activeTenants,
@@ -60,7 +91,7 @@ export async function getAdminDashboardData() {
 
 export async function createTenant(
   input: TenantCreateInput
-): Promise<{ success: true; adminPassword: string } | { success: false; error: string }> {
+): Promise<{ success: true; adminPassword: string; loginUrl: string } | { success: false; error: string }> {
   try {
     const parsed = tenantCreateSchema.safeParse(input);
     if (!parsed.success) {
@@ -152,7 +183,7 @@ export async function createTenant(
     });
 
     revalidatePath("/dashboard-admin");
-    return { success: true, adminPassword };
+    return { success: true, adminPassword, loginUrl: buildTenantLoginUrl(data.slug) };
   } catch (error) {
     return {
       success: false,
@@ -204,6 +235,8 @@ export async function createPlatformAdminUser(input: {
     const generatedPassword = input.password?.trim().length
       ? input.password
       : randomBytes(9).toString("base64").slice(0, 12);
+
+    await ensurePlatformPermissions(session.TenantId);
 
     const role = await prisma.rol.findFirst({
       where: { tenantId: session.TenantId, nombre: "OwnerPlatform", activo: true },

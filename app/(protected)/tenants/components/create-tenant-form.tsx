@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 
-export default function CreateTenantForm() {
+type PaqueteOption = { id: string; nombre: string; maxUsuarios: number };
+
+export default function CreateTenantForm({ paquetes }: { paquetes: PaqueteOption[] }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
@@ -21,19 +23,17 @@ export default function CreateTenantForm() {
 
     const passwordValue = String(formData.get("adminPassword") || "").trim();
 
-    const payload = {
-      nombre: String(formData.get("nombre") || ""),
-      slug: String(formData.get("slug") || ""),
-      plan: String(formData.get("plan") || "starter"),
-      maxUsuarios: Number(formData.get("maxUsuarios") || 20),
-      adminNombre: String(formData.get("adminNombre") || ""),
-      adminCorreo: String(formData.get("adminCorreo") || ""),
-      adminUsuario: String(formData.get("adminUsuario") || ""),
-      adminPassword: passwordValue || undefined,
-    };
-
     startTransition(async () => {
-      const result = await createTenant(payload);
+      const result = await createTenant({
+        nombre: String(formData.get("nombre") || ""),
+        slug: String(formData.get("slug") || ""),
+        paqueteId: String(formData.get("paqueteId") || ""),
+        periodoPlan: String(formData.get("periodoPlan") || "mensual") as "mensual" | "trimestral" | "semestral" | "anual",
+        adminNombre: String(formData.get("adminNombre") || ""),
+        adminCorreo: String(formData.get("adminCorreo") || ""),
+        adminUsuario: String(formData.get("adminUsuario") || ""),
+        adminPassword: passwordValue || undefined,
+      });
       if (!result.success) {
         setError(result.error);
         return;
@@ -55,12 +55,22 @@ export default function CreateTenantForm() {
         <Input id="slug" name="slug" placeholder="clinica-sonrisa" required />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="plan">Plan</Label>
-        <Input id="plan" name="plan" defaultValue="starter" required />
+        <Label htmlFor="paqueteId">Paquete</Label>
+        <select id="paqueteId" name="paqueteId" className="w-full rounded-md border bg-background p-2" required>
+          <option value="">Seleccione un paquete</option>
+          {paquetes.map((p) => (
+            <option key={p.id} value={p.id}>{p.nombre} · {p.maxUsuarios} usuarios</option>
+          ))}
+        </select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="maxUsuarios">Max usuarios</Label>
-        <Input id="maxUsuarios" name="maxUsuarios" type="number" min={1} defaultValue={20} required />
+        <Label htmlFor="periodoPlan">Período del plan</Label>
+        <select id="periodoPlan" name="periodoPlan" className="w-full rounded-md border bg-background p-2" defaultValue="mensual" required>
+          <option value="mensual">Mensual</option>
+          <option value="trimestral">Trimestral</option>
+          <option value="semestral">Semestral</option>
+          <option value="anual">Anual</option>
+        </select>
       </div>
 
       <div className="space-y-2">
@@ -87,13 +97,13 @@ export default function CreateTenantForm() {
         </p>
       )}
       {tenantLoginUrl && (
-        <p className="text-sm text-blue-400 md:col-span-2">
+        <p className="text-sm text-blue-400 md:col-span-2 break-all">
           URL de acceso del tenant: <a href={tenantLoginUrl} className="underline" target="_blank" rel="noreferrer">{tenantLoginUrl}</a>
         </p>
       )}
 
       <div className="md:col-span-2">
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending || paquetes.length === 0}>
           {isPending ? "Creando..." : "Crear tenant + admin"}
         </Button>
       </div>

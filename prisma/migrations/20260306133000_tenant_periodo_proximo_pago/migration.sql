@@ -1,0 +1,3 @@
+ALTER TABLE `Tenant`
+  ADD COLUMN `periodoPlan` VARCHAR(20) NOT NULL DEFAULT 'mensual',
+  ADD COLUMN `proximoPago` DATETIME(3) NULL;
