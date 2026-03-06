@@ -13,6 +13,9 @@ import { PlanEstado, SeguimientoEstado } from "@/lib/generated/prisma";
 import { Prisma } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { getTenantContext } from "@/lib/tenant";
+import { EmailService } from "@/lib/sendEmail";
+import { generatePlanEmailHtml } from "@/lib/templates/clinical-notifications";
+import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
 
 /**
  * Genera seguimientos automáticamente para las etapas de un plan
@@ -159,7 +162,8 @@ export async function getPlanById(id: string): Promise<PlanTratamiento | null> {
  * Crea un nuevo plan de tratamiento con sus etapas
  */
 export async function createPlanTratamiento(
-  data: PlanTratamiento
+  data: PlanTratamiento,
+  options?: { sendEmailToPaciente?: boolean }
 ): Promise<{ success: true; data: PlanTratamiento } | { success: false; error: string }> {
   try {
     const validatedData = PlanTratamientoSchema.parse(data);
@@ -209,6 +213,29 @@ export async function createPlanTratamiento(
 
     // Generar seguimientos
     await generarSeguimientos(plan.id, plan.pacienteId);
+
+    if (options?.sendEmailToPaciente) {
+      if (!plan.paciente.correo) {
+        return { success: false, error: "El paciente no tiene correo registrado para enviar el plan." };
+      }
+
+      const doctorName = await resolveDoctorSenderName();
+      const emailService = new EmailService();
+
+      await emailService.sendMail({
+        to: plan.paciente.correo,
+        from: buildDoctorFromAddress(doctorName),
+        subject: `Plan de tratamiento - Dr(a). ${doctorName}`,
+        html: generatePlanEmailHtml({
+          pacienteNombre: `${plan.paciente.nombre} ${plan.paciente.apellido}`,
+          medicoNombre: doctorName,
+          planNombre: plan.nombre,
+          fechaInicio: plan.fechaInicio,
+          estado: plan.estado,
+          etapas: (validatedData.etapas ?? []).map((etapa) => etapa.nombre),
+        }),
+      });
+    }
 
     revalidatePath("/planes-tratamiento");
     revalidatePath(`/pacientes/${plan.pacienteId}/perfil`);

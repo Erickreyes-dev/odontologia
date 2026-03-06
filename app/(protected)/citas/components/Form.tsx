@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Popover,
@@ -60,6 +61,7 @@ export function CitaFormulario({
 }: CitaFormularioProps) {
   const router = useRouter();
   const [pacienteSearchTerm, setPacienteSearchTerm] = useState("");
+  const [sendEmailToPaciente, setSendEmailToPaciente] = useState(false);
 
   const pacientesFiltrados = useMemo(() => {
     const term = pacienteSearchTerm.trim().toLowerCase();
@@ -99,7 +101,22 @@ export function CitaFormulario({
         }
         result = await updateCita(data.id, data);
       } else {
-        result = await createCita(data);
+        const selectedPaciente = pacientes.find((p) => p.id === data.pacienteId);
+        if (sendEmailToPaciente && !selectedPaciente?.correo) {
+          toast.error("El paciente no tiene correo registrado.");
+          return;
+        }
+
+        if (sendEmailToPaciente) {
+          const confirmar = window.confirm("¿Deseas enviar la confirmación de cita al paciente por correo?");
+          if (!confirmar) {
+            result = await createCita(data);
+          } else {
+            result = await createCita(data, { sendEmailToPaciente: true });
+          }
+        } else {
+          result = await createCita(data);
+        }
       }
 
       if (result.success) {
@@ -439,6 +456,24 @@ export function CitaFormulario({
             </Field>
           )}
         />
+      </div>
+
+      <div className="rounded-lg border border-dashed p-4">
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="enviarCorreoCita"
+            checked={sendEmailToPaciente}
+            onCheckedChange={(checked) => setSendEmailToPaciente(checked === true)}
+          />
+          <div>
+            <label htmlFor="enviarCorreoCita" className="text-sm font-medium cursor-pointer">
+              Enviar confirmación de cita por correo
+            </label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Solo se enviará si el paciente tiene correo registrado.
+            </p>
+          </div>
+        </div>
       </div>
 
       <Button

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
+import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarIcon, Loader2, Plus, Trash2 } from "lucide-react";
@@ -12,6 +13,7 @@ import { CalendarIcon, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Popover,
@@ -69,6 +71,7 @@ export function CotizacionFormulario({
   defaultPacienteId,
 }: CotizacionFormularioProps) {
   const router = useRouter();
+  const [sendEmailToPaciente, setSendEmailToPaciente] = useState(false);
 
   const form = useForm<z.infer<typeof CotizacionSchema>>({
     resolver: zodResolver(CotizacionSchema),
@@ -142,7 +145,17 @@ export function CotizacionFormulario({
           toast.error(result.error);
         }
       } else {
-        const result = await createCotizacion(cotizacionData);
+        const selectedPaciente = pacientes.find((p) => p.id === cotizacionData.pacienteId);
+        if (sendEmailToPaciente && !selectedPaciente?.correo) {
+          toast.error("El paciente no tiene correo registrado.");
+          return;
+        }
+
+        const shouldSend = sendEmailToPaciente
+          ? window.confirm("¿Deseas enviar esta cotización al paciente por correo?")
+          : false;
+
+        const result = await createCotizacion(cotizacionData, { sendEmailToPaciente: shouldSend });
         if (result.success) {
           toast.success("Cotización creada correctamente");
           router.push("/cotizaciones");
@@ -572,6 +585,24 @@ export function CotizacionFormulario({
       </Card>
 
       {/* Botón Enviar */}
+      <div className="rounded-lg border border-dashed p-4">
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="enviarCorreoCotizacion"
+            checked={sendEmailToPaciente}
+            onCheckedChange={(checked) => setSendEmailToPaciente(checked === true)}
+          />
+          <div>
+            <label htmlFor="enviarCorreoCotizacion" className="text-sm font-medium cursor-pointer">
+              Preguntar y enviar cotización por correo
+            </label>
+            <p className="text-xs text-muted-foreground mt-1">
+              El sistema solicitará confirmación al guardar.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-end">
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? (
