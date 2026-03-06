@@ -17,11 +17,31 @@ import { MetodoPago, PagoEstado, FinanciamientoEstado, ReciboTipoConcepto } from
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { Prisma } from "@/lib/generated/prisma";
 import { getSession } from "@/auth";
+import { EmailService } from "@/lib/sendEmail";
+import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
+import { generatePagoEmailHtml } from "@/lib/templates/clinical-notifications";
 
 const CENTRAL_AMERICA_OFFSET_MS = 6 * 60 * 60 * 1000;
 
 const toCentralAmericaTime = (date?: Date | null) =>
   date ? new Date(date.getTime() - CENTRAL_AMERICA_OFFSET_MS) : date;
+
+const getMetodoPagoLabel = (metodo: MetodoPago) => {
+  switch (metodo) {
+    case MetodoPago.EFECTIVO:
+      return "Efectivo";
+    case MetodoPago.TARJETA:
+      return "Tarjeta";
+    case MetodoPago.TRANSFERENCIA:
+      return "Transferencia";
+    case MetodoPago.SEGURO:
+      return "Seguro";
+    case MetodoPago.OTRO:
+      return "Otro";
+    default:
+      return metodo;
+  }
+};
 
 async function calcularMontoPendientePlan(planTratamientoId: string): Promise<number> {
   const plan = await prisma.planTratamiento.findFirst({
@@ -927,6 +947,56 @@ export async function revertPago(
       success: false,
       error: error instanceof Error ? error.message : "Error al revertir pago",
     };
+  }
+}
+
+/**
+ * Envía por correo el detalle de un pago existente
+ */
+export async function sendPagoEmail(
+  id: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    if (!id) return { success: false, error: "ID del pago es requerido" };
+
+    const pago = await prisma.pago.findFirst({
+      where: await tenantWhere<Prisma.PagoWhereInput>({ id }),
+      include: {
+        ordenCobro: {
+          include: {
+            paciente: { select: { nombre: true, apellido: true, correo: true } },
+          },
+        },
+      },
+    });
+
+    if (!pago) return { success: false, error: "Pago no encontrado en la clínica" };
+    const paciente = pago.ordenCobro?.paciente;
+    if (!paciente?.correo) {
+      return { success: false, error: "El paciente no tiene correo registrado para enviar el pago." };
+    }
+
+    const doctorName = await resolveDoctorSenderName();
+    const emailService = new EmailService();
+
+    await emailService.sendMail({
+      to: paciente.correo,
+      from: buildDoctorFromAddress(doctorName),
+      subject: `Confirmación de pago - Dr(a). ${doctorName}`,
+      html: generatePagoEmailHtml({
+        pacienteNombre: `${paciente.nombre} ${paciente.apellido}`,
+        medicoNombre: doctorName,
+        fechaPago: pago.fechaPago,
+        monto: Number(pago.monto),
+        metodo: getMetodoPagoLabel(pago.metodo),
+        referencia: pago.referencia,
+      }),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error(`Error al enviar pago por email ${id}:`, error);
+    return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
   }
 }
 

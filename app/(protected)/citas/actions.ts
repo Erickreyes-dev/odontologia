@@ -537,3 +537,50 @@ export async function cambiarEstadoCita(
     return { success: false, error: "Error desconocido al cambiar estado" };
   }
 }
+
+/**
+ * Envía una cita por correo desde la tabla de acciones
+ */
+export async function sendCitaEmail(
+  id: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    if (!id) return { success: false, error: "ID de la cita es requerido" };
+
+    const cita = await prisma.cita.findFirst({
+      where: await tenantWhere<Prisma.CitaWhereInput>({ id }),
+      include: {
+        paciente: { select: { nombre: true, apellido: true, correo: true } },
+        medico: { include: { empleado: { select: { nombre: true, apellido: true } } } },
+        consultorio: { select: { nombre: true } },
+      },
+    });
+
+    if (!cita) return { success: false, error: "Cita no encontrada en la clínica" };
+    if (!cita.paciente?.correo) {
+      return { success: false, error: "El paciente no tiene correo registrado para enviar la cita." };
+    }
+
+    const doctorName = `${cita.medico?.empleado?.nombre ?? ""} ${cita.medico?.empleado?.apellido ?? ""}`.trim() || await resolveDoctorSenderName();
+    const emailService = new EmailService();
+
+    await emailService.sendMail({
+      to: cita.paciente.correo,
+      from: buildDoctorFromAddress(doctorName),
+      subject: `Confirmación de cita - Dr(a). ${doctorName}`,
+      html: generateAppointmentEmailHtml({
+        pacienteNombre: `${cita.paciente.nombre} ${cita.paciente.apellido}`,
+        medicoNombre: doctorName,
+        consultorioNombre: cita.consultorio.nombre,
+        fechaHora: new Date(cita.fechaHora),
+        motivo: cita.motivo,
+        observacion: cita.observacion,
+      }),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error(`Error al enviar cita por email ${id}:`, error);
+    return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
+  }
+}

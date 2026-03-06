@@ -355,6 +355,52 @@ export async function updateEstadoPlan(id: string, estado: PlanEstado): Promise<
 }
 
 /**
+ * Envía un plan de tratamiento por correo desde la tabla de acciones
+ */
+export async function sendPlanTratamientoEmail(
+  id: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    if (!id) return { success: false, error: "ID del plan es requerido" };
+
+    const plan = await prisma.planTratamiento.findFirst({
+      where: await tenantWhere<Prisma.PlanTratamientoWhereInput>({ id }),
+      include: {
+        paciente: { select: { nombre: true, apellido: true, correo: true } },
+        etapas: { select: { nombre: true }, orderBy: { orden: "asc" } },
+      },
+    });
+
+    if (!plan) return { success: false, error: "Plan no válido para este tenant" };
+    if (!plan.paciente?.correo) {
+      return { success: false, error: "El paciente no tiene correo registrado para enviar el plan." };
+    }
+
+    const doctorName = await resolveDoctorSenderName();
+    const emailService = new EmailService();
+
+    await emailService.sendMail({
+      to: plan.paciente.correo,
+      from: buildDoctorFromAddress(doctorName),
+      subject: `Plan de tratamiento - Dr(a). ${doctorName}`,
+      html: generatePlanEmailHtml({
+        pacienteNombre: `${plan.paciente.nombre} ${plan.paciente.apellido}`,
+        medicoNombre: doctorName,
+        planNombre: plan.nombre,
+        fechaInicio: plan.fechaInicio,
+        estado: plan.estado,
+        etapas: plan.etapas.map((etapa) => etapa.nombre),
+      }),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error(`Error al enviar plan por email ${id}:`, error);
+    return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
+  }
+}
+
+/**
  * Actualiza un seguimiento
  */
 export async function updateSeguimiento(

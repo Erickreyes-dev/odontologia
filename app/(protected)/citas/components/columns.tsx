@@ -30,7 +30,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Cita } from "../schema";
-import { deleteCita, cambiarEstadoCita } from "../actions";
+import { deleteCita, cambiarEstadoCita, sendCitaEmail } from "../actions";
 
 const getEstadoBadge = (estado: string) => {
   switch (estado) {
@@ -210,6 +210,23 @@ function ActionsCell({ cita }: { cita: Cita }) {
     }
   };
 
+  const handleSendEmail = async () => {
+    if (!cita.id) return;
+
+    const result = await sendCitaEmail(cita.id);
+    if (result.success) {
+      toast.success("Cita enviada", {
+        description: "La cita fue enviada por correo al paciente.",
+      });
+      router.refresh();
+      return;
+    }
+
+    toast.error("No se pudo enviar el correo", {
+      description: result.error,
+    });
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -221,6 +238,7 @@ function ActionsCell({ cita }: { cita: Cita }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+          <DropdownMenuItem onClick={handleSendEmail}>Enviar por email</DropdownMenuItem>
           <Link href={`/citas/${cita.id}/consulta`}>
             <DropdownMenuItem>
               <Stethoscope className="h-4 w-4 mr-2" />

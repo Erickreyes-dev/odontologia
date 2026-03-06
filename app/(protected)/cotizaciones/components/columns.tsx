@@ -2,6 +2,8 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -17,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Cotizacion } from "../schema";
+import { sendCotizacionEmail } from "../actions";
 
 const getEstadoBadge = (estado: string) => {
   switch (estado) {
@@ -136,27 +139,50 @@ export const columns: ColumnDef<Cotizacion>[] = [
     header: "Acciones",
     cell: ({ row }) => {
       const cotizacion = row.original;
-
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Abrir Menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-            <Link href={`/cotizaciones/${cotizacion.id}/edit`}>
-              <DropdownMenuItem>Editar</DropdownMenuItem>
-            </Link>
-            <DropdownMenuSeparator />
-            <Link href={`/pacientes/${cotizacion.pacienteId}/perfil`}>
-              <DropdownMenuItem>Ver Paciente</DropdownMenuItem>
-            </Link>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
+      return <ActionsCell cotizacion={cotizacion} />;
     },
   },
 ];
+
+function ActionsCell({ cotizacion }: { cotizacion: Cotizacion }) {
+  const router = useRouter();
+
+  const handleSendEmail = async () => {
+    if (!cotizacion.id) return;
+
+    const result = await sendCotizacionEmail(cotizacion.id);
+    if (result.success) {
+      toast.success("Cotización enviada", {
+        description: "La cotización fue enviada por correo al paciente.",
+      });
+      router.refresh();
+      return;
+    }
+
+    toast.error("No se pudo enviar el correo", {
+      description: result.error,
+    });
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Abrir Menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+        <DropdownMenuItem onClick={handleSendEmail}>Enviar por email</DropdownMenuItem>
+        <Link href={`/cotizaciones/${cotizacion.id}/edit`}>
+          <DropdownMenuItem>Editar</DropdownMenuItem>
+        </Link>
+        <DropdownMenuSeparator />
+        <Link href={`/pacientes/${cotizacion.pacienteId}/perfil`}>
+          <DropdownMenuItem>Ver Paciente</DropdownMenuItem>
+        </Link>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

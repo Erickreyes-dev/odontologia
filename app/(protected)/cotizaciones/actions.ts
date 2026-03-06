@@ -403,6 +403,52 @@ export async function updateEstadoCotizacion(
 }
 
 /**
+ * Envía una cotización por correo desde la tabla de acciones
+ */
+export async function sendCotizacionEmail(
+  id: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    if (!id) return { success: false, error: "ID de la cotización es requerido" };
+
+    const cotizacion = await prisma.cotizacion.findFirst({
+      where: await tenantWhere<Prisma.CotizacionWhereInput>({ id }),
+      include: {
+        paciente: { select: { nombre: true, apellido: true, correo: true } },
+        detalles: { include: { servicio: { select: { nombre: true } } } },
+      },
+    });
+
+    if (!cotizacion) return { success: false, error: "Cotización no encontrada en la clínica" };
+    if (!cotizacion.paciente?.correo) {
+      return { success: false, error: "El paciente no tiene correo registrado para enviar la cotización." };
+    }
+
+    const doctorName = await resolveDoctorSenderName();
+    const emailService = new EmailService();
+
+    await emailService.sendMail({
+      to: cotizacion.paciente.correo,
+      from: buildDoctorFromAddress(doctorName),
+      subject: `Cotización dental - Dr(a). ${doctorName}`,
+      html: generateCotizacionEmailHtml({
+        pacienteNombre: `${cotizacion.paciente.nombre} ${cotizacion.paciente.apellido}`,
+        medicoNombre: doctorName,
+        fecha: cotizacion.fecha,
+        total: Number(cotizacion.total),
+        estado: cotizacion.estado,
+        servicios: cotizacion.detalles.map((d) => d.servicio.nombre),
+      }),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error(`Error al enviar cotización por email ${id}:`, error);
+    return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
+  }
+}
+
+/**
  * Obtiene los servicios activos para el select
  */
 export async function getServiciosActivos(): Promise<

@@ -99,3 +99,25 @@ export function generatePlanEmailHtml(params: {
      <p>Atentamente,<br/>Dr(a). ${params.medicoNombre}</p>`
   );
 }
+
+export function generatePagoEmailHtml(params: {
+  pacienteNombre: string;
+  medicoNombre: string;
+  fechaPago: Date;
+  monto: number;
+  metodo: string;
+  referencia?: string | null;
+}) {
+  return layout(
+    "Confirmación de pago",
+    `Pago registrado por Dr(a). ${params.medicoNombre}`,
+    `<p>Estimado(a) <strong>${params.pacienteNombre}</strong>,</p>
+     <p>Le confirmamos que su pago ha sido registrado exitosamente en la clínica.</p>
+     <p><strong>Fecha:</strong> ${formatInTimeZone(params.fechaPago, HONDURAS_TIMEZONE, "dd/MM/yyyy hh:mm a", { locale: es })} (UTC-6)<br/>
+     <strong>Método de pago:</strong> ${params.metodo}<br/>
+     <strong>Monto:</strong> L. ${params.monto.toLocaleString("es-HN", { minimumFractionDigits: 2 })}<br/>
+     <strong>Referencia:</strong> ${params.referencia || "N/A"}</p>
+     <p>Gracias por su confianza.</p>
+     <p>Atentamente,<br/>Dr(a). ${params.medicoNombre}</p>`
+  );
+}

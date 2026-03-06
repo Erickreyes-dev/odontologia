@@ -1,6 +1,8 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +19,7 @@ import { es } from "date-fns/locale";
 import Link from "next/link";
 import { PlanTratamiento, ESTADOS_PLAN } from "../schema";
 import { Progress } from "@/components/ui/progress";
+import { sendPlanTratamientoEmail } from "../actions";
 
 const getEstadoBadge = (estado: string) => {
   const estadoInfo = ESTADOS_PLAN.find((e) => e.value === estado);
@@ -119,35 +122,58 @@ export const columns: ColumnDef<PlanTratamiento>[] = [
     header: "Acciones",
     cell: ({ row }) => {
       const plan = row.original;
-
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Abrir menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <Link href={`/planes-tratamiento/${plan.id}`}>
-              <DropdownMenuItem className="cursor-pointer">
-                <Eye className="mr-2 h-4 w-4" />
-                Ver Detalle
-              </DropdownMenuItem>
-            </Link>
-            {plan.estado === "ACTIVO" && (
-              <Link href={`/planes-tratamiento/${plan.id}/edit`}>
-                <DropdownMenuItem className="cursor-pointer">
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Editar
-                </DropdownMenuItem>
-              </Link>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
+      return <ActionsCell plan={plan} />;
     },
   },
 ];
+
+function ActionsCell({ plan }: { plan: PlanTratamiento }) {
+  const router = useRouter();
+
+  const handleSendEmail = async () => {
+    if (!plan.id) return;
+
+    const result = await sendPlanTratamientoEmail(plan.id);
+    if (result.success) {
+      toast.success("Plan enviado", {
+        description: "El plan fue enviado por correo al paciente.",
+      });
+      router.refresh();
+      return;
+    }
+
+    toast.error("No se pudo enviar el correo", {
+      description: result.error,
+    });
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Abrir menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+        <DropdownMenuItem onClick={handleSendEmail}>Enviar por email</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <Link href={`/planes-tratamiento/${plan.id}`}>
+          <DropdownMenuItem className="cursor-pointer">
+            <Eye className="mr-2 h-4 w-4" />
+            Ver Detalle
+          </DropdownMenuItem>
+        </Link>
+        {plan.estado === "ACTIVO" && (
+          <Link href={`/planes-tratamiento/${plan.id}/edit`}>
+            <DropdownMenuItem className="cursor-pointer">
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          </Link>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
