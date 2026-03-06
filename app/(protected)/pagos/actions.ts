@@ -962,12 +962,17 @@ export async function sendPagoEmail(
     const pago = await prisma.pago.findFirst({
       where: await tenantWhere<Prisma.PagoWhereInput>({ id }),
       include: {
-        paciente: { select: { nombre: true, apellido: true, correo: true } },
+        ordenCobro: {
+          include: {
+            paciente: { select: { nombre: true, apellido: true, correo: true } },
+          },
+        },
       },
     });
 
     if (!pago) return { success: false, error: "Pago no encontrado en la clínica" };
-    if (!pago.paciente?.correo) {
+    const paciente = pago.ordenCobro?.paciente;
+    if (!paciente?.correo) {
       return { success: false, error: "El paciente no tiene correo registrado para enviar el pago." };
     }
 
@@ -975,11 +980,11 @@ export async function sendPagoEmail(
     const emailService = new EmailService();
 
     await emailService.sendMail({
-      to: pago.paciente.correo,
+      to: paciente.correo,
       from: buildDoctorFromAddress(doctorName),
       subject: `Confirmación de pago - Dr(a). ${doctorName}`,
       html: generatePagoEmailHtml({
-        pacienteNombre: `${pago.paciente.nombre} ${pago.paciente.apellido}`,
+        pacienteNombre: `${paciente.nombre} ${paciente.apellido}`,
         medicoNombre: doctorName,
         fechaPago: pago.fechaPago,
         monto: Number(pago.monto),
