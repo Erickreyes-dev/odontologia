@@ -6,8 +6,21 @@ import { generatePasswordResetEmailHtml } from "@/lib/templates/forgoutPassword"
 import bcrypt from "bcryptjs";
 import { randomBytes, randomUUID } from "crypto";
 import { addHours, isAfter } from "date-fns";
+import { headers } from "next/headers";
 
 const RESET_TOKEN_TTL_HOURS = 2; // Token válido por 2 horas
+
+function resolveCurrentOriginFromRequest() {
+    const headerList = headers();
+    const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
+    const proto = headerList.get("x-forwarded-proto") ?? "http";
+
+    if (host) {
+        return `${proto}://${host}`;
+    }
+
+    return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+}
 
 
 
@@ -64,7 +77,7 @@ export async function requestPasswordReset(username: string): Promise<boolean> {
     });
 
     // 4️⃣ Construir enlace de restablecimiento
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const baseUrl = resolveCurrentOriginFromRequest();
     const link = `${baseUrl}/forgot-password?token=${encodeURIComponent(token)}`;
 
     // 5️⃣ Preparar correo usando la plantilla

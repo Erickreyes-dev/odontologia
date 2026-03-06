@@ -78,13 +78,15 @@ export default function Login() {
 
   return (
     <>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
         <Controller
           name="tenantSlug"
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={field.name}>Clínica</FieldLabel>
+              <FieldLabel htmlFor={field.name} className="text-slate-200">
+                Clínica
+              </FieldLabel>
               <Input
                 {...field}
                 id={field.name}
@@ -93,8 +95,9 @@ export default function Login() {
                 placeholder="slug de tu clínica"
                 disabled={isPending || Boolean(tenantSlugFromHost)}
                 autoComplete="organization"
+                className="h-11 rounded-xl border-slate-600 bg-slate-800/80 text-slate-100 placeholder:text-slate-400 focus-visible:border-cyan-400 focus-visible:ring-cyan-400/40"
               />
-              <FieldDescription>
+              <FieldDescription className="text-xs text-slate-400">
                 {tenantSlugFromHost
                   ? `Se detectó automáticamente desde el subdominio: ${tenantSlugFromHost}`
                   : "Identificador de la clínica (tenant). Si accedes por subdominio no es necesario ingresarlo."}
@@ -109,7 +112,9 @@ export default function Login() {
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={field.name}>Usuario</FieldLabel>
+              <FieldLabel htmlFor={field.name} className="text-slate-200">
+                Usuario
+              </FieldLabel>
               <Input
                 {...field}
                 id={field.name}
@@ -118,8 +123,9 @@ export default function Login() {
                 placeholder="Ingresa tu usuario"
                 disabled={isPending}
                 autoComplete="username"
+                className="h-11 rounded-xl border-slate-600 bg-slate-800/80 text-slate-100 placeholder:text-slate-400 focus-visible:border-cyan-400 focus-visible:ring-cyan-400/40"
               />
-              <FieldDescription>Agrega su nombre de usuario.</FieldDescription>
+              <FieldDescription className="text-xs text-slate-400">Agrega su nombre de usuario.</FieldDescription>
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}
@@ -130,7 +136,9 @@ export default function Login() {
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid} className="relative mb-4">
-              <FieldLabel htmlFor={field.name}>Contraseña</FieldLabel>
+              <FieldLabel htmlFor={field.name} className="text-slate-200">
+                Contraseña
+              </FieldLabel>
               <div className="relative">
                 <Input
                   {...field}
@@ -138,27 +146,31 @@ export default function Login() {
                   type={showPassword ? "text" : "password"}
                   placeholder="*******"
                   disabled={isPending}
-                  className="pr-10"
+                  className="h-11 rounded-xl border-slate-600 bg-slate-800/80 pr-10 text-slate-100 placeholder:text-slate-400 focus-visible:border-cyan-400 focus-visible:ring-cyan-400/40"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-200"
+                  className="absolute inset-y-0 right-3 flex items-center text-slate-400 transition hover:text-cyan-200"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              <FieldDescription>Agrega tu contraseña.</FieldDescription>
+              <FieldDescription className="text-xs text-slate-400">Agrega tu contraseña.</FieldDescription>
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}
         />
 
-        <Button type="submit" disabled={isPending}>
+        <Button
+          type="submit"
+          disabled={isPending}
+          className="h-11 w-full rounded-xl bg-cyan-500 font-semibold text-slate-950 transition hover:bg-cyan-400"
+        >
           {isPending ? "Iniciando..." : "Iniciar sesión"}
         </Button>
 
-        <Button variant="link" type="button" onClick={() => setOpen(true)}>
+        <Button variant="link" type="button" onClick={() => setOpen(true)} className="mx-auto block text-slate-300">
           ¿Olvidaste tu contraseña?
         </Button>
       </form>
