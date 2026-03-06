@@ -80,6 +80,18 @@ const items = [
     icon: ShieldPlus,
     permiso: "ver_dashboard_admin",
   },
+  {
+    title: "Tenants",
+    url: "/tenants",
+    icon: ShieldPlus,
+    permiso: "ver_tenants",
+  },
+  {
+    title: "Paquetes",
+    url: "/paquetes",
+    icon: Package,
+    permiso: "ver_paquetes",
+  },
 
   {
     title: "Seguros",

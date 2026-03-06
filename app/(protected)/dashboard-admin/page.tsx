@@ -2,10 +2,9 @@ import { getSessionPermisos } from "@/auth";
 import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import { getAdminDashboardData } from "./actions";
-import CreateTenantForm from "./components/create-tenant-form";
-import TenantStatusToggle from "./components/tenant-status-toggle";
 import CreatePlatformAdminForm from "./components/create-platform-admin-form";
 
 export default async function DashboardAdminPage() {
@@ -15,7 +14,7 @@ export default async function DashboardAdminPage() {
     return <NoAcceso />;
   }
 
-  const { kpis, recentTenants } = await getAdminDashboardData();
+  const { kpis } = await getAdminDashboardData();
 
   return (
     <div className="container mx-auto py-2 space-y-6">
@@ -36,22 +35,6 @@ export default async function DashboardAdminPage() {
       {permisos.includes("gestionar_tenants") && (
         <Card>
           <CardHeader>
-            <CardTitle>Crear tenant y usuario administrador</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-3">
-              El administrador del tenant se crea sin empleado interno y con rol AdministradorTenant.
-            </p>
-            <CreateTenantForm />
-          </CardContent>
-        </Card>
-      )}
-
-
-
-      {permisos.includes("gestionar_tenants") && (
-        <Card>
-          <CardHeader>
             <CardTitle>Crear más administradores dueños del sistema</CardTitle>
           </CardHeader>
           <CardContent>
@@ -62,28 +45,17 @@ export default async function DashboardAdminPage() {
           </CardContent>
         </Card>
       )}
+
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Building2 size={16} /> Últimos tenants</CardTitle>
+          <CardTitle>Accesos rápidos de plataforma</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {recentTenants.map((t) => (
-              <div key={t.id} className="rounded border p-3 text-sm">
-                <div className="font-medium">{t.nombre} <span className="text-muted-foreground">({t.slug})</span></div>
-                <div className="text-muted-foreground">
-                  Plan: {t.plan} · Máx usuarios: {t.maxUsuarios} · Estado: {t.activo ? "Activo" : "Inactivo"}
-                </div>
-                <div className="text-muted-foreground">
-                  Contacto: {t.contactoNombre ?? "N/D"} · {t.contactoCorreo ?? "N/D"}
-                </div>
-                <div className="text-muted-foreground">
-                  Usuarios: {t._count.usuarios} · Roles: {t._count.roles} · Pacientes: {t._count.pacientes}
-                </div>
-                {permisos.includes("gestionar_tenants") && <TenantStatusToggle tenantId={t.id} activo={t.activo} />}
-              </div>
-            ))}
-          </div>
+        <CardContent className="text-sm space-y-2">
+          <p>Use los módulos dedicados para administrar el SaaS:</p>
+          <ul className="list-disc pl-4 text-muted-foreground">
+            <li><Link className="underline" href="/tenants">Módulo Tenants</Link> para crear y administrar clínicas.</li>
+            <li><Link className="underline" href="/paquetes">Módulo Paquetes</Link> para definir los planes disponibles.</li>
+          </ul>
         </CardContent>
       </Card>
     </div>

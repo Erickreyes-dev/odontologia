@@ -39,6 +39,8 @@ const ROUTE_RATE_LIMITS: Record<string, RateLimitConfig> = {
   "/api/auth": { limit: 20, windowMs: 60_000 },
   "/api": { limit: 80, windowMs: 60_000 },
   "/dashboard-admin": { limit: 90, windowMs: 60_000 },
+  "/tenants": { limit: 80, windowMs: 60_000 },
+  "/paquetes": { limit: 80, windowMs: 60_000 },
   "/dashboard": { limit: 120, windowMs: 60_000 },
   "/citas": { limit: 90, windowMs: 60_000 },
   "/pacientes": { limit: 80, windowMs: 60_000 },
@@ -169,6 +171,8 @@ export async function middleware(req: NextRequest) {
   const protectedPrefixes = [
     "/dashboard",
     "/dashboard-admin",
+    "/tenants",
+    "/paquetes",
     "/seguros",
     "/pacientes",
     "/medicos",

@@ -57,4 +57,7 @@ export const TENANT_PERMISSIONS: PermissionSeed[] = [
 export const PLATFORM_PERMISSIONS: PermissionSeed[] = [
   { nombre: "ver_dashboard_admin", descripcion: "Permiso para ver dashboard global de tenants" },
   { nombre: "gestionar_tenants", descripcion: "Permiso para crear y gestionar tenants" },
+  { nombre: "ver_tenants", descripcion: "Permiso para visualizar el módulo de tenants" },
+  { nombre: "ver_paquetes", descripcion: "Permiso para visualizar el módulo de paquetes" },
+  { nombre: "gestionar_paquetes", descripcion: "Permiso para crear y editar paquetes" },
 ];
