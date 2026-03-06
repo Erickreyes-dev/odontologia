@@ -302,7 +302,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             {pagosRecientes.length > 0 ? (
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -346,7 +346,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             {financiamientosRecientes.length > 0 ? (
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -386,7 +386,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             {ordenesRecientes.length > 0 ? (
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
