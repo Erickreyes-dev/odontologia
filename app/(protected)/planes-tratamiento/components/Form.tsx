@@ -252,11 +252,7 @@ console.log("🚀 ~ PlanFormulario ~ form:", form.formState.defaultValues)
           return;
         }
 
-        const shouldSend = sendEmailToPaciente
-          ? window.confirm("¿Deseas enviar este plan de trabajo al paciente por correo?")
-          : false;
-
-        const result = await createPlanTratamiento(planData, { sendEmailToPaciente: shouldSend });
+        const result = await createPlanTratamiento(planData, { sendEmailToPaciente });
         if (result.success) {
           toast.success("Plan creado correctamente. Se generaron los seguimientos.");
           router.push("/planes-tratamiento");
@@ -778,7 +774,7 @@ console.log("🚀 ~ PlanFormulario ~ form:", form.formState.defaultValues)
           />
           <div>
             <label htmlFor="enviarCorreoPlan" className="text-sm font-medium cursor-pointer">
-              Preguntar y enviar plan de trabajo por correo
+              Enviar plan de trabajo por correo
             </label>
             <p className="text-xs text-muted-foreground mt-1">
               Solo aplica para pacientes con correo electrónico registrado.

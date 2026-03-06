@@ -151,11 +151,7 @@ export function CotizacionFormulario({
           return;
         }
 
-        const shouldSend = sendEmailToPaciente
-          ? window.confirm("¿Deseas enviar esta cotización al paciente por correo?")
-          : false;
-
-        const result = await createCotizacion(cotizacionData, { sendEmailToPaciente: shouldSend });
+        const result = await createCotizacion(cotizacionData, { sendEmailToPaciente });
         if (result.success) {
           toast.success("Cotización creada correctamente");
           router.push("/cotizaciones");
@@ -594,10 +590,10 @@ export function CotizacionFormulario({
           />
           <div>
             <label htmlFor="enviarCorreoCotizacion" className="text-sm font-medium cursor-pointer">
-              Preguntar y enviar cotización por correo
+              Enviar cotización por correo
             </label>
             <p className="text-xs text-muted-foreground mt-1">
-              El sistema solicitará confirmación al guardar.
+              Se enviará automáticamente al guardar.
             </p>
           </div>
         </div>
