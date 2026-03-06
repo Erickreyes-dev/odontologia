@@ -377,7 +377,6 @@ export async function createCita(
       },
     });
 
-
     if (options?.sendEmailToPaciente) {
       if (!r.paciente?.correo) {
         return { success: false, error: "El paciente no tiene correo registrado para enviar la cita." };
@@ -455,28 +454,6 @@ export async function updateCita(
     });
 
 
-    if (options?.sendEmailToPaciente) {
-      if (!r.paciente?.correo) {
-        return { success: false, error: "El paciente no tiene correo registrado para enviar la cita." };
-      }
-
-      const doctorName = `${r.medico?.empleado?.nombre ?? ""} ${r.medico?.empleado?.apellido ?? ""}`.trim() || await resolveDoctorSenderName();
-      const emailService = new EmailService();
-
-      await emailService.sendMail({
-        to: r.paciente.correo,
-        from: buildDoctorFromAddress(doctorName),
-        subject: `Confirmación de cita - Dr(a). ${doctorName}`,
-        html: generateAppointmentEmailHtml({
-          pacienteNombre: `${r.paciente.nombre} ${r.paciente.apellido}`,
-          medicoNombre: doctorName,
-          consultorioNombre: r.consultorio.nombre,
-          fechaHora: new Date(r.fechaHora),
-          motivo: r.motivo,
-          observacion: r.observacion,
-        }),
-      });
-    }
 
     const result = {
       id: r.id,
