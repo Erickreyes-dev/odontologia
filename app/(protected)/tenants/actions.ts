@@ -7,7 +7,29 @@ import { TENANT_PERMISSIONS } from "@/lib/permission-catalog";
 import bcrypt from "bcryptjs";
 import { randomBytes, randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { TenantCreateInput, tenantCreateSchema } from "./schema";
+import { TenantCreateInput, TenantPlanUpdateInput, tenantCreateSchema, tenantPlanUpdateSchema } from "./schema";
+
+function calculateNextPaymentDate(periodoPlan: string, baseDate = new Date()): Date {
+  const next = new Date(baseDate);
+  switch (periodoPlan) {
+    case "mensual":
+      next.setMonth(next.getMonth() + 1);
+      break;
+    case "trimestral":
+      next.setMonth(next.getMonth() + 3);
+      break;
+    case "semestral":
+      next.setMonth(next.getMonth() + 6);
+      break;
+    case "anual":
+      next.setFullYear(next.getFullYear() + 1);
+      break;
+    default:
+      next.setMonth(next.getMonth() + 1);
+      break;
+  }
+  return next;
+}
 
 export async function getTenantsData() {
   const [paquetes, tenants] = await Promise.all([
@@ -63,6 +85,8 @@ export async function createTenant(
           plan: paquete.nombre,
           paqueteId: paquete.id,
           maxUsuarios: paquete.maxUsuarios,
+          periodoPlan: data.periodoPlan,
+          proximoPago: calculateNextPaymentDate(data.periodoPlan),
           contactoNombre: data.adminNombre,
           contactoCorreo: data.adminCorreo,
           activo: true,
@@ -127,6 +151,44 @@ export async function createTenant(
     return { success: true, adminPassword, loginUrl: buildTenantLoginUrl(data.slug) };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Error creando tenant" };
+  }
+}
+
+export async function updateTenantPlan(
+  input: TenantPlanUpdateInput,
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.Permiso?.includes("gestionar_tenants")) {
+      return { success: false, error: "No tiene permisos para editar tenants" };
+    }
+
+    const parsed = tenantPlanUpdateSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    }
+
+    const data = parsed.data;
+    const paquete = await prisma.paquete.findUnique({ where: { id: data.paqueteId } });
+    if (!paquete || !paquete.activo) {
+      return { success: false, error: "El paquete seleccionado no está disponible" };
+    }
+
+    await prisma.tenant.update({
+      where: { id: data.tenantId },
+      data: {
+        paqueteId: paquete.id,
+        plan: paquete.nombre,
+        maxUsuarios: paquete.maxUsuarios,
+        periodoPlan: data.periodoPlan,
+        proximoPago: calculateNextPaymentDate(data.periodoPlan),
+      },
+    });
+
+    revalidatePath("/tenants");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "No se pudo actualizar el plan" };
   }
 }
 

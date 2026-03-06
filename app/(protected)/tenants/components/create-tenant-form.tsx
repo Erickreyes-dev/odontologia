@@ -28,6 +28,7 @@ export default function CreateTenantForm({ paquetes }: { paquetes: PaqueteOption
         nombre: String(formData.get("nombre") || ""),
         slug: String(formData.get("slug") || ""),
         paqueteId: String(formData.get("paqueteId") || ""),
+        periodoPlan: String(formData.get("periodoPlan") || "mensual") as "mensual" | "trimestral" | "semestral" | "anual",
         adminNombre: String(formData.get("adminNombre") || ""),
         adminCorreo: String(formData.get("adminCorreo") || ""),
         adminUsuario: String(formData.get("adminUsuario") || ""),
@@ -53,13 +54,22 @@ export default function CreateTenantForm({ paquetes }: { paquetes: PaqueteOption
         <Label htmlFor="slug">Slug</Label>
         <Input id="slug" name="slug" placeholder="clinica-sonrisa" required />
       </div>
-      <div className="space-y-2 md:col-span-2">
+      <div className="space-y-2">
         <Label htmlFor="paqueteId">Paquete</Label>
         <select id="paqueteId" name="paqueteId" className="w-full rounded-md border bg-background p-2" required>
           <option value="">Seleccione un paquete</option>
           {paquetes.map((p) => (
             <option key={p.id} value={p.id}>{p.nombre} · {p.maxUsuarios} usuarios</option>
           ))}
+        </select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="periodoPlan">Período del plan</Label>
+        <select id="periodoPlan" name="periodoPlan" className="w-full rounded-md border bg-background p-2" defaultValue="mensual" required>
+          <option value="mensual">Mensual</option>
+          <option value="trimestral">Trimestral</option>
+          <option value="semestral">Semestral</option>
+          <option value="anual">Anual</option>
         </select>
       </div>
 

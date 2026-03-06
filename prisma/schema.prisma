@@ -21,6 +21,8 @@ model Tenant {
   plan           String   @default("starter") @db.VarChar(30)
   maxUsuarios    Int      @default(20)
   paqueteId      String?  @db.VarChar(36)
+  periodoPlan    String   @default("mensual") @db.VarChar(20)
+  proximoPago    DateTime? @db.DateTime(3)
   createAt       DateTime @default(now())
   updateAt       DateTime @updatedAt
 
