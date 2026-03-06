@@ -33,6 +33,7 @@ export interface MailPayload {
     subject: string;
     html: string;
     text?: string;
+    from?: string;
 }
 
 export class EmailService {
@@ -61,7 +62,7 @@ export class EmailService {
         while (attempt < maxAttempts) {
             try {
                 await transporter.sendMail({
-                    from: process.env.EMAIL_FROM!,
+                    from: payload.from || process.env.EMAIL_FROM!,
                     to: payload.to,
                     subject: payload.subject,
                     html: payload.html,

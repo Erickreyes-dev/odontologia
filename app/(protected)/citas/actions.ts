@@ -8,6 +8,9 @@ import { Cita, CitaSchema } from "./schema";
 import { paginate } from "@/app/type";
 import { Prisma } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
+import { EmailService } from "@/lib/sendEmail";
+import { generateAppointmentEmailHtml } from "@/lib/templates/clinical-notifications";
+import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
 
 /**
  * Obtiene todas las citas con paginacion
@@ -346,7 +349,8 @@ export async function getSeguimientoContextoParaCita(seguimientoId: string): Pro
  * Crea una nueva cita
  */
 export async function createCita(
-  data: Cita
+  data: Cita,
+  options?: { sendEmailToPaciente?: boolean }
 ): Promise<{ success: true; data: Cita } | { success: false; error: string }> {
   try {
     const validatedData = CitaSchema.parse({
@@ -366,7 +370,35 @@ export async function createCita(
         motivo: validatedData.motivo,
         observacion: validatedData.observacion,
       }),
+      include: {
+        paciente: { select: { nombre: true, apellido: true, correo: true } },
+        medico: { include: { empleado: { select: { nombre: true, apellido: true } } } },
+        consultorio: { select: { nombre: true } },
+      },
     });
+
+    if (options?.sendEmailToPaciente) {
+      if (!r.paciente?.correo) {
+        return { success: false, error: "El paciente no tiene correo registrado para enviar la cita." };
+      }
+
+      const doctorName = `${r.medico?.empleado?.nombre ?? ""} ${r.medico?.empleado?.apellido ?? ""}`.trim() || await resolveDoctorSenderName();
+      const emailService = new EmailService();
+
+      await emailService.sendMail({
+        to: r.paciente.correo,
+        from: buildDoctorFromAddress(doctorName),
+        subject: `Confirmación de cita - Dr(a). ${doctorName}`,
+        html: generateAppointmentEmailHtml({
+          pacienteNombre: `${r.paciente.nombre} ${r.paciente.apellido}`,
+          medicoNombre: doctorName,
+          consultorioNombre: r.consultorio.nombre,
+          fechaHora: new Date(r.fechaHora),
+          motivo: r.motivo,
+          observacion: r.observacion,
+        }),
+      });
+    }
 
     const result = {
       id: r.id,
@@ -420,6 +452,8 @@ export async function updateCita(
         ...(validatedData.observacion !== undefined && { observacion: validatedData.observacion }),
       },
     });
+
+
 
     const result = {
       id: r.id,

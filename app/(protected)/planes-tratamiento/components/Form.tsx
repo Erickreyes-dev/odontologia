@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Controller, Resolver, useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
+import { useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -18,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -73,6 +75,7 @@ export function PlanFormulario({
   defaultPacienteId,
 }: PlanFormularioProps) {
   const router = useRouter();
+  const [sendEmailToPaciente, setSendEmailToPaciente] = useState(false);
 
 type PlanFormValues = z.infer<typeof PlanTratamientoSchema>;
 
@@ -243,7 +246,17 @@ console.log("🚀 ~ PlanFormulario ~ form:", form.formState.defaultValues)
           toast.error(result.error);
         }
       } else {
-        const result = await createPlanTratamiento(planData);
+        const selectedPaciente = pacientes.find((p) => p.id === planData.pacienteId);
+        if (sendEmailToPaciente && !selectedPaciente?.correo) {
+          toast.error("El paciente no tiene correo registrado.");
+          return;
+        }
+
+        const shouldSend = sendEmailToPaciente
+          ? window.confirm("¿Deseas enviar este plan de trabajo al paciente por correo?")
+          : false;
+
+        const result = await createPlanTratamiento(planData, { sendEmailToPaciente: shouldSend });
         if (result.success) {
           toast.success("Plan creado correctamente. Se generaron los seguimientos.");
           router.push("/planes-tratamiento");
@@ -754,6 +767,25 @@ console.log("🚀 ~ PlanFormulario ~ form:", form.formState.defaultValues)
           )}
         </CardContent>
       </Card>
+
+
+      <div className="rounded-lg border border-dashed p-4">
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="enviarCorreoPlan"
+            checked={sendEmailToPaciente}
+            onCheckedChange={(checked) => setSendEmailToPaciente(checked === true)}
+          />
+          <div>
+            <label htmlFor="enviarCorreoPlan" className="text-sm font-medium cursor-pointer">
+              Preguntar y enviar plan de trabajo por correo
+            </label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Solo aplica para pacientes con correo electrónico registrado.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Botones */}
       <div className="flex justify-end gap-4">

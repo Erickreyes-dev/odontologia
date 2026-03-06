@@ -57,9 +57,7 @@ export default function ResetPassword() {
   if (!mounted) return null;
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-gray-900 text-white rounded-lg">
-      <h1 className="text-2xl font-bold mb-4">Cambiar Contraseña</h1>
-
+    <div className="w-full">
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
         {/* Nueva contraseña */}
@@ -76,19 +74,19 @@ export default function ResetPassword() {
                     type={showNew ? "text" : "password"}
                     placeholder="••••••••"
                     disabled={isPending}
-                    className="pr-10"
+                    className="pr-10 border-slate-700 bg-slate-800 text-white placeholder:text-slate-400"
                   />
                   <button
                     type="button"
                     onClick={() => setShowNew(!showNew)}
-                    className="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-foreground"
+                    className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-200"
                   >
                     {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </FieldContent>
               <FieldDescription>
-                Ingresa tu nueva contraseña.
+                Usa al menos 8 caracteres con letras y números.
               </FieldDescription>
               {fieldState.invalid && (
                 <FieldError errors={[fieldState.error]} />
@@ -111,19 +109,19 @@ export default function ResetPassword() {
                     type={showConfirm ? "text" : "password"}
                     placeholder="••••••••"
                     disabled={isPending}
-                    className="pr-10"
+                    className="pr-10 border-slate-700 bg-slate-800 text-white placeholder:text-slate-400"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirm(!showConfirm)}
-                    className="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-foreground"
+                    className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-200"
                   >
                     {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </FieldContent>
               <FieldDescription>
-                Repite la contraseña para confirmar.
+                Debe coincidir exactamente con la contraseña nueva.
               </FieldDescription>
               {fieldState.invalid && (
                 <FieldError errors={[fieldState.error]} />
@@ -135,7 +133,7 @@ export default function ResetPassword() {
         <Button
           type="submit"
           disabled={isPending}
-          className="w-full bg-blue-600 hover:bg-blue-700"
+          className="w-full bg-cyan-600 text-white hover:bg-cyan-500"
         >
           {isPending ? "Guardando..." : "Cambiar Contraseña"}
         </Button>
