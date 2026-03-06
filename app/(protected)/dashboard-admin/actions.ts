@@ -7,6 +7,7 @@ import { tenantCreateSchema, TenantCreateInput } from "./schema";
 import { TENANT_PERMISSIONS } from "@/lib/permission-catalog";
 import bcrypt from "bcryptjs";
 import { getSession } from "@/auth";
+import { buildTenantLoginUrl } from "@/lib/tenant-url";
 
 export async function getAdminDashboardData() {
   const [
@@ -60,7 +61,7 @@ export async function getAdminDashboardData() {
 
 export async function createTenant(
   input: TenantCreateInput
-): Promise<{ success: true; adminPassword: string } | { success: false; error: string }> {
+): Promise<{ success: true; adminPassword: string; loginUrl: string } | { success: false; error: string }> {
   try {
     const parsed = tenantCreateSchema.safeParse(input);
     if (!parsed.success) {
@@ -152,7 +153,7 @@ export async function createTenant(
     });
 
     revalidatePath("/dashboard-admin");
-    return { success: true, adminPassword };
+    return { success: true, adminPassword, loginUrl: buildTenantLoginUrl(data.slug) };
   } catch (error) {
     return {
       success: false,

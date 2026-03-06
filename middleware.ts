@@ -2,6 +2,7 @@
 import { jwtVerify, type JWTPayload } from "jose";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
 
 type Bucket = { count: number; reset: number };
 type RateLimitConfig = { limit: number; windowMs: number };
@@ -122,6 +123,18 @@ function cleanupExpiredEntries(now: number) {
 
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
+  const tenantSlugFromHost = resolveTenantSlugFromHost(req.headers.get("host"));
+  const requestHeaders = new Headers(req.headers);
+
+  if (tenantSlugFromHost) {
+    requestHeaders.set("x-tenant-slug", tenantSlugFromHost);
+  }
+
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 
   if (!shouldSkipRateLimit(path)) {
     const clientIp = getClientIp(req);
@@ -198,7 +211,7 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {

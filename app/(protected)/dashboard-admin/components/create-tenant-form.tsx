@@ -11,11 +11,13 @@ export default function CreateTenantForm() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+  const [tenantLoginUrl, setTenantLoginUrl] = useState<string | null>(null);
   const router = useRouter();
 
   const onSubmit = (formData: FormData) => {
     setError(null);
     setGeneratedPassword(null);
+    setTenantLoginUrl(null);
 
     const passwordValue = String(formData.get("adminPassword") || "").trim();
 
@@ -37,6 +39,7 @@ export default function CreateTenantForm() {
         return;
       }
       setGeneratedPassword(result.adminPassword);
+      setTenantLoginUrl(result.loginUrl);
       router.refresh();
     });
   };
@@ -81,6 +84,11 @@ export default function CreateTenantForm() {
       {generatedPassword && (
         <p className="text-sm text-emerald-600 md:col-span-2">
           Tenant creado. Contraseña inicial del admin: <strong>{generatedPassword}</strong>
+        </p>
+      )}
+      {tenantLoginUrl && (
+        <p className="text-sm text-blue-400 md:col-span-2">
+          URL de acceso del tenant: <a href={tenantLoginUrl} className="underline" target="_blank" rel="noreferrer">{tenantLoginUrl}</a>
         </p>
       )}
 
