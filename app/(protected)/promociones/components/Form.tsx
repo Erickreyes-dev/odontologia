@@ -2,7 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { useEffect } from "react";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Field, FieldContent, FieldError, FieldLabel } from "@/components/ui/field";
@@ -34,6 +35,23 @@ export function PromocionForm({
     control: form.control,
     name: "servicios",
   });
+
+  const serviciosSeleccionados = useWatch({
+    control: form.control,
+    name: "servicios",
+  });
+
+  useEffect(() => {
+    const precioNormal = (serviciosSeleccionados ?? []).reduce((total, item) => {
+      if (!item?.servicioId) return total;
+      const servicio = servicios.find((svc) => svc.id === item.servicioId);
+      const cantidad = Number(item.cantidad || 0);
+      const precioAplicado = item.precioAplicado ?? servicio?.precioBase ?? 0;
+      return total + Number(precioAplicado) * cantidad;
+    }, 0);
+
+    form.setValue("precioReferencial", Number(precioNormal.toFixed(2)), { shouldValidate: true });
+  }, [form, servicios, serviciosSeleccionados]);
 
   async function onSubmit(data: z.infer<typeof PromocionSchema>) {
     const result = isUpdate && data.id
@@ -87,7 +105,7 @@ export function PromocionForm({
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel>Precio normal</FieldLabel>
               <FieldContent>
-                <Input type="number" min="0" step="0.01" {...field} onChange={(e) => field.onChange(Number(e.target.value || 0))} />
+                <Input type="number" min="0" step="0.01" {...field} value={Number(field.value || 0)} readOnly disabled />
               </FieldContent>
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
