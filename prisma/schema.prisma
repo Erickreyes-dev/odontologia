@@ -10,21 +10,21 @@ datasource db {
 }
 
 model Tenant {
-  id             String   @id @default(uuid()) @db.VarChar(36)
-  nombre         String   @db.VarChar(120)
-  slug           String   @unique @db.VarChar(60)
-  contactoNombre String?  @db.VarChar(120)
-  contactoCorreo String?  @db.VarChar(150)
-  telefono       String?  @db.VarChar(20)
-  logoBase64     String?  @db.LongText
-  activo         Boolean  @default(true) @db.Bit(1)
-  plan           String   @default("starter") @db.VarChar(30)
-  maxUsuarios    Int      @default(20)
-  paqueteId      String?  @db.VarChar(36)
-  periodoPlan    String   @default("mensual") @db.VarChar(20)
+  id             String    @id @default(uuid()) @db.VarChar(36)
+  nombre         String    @db.VarChar(120)
+  slug           String    @unique @db.VarChar(60)
+  contactoNombre String?   @db.VarChar(120)
+  contactoCorreo String?   @db.VarChar(150)
+  telefono       String?   @db.VarChar(20)
+  logoBase64     String?   @db.LongText
+  activo         Boolean   @default(true) @db.Bit(1)
+  plan           String    @default("starter") @db.VarChar(30)
+  maxUsuarios    Int       @default(20)
+  paqueteId      String?   @db.VarChar(36)
+  periodoPlan    String    @default("mensual") @db.VarChar(20)
   proximoPago    DateTime? @db.DateTime(3)
-  createAt       DateTime @default(now())
-  updateAt       DateTime @updatedAt
+  createAt       DateTime  @default(now())
+  updateAt       DateTime  @updatedAt
 
   permisos             Permiso[]
   roles                Rol[]
@@ -35,6 +35,8 @@ model Tenant {
   pacientes            Paciente[]
   profesiones          Profesion[]
   servicios            Servicio[]
+  promociones          Promocion[]
+  promocionServicios   PromocionServicio[]
   medicos              Medico[]
   consultorios         Consultorio[]
   citas                Cita[]
@@ -55,7 +57,7 @@ model Tenant {
   constanciasMedicas   ConstanciaMedica[]
   recibos              Recibo[]
   reciboDetalles       ReciboDetalle[]
-  paquete             Paquete?            @relation(fields: [paqueteId], references: [id])
+  paquete              Paquete?              @relation(fields: [paqueteId], references: [id])
 
   @@index([paqueteId])
 }
@@ -72,7 +74,6 @@ model Paquete {
 
   tenants Tenant[]
 }
-
 
 model Permiso {
   id          String       @id @default(uuid())
@@ -277,6 +278,7 @@ model Servicio {
   consultasServicios  ConsultaServicio[]
   cotizacionServicios CotizacionServicio[]
   planEtapaServicios  PlanEtapaServicio[]
+  promocionesServicio PromocionServicio[]
 
   @@unique([tenantId, nombre])
   @@index([tenantId])
@@ -380,6 +382,7 @@ model Consulta {
   total                 Decimal   @default(0) @db.Decimal(10, 2)
   seguimientoId         String?   @db.VarChar(36)
   financiamientoId      String?   @db.VarChar(36)
+  promocionId           String?   @db.VarChar(36)
 
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
@@ -388,6 +391,7 @@ model Consulta {
   cita           Cita            @relation(fields: [citaId], references: [id], onDelete: Cascade)
   seguimiento    Seguimiento?    @relation(fields: [seguimientoId], references: [id])
   financiamiento Financiamiento? @relation(fields: [financiamientoId], references: [id])
+  promocion      Promocion?      @relation(fields: [promocionId], references: [id])
 
   detalles     ConsultaServicio[]
   productos    ConsultaProducto[]
@@ -397,6 +401,46 @@ model Consulta {
   @@index([tenantId])
   @@index([seguimientoId])
   @@index([financiamientoId])
+  @@index([promocionId])
+}
+
+model Promocion {
+  id                String    @id @default(uuid()) @db.VarChar(36)
+  tenantId          String?   @db.VarChar(36)
+  nombre            String    @db.VarChar(150)
+  descripcion       String?   @db.VarChar(255)
+  precioReferencial Decimal   @default(0) @db.Decimal(10, 2)
+  precioPromocional Decimal   @default(0) @db.Decimal(10, 2)
+  fechaInicio       DateTime?
+  fechaFin          DateTime?
+  activo            Boolean   @db.Bit(1)
+  createAt          DateTime  @default(now())
+  updateAt          DateTime  @updatedAt
+
+  tenant    Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  servicios PromocionServicio[]
+  consultas Consulta[]
+
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
+}
+
+model PromocionServicio {
+  id             String   @id @default(uuid()) @db.VarChar(36)
+  tenantId       String?  @db.VarChar(36)
+  promocionId    String   @db.VarChar(36)
+  servicioId     String   @db.VarChar(36)
+  precioAplicado Decimal? @db.Decimal(10, 2)
+  cantidad       Int      @default(1)
+  createAt       DateTime @default(now())
+
+  tenant    Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  promocion Promocion @relation(fields: [promocionId], references: [id], onDelete: Cascade)
+  servicio  Servicio  @relation(fields: [servicioId], references: [id])
+
+  @@unique([promocionId, servicioId])
+  @@index([tenantId])
+  @@index([servicioId])
 }
 
 model ConsultaServicio {

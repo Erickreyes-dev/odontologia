@@ -3,6 +3,7 @@ import {
   getCitaParaConsulta,
   getConsultaByCitaId,
   getProductosActivos,
+  getPromocionesActivas,
   getServiciosActivos,
 } from "./actions";
 import HeaderComponent from "@/components/HeaderComponent";
@@ -27,11 +28,12 @@ export default async function ConsultaPage({ params }: ConsultaPageProps) {
     notFound();
   }
 
-  const [servicios, productos, seguimientos, financiamientos] = await Promise.all([
+  const [servicios, productos, seguimientos, financiamientos, promociones] = await Promise.all([
     getServiciosActivos(),
     getProductosActivos(),
     cita.paciente?.id ? getSeguimientosPendientes(cita.paciente.id) : Promise.resolve([]),
     cita.paciente?.id ? getFinanciamientosPorPaciente(cita.paciente.id) : Promise.resolve([]),
+    getPromocionesActivas(),
   ]);
 
   return (
@@ -54,7 +56,7 @@ export default async function ConsultaPage({ params }: ConsultaPageProps) {
         productos={productos}
         seguimientos={seguimientos.map(s => ({ ...s, id: s.id ?? '' }))}
         financiamientos={financiamientos}
-
+        promociones={promociones}
       />
     </div>
   );
