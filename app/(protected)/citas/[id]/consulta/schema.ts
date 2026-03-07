@@ -27,6 +27,7 @@ export const ConsultaSchema = z.object({
   ).optional(),
   seguimientoId: z.string().optional().nullable(),
   financiamientoId: z.string().optional().nullable(),
+  promocionId: z.string().optional().nullable(),
   // Datos de la cita para mostrar
   cita: z.object({
     id: z.string(),

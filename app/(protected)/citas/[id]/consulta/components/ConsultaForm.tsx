@@ -95,6 +95,13 @@ interface ConsultaFormProps {
     pacienteId: string;
     cuotasLista?: { id: string; numero: number; monto: number; pagada: boolean }[];
   }[];
+  promociones: {
+    id: string;
+    nombre: string;
+    descripcion: string | null;
+    precioPromocional: number;
+    servicios: { servicioId: string; cantidad: number; precioAplicado: number | null; servicioNombre: string }[];
+  }[];
 }
 
 export function ConsultaForm({
@@ -104,6 +111,7 @@ export function ConsultaForm({
   productos,
   seguimientos,
   financiamientos,
+  promociones,
 }: ConsultaFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -121,6 +129,7 @@ export function ConsultaForm({
       productos: consulta?.productos ?? [],
       seguimientoId: consulta?.seguimientoId ?? null,
       financiamientoId: consulta?.financiamientoId ?? null,
+      promocionId: consulta?.promocionId ?? null,
     },
   });
 
@@ -150,6 +159,7 @@ export function ConsultaForm({
   );
   const seguimientoId = useWatch({ control: form.control, name: "seguimientoId" });
   const financiamientoId = useWatch({ control: form.control, name: "financiamientoId" });
+  const promocionId = useWatch({ control: form.control, name: "promocionId" });
 
   const totalServicios = useMemo(
     () =>
@@ -170,9 +180,16 @@ export function ConsultaForm({
     return financiamientoSeleccionado.cuotasLista.find((cuota) => !cuota.pagada) ?? null;
   }, [financiamientoSeleccionado]);
 
+  const promocionSeleccionada = useMemo(() => {
+    if (!promocionId) return null;
+    return promociones.find((promo) => promo.id === promocionId) ?? null;
+  }, [promocionId, promociones]);
+
   const totalConsulta = financiamientoSeleccionado
     ? cuotaPendiente?.monto ?? 0
-    : totalServicios;
+    : promocionSeleccionada
+      ? promocionSeleccionada.precioPromocional
+      : totalServicios;
 
   const hasServiciosPlan = Boolean(seguimientoId);
 
@@ -270,6 +287,26 @@ export function ConsultaForm({
 
     setPlanSeleccionado(seguimientoSeleccionado.planNombre || "Plan sin nombre");
   }, [seguimientoSeleccionado]);
+
+
+  useEffect(() => {
+    if (!promocionSeleccionada) return;
+
+    const serviciosPromo = promocionSeleccionada.servicios.map((servicio) => {
+      const base = servicios.find((s) => s.id === servicio.servicioId);
+      return {
+        servicioId: servicio.servicioId,
+        cantidad: servicio.cantidad || 1,
+        precioAplicado: servicio.precioAplicado ?? base?.precioBase ?? 0,
+        servicioNombre: servicio.servicioNombre,
+      };
+    });
+
+    form.setValue("servicios", serviciosPromo, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [form, promocionSeleccionada, servicios]);
 
   const onSubmit = async (data: Consulta) => {
     setIsSubmitting(true);
@@ -746,6 +783,30 @@ export function ConsultaForm({
               ) : null}
 
               <Field>
+                <FieldLabel>Promoción / paquete (opcional)</FieldLabel>
+                <FieldContent>
+                  <Select
+                    value={form.watch("promocionId") || "none"}
+                    onValueChange={(value) =>
+                      form.setValue("promocionId", value === "none" ? null : value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccione una promoción" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin promoción</SelectItem>
+                      {promociones.map((promo) => (
+                        <SelectItem key={promo.id} value={promo.id}>
+                          {promo.nombre} · L {promo.precioPromocional.toFixed(2)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FieldContent>
+              </Field>
+
+              <Field>
                 <FieldLabel>Financiamiento (opcional)</FieldLabel>
                 <FieldContent>
                   <Select
@@ -783,9 +844,11 @@ export function ConsultaForm({
                     ? cuotaPendiente
                       ? `Total basado en la cuota ${cuotaPendiente.numero}.`
                       : "No hay cuotas pendientes en este financiamiento."
-                    : hasServiciosPlan
-                      ? "Total calculado en base a los servicios del plan."
-                      : "Total calculado en base a los servicios seleccionados."}
+                     : promocionSeleccionada
+                      ? "Precio promocional aplicado al paquete seleccionado."
+                      : hasServiciosPlan
+                        ? "Total calculado en base a los servicios del plan."
+                        : "Total calculado en base a los servicios seleccionados."}
                 </FieldDescription>
               </Field>
             </div>

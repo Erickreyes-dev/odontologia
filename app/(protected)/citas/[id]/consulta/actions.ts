@@ -91,6 +91,7 @@ export async function getConsultaByCitaId(citaId: string): Promise<Consulta | nu
       total: Number(r.total),
       seguimientoId: r.seguimientoId ?? null,
       financiamientoId: r.financiamientoId ?? null,
+      promocionId: r.promocionId ?? null,
       servicios: r.detalles.map((detalle) => ({
         id: detalle.id,
         servicioId: detalle.servicioId,
@@ -166,6 +167,7 @@ export async function getConsultaById(id: string): Promise<Consulta | null> {
       total: Number(r.total),
       seguimientoId: r.seguimientoId ?? null,
       financiamientoId: r.financiamientoId ?? null,
+      promocionId: r.promocionId ?? null,
       servicios: r.detalles.map((detalle) => ({
         id: detalle.id,
         servicioId: detalle.servicioId,
@@ -217,6 +219,21 @@ export async function upsertConsulta(
         0
       ) ?? 0;
 
+    let totalConsulta = totalServicios;
+    if (validatedData.promocionId) {
+      const promocion = await prisma.promocion.findFirst({
+        where: await tenantWhere<Prisma.PromocionWhereInput>({
+          id: validatedData.promocionId,
+          activo: true,
+        }),
+        select: { precioPromocional: true },
+      });
+      if (!promocion) {
+        return { success: false, error: "La promoción seleccionada no existe o no está disponible" };
+      }
+      totalConsulta = Number(promocion.precioPromocional);
+    }
+
     // Verificar si ya existe una consulta para esta cita
     const existingConsulta = await prisma.consulta.findFirst({
       where: await tenantWhere<Prisma.ConsultaWhereInput>({ citaId: validatedData.citaId }),
@@ -238,7 +255,8 @@ export async function upsertConsulta(
             observacionesClinicas: validatedData.observacionesClinicas,
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
-            total: totalServicios,
+            promocionId: validatedData.promocionId ?? null,
+            total: totalConsulta,
           },
         });
         await tx.consultaServicio.deleteMany({ where: { consultaId: existingConsulta.id } });
@@ -302,7 +320,8 @@ export async function upsertConsulta(
             observacionesClinicas: validatedData.observacionesClinicas,
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
-            total: totalServicios,
+            promocionId: validatedData.promocionId ?? null,
+            total: totalConsulta,
             detalles: validatedData.servicios?.length
               ? {
                   create: validatedData.servicios.map((servicio) => ({
@@ -396,6 +415,21 @@ export async function finalizarConsulta(
         0
       ) ?? 0;
 
+    let totalPromocion: number | null = null;
+    if (validatedData.promocionId) {
+      const promocion = await prisma.promocion.findFirst({
+        where: await tenantWhere<Prisma.PromocionWhereInput>({
+          id: validatedData.promocionId,
+          activo: true,
+        }),
+        select: { precioPromocional: true },
+      });
+      if (!promocion) {
+        return { success: false, error: "La promoción seleccionada no existe o no está disponible" };
+      }
+      totalPromocion = Number(promocion.precioPromocional);
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       let productosExistentes: { productoId: string; cantidad: number }[] = [];
       if (consultaId) {
@@ -412,7 +446,8 @@ export async function finalizarConsulta(
             observacionesClinicas: validatedData.observacionesClinicas,
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
-            total: serviciosTotal,
+            promocionId: validatedData.promocionId ?? null,
+            total: totalPromocion ?? serviciosTotal,
           },
         });
         await tx.consultaServicio.deleteMany({ where: { consultaId } });
@@ -429,7 +464,8 @@ export async function finalizarConsulta(
             observacionesClinicas: validatedData.observacionesClinicas,
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
-            total: serviciosTotal,
+            promocionId: validatedData.promocionId ?? null,
+            total: totalPromocion ?? serviciosTotal,
           }),
         });
       }
@@ -549,13 +585,13 @@ export async function finalizarConsulta(
           throw new Error("El financiamiento no tiene cuotas pendientes");
         }
         cuotaSeleccionada = { id: cuota.id, numero: cuota.numero, monto: Number(cuota.monto) };
-      } else if (serviciosTotal <= 0) {
+      } else if ((totalPromocion ?? serviciosTotal) <= 0) {
         throw new Error("Debe registrar servicios con monto válido");
       }
 
       const montoTotal = financiamientoId
         ? cuotaSeleccionada?.monto ?? 0
-        : serviciosTotal;
+        : (totalPromocion ?? serviciosTotal);
 
       const orden = await tx.ordenDeCobro.create({
         data: await withTenantData({
@@ -567,7 +603,7 @@ export async function finalizarConsulta(
           monto: montoTotal,
           concepto: financiamientoId
             ? `Consulta #${consultaId!.slice(0, 8)} - Cuota ${cuotaSeleccionada?.numero ?? "pendiente"}`
-            : `Consulta #${consultaId!.slice(0, 8)} - Servicios`,
+            : `Consulta #${consultaId!.slice(0, 8)} - ${validatedData.promocionId ? "Promoción" : "Servicios"}`,
           estado: "PENDIENTE",
         }),
       });
@@ -612,6 +648,54 @@ export async function getServiciosActivos(): Promise<
     }));
   } catch (error) {
     console.error("Error al obtener servicios activos:", error);
+    return [];
+  }
+}
+
+
+export async function getPromocionesActivas(): Promise<
+  {
+    id: string;
+    nombre: string;
+    descripcion: string | null;
+    precioPromocional: number;
+    servicios: { servicioId: string; cantidad: number; precioAplicado: number | null; servicioNombre: string }[];
+  }[]
+> {
+  try {
+    const promociones = await prisma.promocion.findMany({
+      where: await tenantWhere<Prisma.PromocionWhereInput>({ activo: true }),
+      select: {
+        id: true,
+        nombre: true,
+        descripcion: true,
+        precioPromocional: true,
+        servicios: {
+          select: {
+            servicioId: true,
+            cantidad: true,
+            precioAplicado: true,
+            servicio: { select: { nombre: true } },
+          },
+        },
+      },
+      orderBy: { nombre: "asc" },
+    });
+
+    return promociones.map((promocion) => ({
+      id: promocion.id,
+      nombre: promocion.nombre,
+      descripcion: promocion.descripcion,
+      precioPromocional: Number(promocion.precioPromocional),
+      servicios: promocion.servicios.map((detalle) => ({
+        servicioId: detalle.servicioId,
+        cantidad: detalle.cantidad,
+        precioAplicado: detalle.precioAplicado ? Number(detalle.precioAplicado) : null,
+        servicioNombre: detalle.servicio.nombre,
+      })),
+    }));
+  } catch (error) {
+    console.error("Error al obtener promociones activas:", error);
     return [];
   }
 }

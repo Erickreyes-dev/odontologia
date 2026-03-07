@@ -16,7 +16,7 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import {  Boxes, Calendar, ChevronDown, ChevronUp, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, Stethoscope, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
+import {  Boxes, Calendar, ChevronDown, ChevronUp, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
 import Link from "next/link";
 import { NavUser } from "./nav-user";
 import { ModeToggle } from "./buton-theme";
@@ -117,6 +117,12 @@ const items = [
     url: "/servicios",
     icon: Package,
     permiso: "ver_servicios",
+  },
+  {
+    title: "Promociones",
+    url: "/promociones",
+    icon: Tags,
+    permiso: "ver_promociones",
   },
   {
     title: "Inventario",
