@@ -7,6 +7,36 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { Promocion, PromocionSchema } from "./schema";
 
+async function calcularPrecioReferencial(
+  serviciosPromocion: Promocion["servicios"],
+): Promise<number> {
+  const servicioIds = Array.from(new Set(serviciosPromocion.map((servicio) => servicio.servicioId)));
+
+  if (servicioIds.length === 0) return 0;
+
+  const servicios = await prisma.servicio.findMany({
+    where: await tenantWhere<Prisma.ServicioWhereInput>({
+      id: { in: servicioIds },
+    }),
+    select: {
+      id: true,
+      precioBase: true,
+    },
+  });
+
+  const precioPorServicio = new Map(servicios.map((servicio) => [servicio.id, Number(servicio.precioBase)]));
+
+  return Number(
+    serviciosPromocion
+      .reduce((total, servicio) => {
+        const precioBase = precioPorServicio.get(servicio.servicioId);
+        const precioUnitario = servicio.precioAplicado ?? precioBase ?? 0;
+        return total + precioUnitario * servicio.cantidad;
+      }, 0)
+      .toFixed(2),
+  );
+}
+
 export async function getPromociones(): Promise<Promocion[]> {
   const promociones = await prisma.promocion.findMany({
     where: await tenantWhere<Prisma.PromocionWhereInput>(),
@@ -61,13 +91,14 @@ export async function getPromocionById(id: string): Promise<Promocion | null> {
 export async function createPromocion(data: Promocion) {
   try {
     const parsed = PromocionSchema.parse({ ...data, activo: data.activo ?? true });
+    const precioReferencial = await calcularPrecioReferencial(parsed.servicios);
 
     await prisma.promocion.create({
       data: await withTenantData({
         id: randomUUID(),
         nombre: parsed.nombre,
         descripcion: parsed.descripcion,
-        precioReferencial: parsed.precioReferencial,
+        precioReferencial,
         precioPromocional: parsed.precioPromocional,
         fechaInicio: parsed.fechaInicio ?? null,
         fechaFin: parsed.fechaFin ?? null,
@@ -93,6 +124,7 @@ export async function createPromocion(data: Promocion) {
 export async function updatePromocion(id: string, data: Promocion) {
   try {
     const parsed = PromocionSchema.parse(data);
+    const precioReferencial = await calcularPrecioReferencial(parsed.servicios);
 
     const existing = await prisma.promocion.findFirst({
       where: await tenantWhere<Prisma.PromocionWhereInput>({ id }),
@@ -106,7 +138,7 @@ export async function updatePromocion(id: string, data: Promocion) {
       data: {
         nombre: parsed.nombre,
         descripcion: parsed.descripcion,
-        precioReferencial: parsed.precioReferencial,
+        precioReferencial,
         precioPromocional: parsed.precioPromocional,
         fechaInicio: parsed.fechaInicio ?? null,
         fechaFin: parsed.fechaFin ?? null,
