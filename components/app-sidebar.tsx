@@ -1,4 +1,5 @@
 import { getSession } from "@/auth";
+import { getTenantLogoBase64 } from "@/lib/tenant-branding";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sidebar,
@@ -171,6 +172,7 @@ const items = [
 
 export async function AppSidebar() {
   const usuario = await getSession(); // Obtiene el nombre del usuario
+  const tenantLogoBase64 = await getTenantLogoBase64();
   const permisosUsuario = usuario?.Permiso || [];
 
   // Filtrar los ítems basados en los permisos del usuario
@@ -192,9 +194,9 @@ export async function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center justify-between gap-2" data-tour="workspace-label">
             <div className="flex items-center gap-2 min-w-0">
-              {usuario?.TenantLogoBase64 ? (
+              {tenantLogoBase64 ? (
                 <Image
-                  src={usuario.TenantLogoBase64}
+                  src={tenantLogoBase64}
                   alt={`Logo de ${usuario.TenantNombre || usuario.TenantSlug}`}
                   width={24}
                   height={24}
