@@ -1,6 +1,6 @@
 "use client";
 
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
+import { Cell, Pie, PieChart } from "recharts";
 import {
   Card,
   CardContent,
@@ -18,6 +18,7 @@ import {
 type PagosChartData = {
   month: string;
   total: number;
+  fill?: string;
 };
 
 type PagosUltimos12MesesChartProps = {
@@ -32,42 +33,35 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function PagosUltimos12MesesChart({ data }: PagosUltimos12MesesChartProps) {
+  const pieData = data.filter((item) => item.total > 0);
+
   return (
-    <Card className="lg:col-span-2">
+    <Card>
       <CardHeader>
         <CardTitle>Ganancias de los últimos 12 meses</CardTitle>
-        <CardDescription>Pagos recibidos por mes</CardDescription>
+        <CardDescription>Distribución porcentual por mes</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[260px] w-full">
-          <AreaChart
-            accessibilityLayer
-            data={data}
-            margin={{
-              left: 12,
-              right: 12,
-            }}
-          >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="month"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent indicator="line" />}
-            />
-            <Area
+          <PieChart>
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Pie
+              data={pieData}
               dataKey="total"
-              type="natural"
-              fill="var(--color-total)"
-              fillOpacity={0.3}
-              stroke="var(--color-total)"
-              strokeWidth={2}
-            />
-          </AreaChart>
+              nameKey="month"
+              cx="50%"
+              cy="50%"
+              outerRadius={90}
+              label
+            >
+              {pieData.map((entry, index) => (
+                <Cell
+                  key={`${entry.month}-${index}`}
+                  fill={entry.fill ?? `hsl(var(--chart-${(index % 5) + 1}))`}
+                />
+              ))}
+            </Pie>
+          </PieChart>
         </ChartContainer>
       </CardContent>
     </Card>
