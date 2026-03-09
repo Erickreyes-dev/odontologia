@@ -65,18 +65,18 @@ export const metadata: Metadata = {
     description: "Administra pacientes, citas, pagos e inventario desde una plataforma clínica todo en uno.",
     images: [
       {
-        url: "/favicon.ico",
-        width: 512,
-        height: 512,
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
         alt: "MediSoftCore",
       },
     ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "MediSoftCore | Plataforma de gestión clínica",
     description: "Administra pacientes, citas, pagos e inventario desde una plataforma clínica todo en uno.",
-    images: ["/favicon.ico"],
+    images: ["/opengraph-image"],
   },
 };
 
