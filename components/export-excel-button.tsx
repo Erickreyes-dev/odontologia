@@ -16,10 +16,18 @@ function normalizeValue(value: unknown): string | number | boolean | null {
   return JSON.stringify(value);
 }
 
+function isIdColumn(key: string): boolean {
+  return /(^id$|_id$|Id$)/.test(key);
+}
+
 export function ExportExcelButton({ data, fileName }: ExportExcelButtonProps) {
   const handleExport = () => {
     const normalizedData = data.map((row) =>
-      Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeValue(value)]))
+      Object.fromEntries(
+        Object.entries(row)
+          .filter(([key]) => !isIdColumn(key))
+          .map(([key, value]) => [key, normalizeValue(value)])
+      )
     );
 
     const worksheet = XLSX.utils.json_to_sheet(normalizedData);

@@ -7,8 +7,7 @@ import { getInventarioHistorial, getProductos } from "./actions";
 import { columns } from "./components/columns";
 import InventarioListMobile from "./components/inventario-list-mobile";
 import InventarioHistorial from "./components/inventario-historial";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { HistorialDateRangeFilter } from "./components/historial-date-range-filter";
 
 export default async function InventarioPage({
   searchParams,
@@ -38,12 +37,7 @@ export default async function InventarioPage({
         description="Listado de productos en inventario"
       />
 
-
-      <form className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4">
-        <Input type="date" name="desde" defaultValue={params?.desde ?? ""} />
-        <Input type="date" name="hasta" defaultValue={params?.hasta ?? ""} />
-        <Button type="submit" variant="outline">Filtrar historial</Button>
-      </form>
+      <HistorialDateRangeFilter defaultDesde={params?.desde} defaultHasta={params?.hasta} />
 
       <InventarioHistorial data={historial} />
 
