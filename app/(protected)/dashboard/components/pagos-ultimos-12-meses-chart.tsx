@@ -1,6 +1,9 @@
 "use client";
 
-import { Cell, Pie, PieChart } from "recharts";
+import { useMemo } from "react";
+import { format, subMonths } from "date-fns";
+import { es } from "date-fns/locale";
+import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 import {
   Card,
   CardContent,
@@ -16,9 +19,8 @@ import {
 } from "@/components/ui/chart";
 
 type PagosChartData = {
-  month: string;
-  total: number;
-  fill?: string;
+  fechaPago: string;
+  monto: number;
 };
 
 type PagosUltimos12MesesChartProps = {
@@ -27,41 +29,56 @@ type PagosUltimos12MesesChartProps = {
 
 const chartConfig = {
   total: {
-    label: "Ganancias",
+    label: "Ventas",
     color: "hsl(var(--chart-1))",
   },
 } satisfies ChartConfig;
 
 export function PagosUltimos12MesesChart({ data }: PagosUltimos12MesesChartProps) {
-  const pieData = data.filter((item) => item.total > 0);
+  const lineData = useMemo(() => {
+    const now = new Date();
+    const months = Array.from({ length: 12 }, (_, index) => {
+      const date = subMonths(now, 11 - index);
+      const key = format(date, "yyyy-MM");
+      return {
+        key,
+        month: format(date, "MMM", { locale: es }),
+        total: 0,
+      };
+    });
+
+    const monthMap = new Map(months.map((item) => [item.key, item]));
+
+    data.forEach((item) => {
+      const key = format(new Date(item.fechaPago), "yyyy-MM");
+      const month = monthMap.get(key);
+      if (month) month.total += item.monto;
+    });
+
+    return months;
+  }, [data]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Ganancias de los últimos 12 meses</CardTitle>
-        <CardDescription>Distribución porcentual por mes</CardDescription>
+        <CardTitle>Ventas de los últimos 12 meses</CardTitle>
+        <CardDescription>Tendencia mensual lineal</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[260px] w-full">
-          <PieChart>
+          <LineChart data={lineData} margin={{ left: 8, right: 8 }}>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
             <ChartTooltip content={<ChartTooltipContent />} />
-            <Pie
-              data={pieData}
+            <Line
+              type="monotone"
               dataKey="total"
-              nameKey="month"
-              cx="50%"
-              cy="50%"
-              outerRadius={90}
-              label
-            >
-              {pieData.map((entry, index) => (
-                <Cell
-                  key={`${entry.month}-${index}`}
-                  fill={entry.fill ?? `hsl(var(--chart-${(index % 5) + 1}))`}
-                />
-              ))}
-            </Pie>
-          </PieChart>
+              stroke="var(--color-total)"
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
+            />
+          </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>

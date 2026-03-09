@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/chart";
 import { Cell, Pie, PieChart } from "recharts";
 import { PagosUltimos12MesesChart } from "./pagos-ultimos-12-meses-chart";
+import { ProyeccionVentasRadialChart } from "./proyeccion-ventas-radial-chart";
 
 type DashboardData = {
   pacientes: {
@@ -33,6 +34,10 @@ type DashboardData = {
   consultas: {
     fecha: string;
     servicios: number;
+    detalleServicios: {
+      nombre: string;
+      cantidad: number;
+    }[];
   }[];
   pagos: {
     fechaPago: string;
@@ -47,9 +52,9 @@ type DashboardData = {
 
 const formatMoney = (value: number) => `L ${value.toLocaleString("es-HN")}`;
 
-const genderChartConfig = {
+const pieChartConfig = {
   cantidad: {
-    label: "Pacientes",
+    label: "Cantidad",
     color: "hsl(var(--chart-2))",
   },
 } satisfies ChartConfig;
@@ -84,45 +89,55 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     });
   }, [data.pagos, range]);
 
-  const pagosPieData = useMemo(() => {
-    const grouped = pagosFiltrados.reduce<Record<string, number>>((acc, pago) => {
-      const month = format(new Date(pago.fechaPago), "MMM", { locale: es });
-      acc[month] = (acc[month] ?? 0) + pago.monto;
-      return acc;
-    }, {});
-
-    return Object.entries(grouped).map(([month, total]) => ({ month, total }));
-  }, [pagosFiltrados]);
-
   const serviciosHechos = consultasFiltradas.reduce((acc, item) => acc + item.servicios, 0);
   const consultasHechas = consultasFiltradas.length;
   const totalPagos = pagosFiltrados.reduce((acc, item) => acc + item.monto, 0);
 
-  const edadPromedio = useMemo(() => {
-    const edades = data.pacientes
-      .map((p) => {
-        if (!p.fechaNacimiento) return null;
-        const birth = new Date(p.fechaNacimiento);
-        const age = new Date().getFullYear() - birth.getFullYear();
-        return age >= 0 ? age : null;
-      })
-      .filter((age): age is number => age !== null);
+  const edadesPieData = useMemo(() => {
+    const rangos = {
+      "0-17": 0,
+      "18-30": 0,
+      "31-45": 0,
+      "46-60": 0,
+      "61+": 0,
+    };
 
-    if (!edades.length) return 0;
-    return Math.round(edades.reduce((acc, age) => acc + age, 0) / edades.length);
+    data.pacientes.forEach((paciente) => {
+      if (!paciente.fechaNacimiento) return;
+      const birth = new Date(paciente.fechaNacimiento);
+      const today = new Date();
+      let edad = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        edad -= 1;
+      }
+
+      if (edad < 0) return;
+      if (edad <= 17) rangos["0-17"] += 1;
+      else if (edad <= 30) rangos["18-30"] += 1;
+      else if (edad <= 45) rangos["31-45"] += 1;
+      else if (edad <= 60) rangos["46-60"] += 1;
+      else rangos["61+"] += 1;
+    });
+
+    return Object.entries(rangos).map(([name, cantidad]) => ({ name, cantidad }));
   }, [data.pacientes]);
 
-  const direcciones = data.pacientes.filter((p) => Boolean(p.direccion?.trim())).length;
-
-  const generoData = useMemo(() => {
-    const map = data.pacientes.reduce<Record<string, number>>((acc, p) => {
-      const key = p.genero?.trim() || "No especificado";
-      acc[key] = (acc[key] ?? 0) + 1;
+  const serviciosPieData = useMemo(() => {
+    const map = consultasFiltradas.reduce<Record<string, number>>((acc, consulta) => {
+      consulta.detalleServicios.forEach((detalle) => {
+        acc[detalle.nombre] = (acc[detalle.nombre] ?? 0) + detalle.cantidad;
+      });
       return acc;
     }, {});
 
-    return Object.entries(map).map(([name, cantidad]) => ({ name, cantidad }));
-  }, [data.pacientes]);
+    return Object.entries(map)
+      .map(([name, cantidad]) => ({ name, cantidad }))
+      .sort((a, b) => b.cantidad - a.cantidad)
+      .slice(0, 8);
+  }, [consultasFiltradas]);
+
+  const direcciones = data.pacientes.filter((p) => Boolean(p.direccion?.trim())).length;
 
   const descargarExcelCuotas = () => {
     const rows = data.cuotasPendientes.map((item) => ({
@@ -198,9 +213,9 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Edad promedio</CardTitle>
+            <CardTitle className="text-sm">Pacientes activos</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">{edadPromedio} años</CardContent>
+          <CardContent className="text-2xl font-bold">{data.pacientes.length}</CardContent>
         </Card>
         <Card>
           <CardHeader>
@@ -210,7 +225,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Ingresos del rango</CardTitle>
+            <CardTitle className="text-sm">Ventas del rango</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-bold">{formatMoney(totalPagos)}</CardContent>
         </Card>
@@ -219,14 +234,14 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Género de pacientes</CardTitle>
+            <CardTitle>Distribución de edades</CardTitle>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={genderChartConfig} className="h-[260px] w-full">
+            <ChartContainer config={pieChartConfig} className="h-[260px] w-full">
               <PieChart>
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Pie data={generoData} dataKey="cantidad" nameKey="name" outerRadius={90} label>
-                  {generoData.map((entry, index) => (
+                <Pie data={edadesPieData} dataKey="cantidad" nameKey="name" outerRadius={90} label>
+                  {edadesPieData.map((entry, index) => (
                     <Cell key={entry.name} fill={`hsl(var(--chart-${(index % 5) + 1}))`} />
                   ))}
                 </Pie>
@@ -235,7 +250,32 @@ export function DashboardClient({ data }: { data: DashboardData }) {
           </CardContent>
         </Card>
 
-        <PagosUltimos12MesesChart data={pagosPieData} />
+        <Card>
+          <CardHeader>
+            <CardTitle>Servicios más realizados</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={pieChartConfig} className="h-[260px] w-full">
+              <PieChart>
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Pie
+                  data={serviciosPieData}
+                  dataKey="cantidad"
+                  nameKey="name"
+                  outerRadius={90}
+                  label
+                >
+                  {serviciosPieData.map((entry, index) => (
+                    <Cell key={entry.name} fill={`hsl(var(--chart-${(index % 5) + 1}))`} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <PagosUltimos12MesesChart data={data.pagos} />
+        <ProyeccionVentasRadialChart data={data.pagos} />
       </div>
 
       <Card>
