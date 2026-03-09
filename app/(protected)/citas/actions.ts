@@ -10,6 +10,7 @@ import { Prisma } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { EmailService } from "@/lib/sendEmail";
 import { generateAppointmentEmailHtml } from "@/lib/templates/clinical-notifications";
+import { getTenantLogoBase64 } from "@/lib/tenant-branding";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
 
 /**
@@ -383,6 +384,7 @@ export async function createCita(
       }
 
       const doctorName = `${r.medico?.empleado?.nombre ?? ""} ${r.medico?.empleado?.apellido ?? ""}`.trim() || await resolveDoctorSenderName();
+      const clinicLogoBase64 = await getTenantLogoBase64();
       const emailService = new EmailService();
 
       await emailService.sendMail({
@@ -396,6 +398,7 @@ export async function createCita(
           fechaHora: new Date(r.fechaHora),
           motivo: r.motivo,
           observacion: r.observacion,
+          clinicLogoBase64,
         }),
       });
     }
@@ -562,6 +565,7 @@ export async function sendCitaEmail(
     }
 
     const doctorName = `${cita.medico?.empleado?.nombre ?? ""} ${cita.medico?.empleado?.apellido ?? ""}`.trim() || await resolveDoctorSenderName();
+    const clinicLogoBase64 = await getTenantLogoBase64();
     const emailService = new EmailService();
 
     await emailService.sendMail({
@@ -575,6 +579,7 @@ export async function sendCitaEmail(
         fechaHora: new Date(cita.fechaHora),
         motivo: cita.motivo,
         observacion: cita.observacion,
+        clinicLogoBase64,
       }),
     });
 

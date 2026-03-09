@@ -71,7 +71,8 @@ export function ProyeccionVentasRadialChart({ data }: ProyeccionVentasRadialChar
     const promedio = valores.reduce((acc, val) => acc + val, 0) / (valores.length || 1);
     const ultimoMes = valores[valores.length - 1] ?? 0;
     const proyeccion = calcularProyeccionLineal(valores);
-    const meta = proyeccion * 1.12;
+    const baseMeta = Math.max(proyeccion, ultimoMes);
+    const meta = baseMeta * 1.12;
 
     const metaRedondeada = Math.round(meta);
     const ventasActuales = Math.round(ultimoMes);
@@ -99,7 +100,7 @@ export function ProyeccionVentasRadialChart({ data }: ProyeccionVentasRadialChar
       <CardHeader>
         <CardTitle>Proyección y meta de ventas</CardTitle>
         <CardDescription>
-          Avance del mes actual frente a la meta sugerida (12% sobre la proyección)
+          Avance del mes actual frente a una meta sugerida (12% sobre el mayor valor entre proyección y ventas actuales)
         </CardDescription>
       </CardHeader>
       <CardContent>

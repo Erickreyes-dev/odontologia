@@ -17,6 +17,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ExportExcelButton } from "@/components/export-excel-button";
 import {
   Table,
   TableBody,
@@ -101,6 +102,7 @@ export function DataTable<TData, TValue>({
             <Plus className="h-4 w-4" />
           </Button>
         </Link>
+        <ExportExcelButton data={data as Record<string, unknown>[]} fileName="citas" />
       </div>
 
       <div className="rounded-md border overflow-x-auto">

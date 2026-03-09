@@ -161,7 +161,7 @@ export function ConsultaForm({
   const seguimientoId = useWatch({ control: form.control, name: "seguimientoId" });
   const financiamientoId = useWatch({ control: form.control, name: "financiamientoId" });
   const promocionId = useWatch({ control: form.control, name: "promocionId" });
-  const descuento = useWatch({ control: form.control, name: "descuento" }) ?? 0;
+  const descuentoPorcentaje = useWatch({ control: form.control, name: "descuento" }) ?? 0;
 
   const totalServicios = useMemo(
     () =>
@@ -193,7 +193,8 @@ export function ConsultaForm({
       ? promocionSeleccionada.precioPromocional
       : totalServicios;
 
-  const totalConsulta = Math.max(subtotalConsulta - Number(descuento || 0), 0);
+  const descuentoMonto = subtotalConsulta * (Number(descuentoPorcentaje || 0) / 100);
+  const totalConsulta = Math.max(subtotalConsulta - descuentoMonto, 0);
 
   const hasServiciosPlan = Boolean(seguimientoId);
 
@@ -839,17 +840,18 @@ export function ConsultaForm({
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel>Descuento (opcional)</FieldLabel>
+                    <FieldLabel>Descuento % (opcional)</FieldLabel>
                     <FieldContent>
                       <Input
                         type="number"
                         min={0}
                         step="0.01"
+                        max={100}
                         value={field.value ?? 0}
-                        onChange={(event) => field.onChange(Number(event.target.value || 0))}
+                        onChange={(event) => field.onChange(Math.min(100, Math.max(0, Number(event.target.value || 0))))}
                       />
                     </FieldContent>
-                    <FieldDescription>Se descuenta del subtotal de la consulta.</FieldDescription>
+                    <FieldDescription>Porcentaje aplicado sobre el subtotal de la consulta.</FieldDescription>
                     {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                   </Field>
                 )}
@@ -860,6 +862,17 @@ export function ConsultaForm({
                 <FieldContent>
                   <Input
                     value={subtotalConsulta.toFixed(2)}
+                    readOnly
+                    className="bg-muted"
+                  />
+                </FieldContent>
+              </Field>
+
+              <Field>
+                <FieldLabel>Monto de descuento</FieldLabel>
+                <FieldContent>
+                  <Input
+                    value={descuentoMonto.toFixed(2)}
                     readOnly
                     className="bg-muted"
                   />

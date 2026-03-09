@@ -15,6 +15,7 @@ import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { getTenantContext } from "@/lib/tenant";
 import { EmailService } from "@/lib/sendEmail";
 import { generatePlanEmailHtml } from "@/lib/templates/clinical-notifications";
+import { getTenantLogoBase64 } from "@/lib/tenant-branding";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
 
 /**
@@ -220,6 +221,7 @@ export async function createPlanTratamiento(
       }
 
       const doctorName = await resolveDoctorSenderName();
+      const clinicLogoBase64 = await getTenantLogoBase64();
       const emailService = new EmailService();
 
       await emailService.sendMail({
@@ -233,6 +235,7 @@ export async function createPlanTratamiento(
           fechaInicio: plan.fechaInicio,
           estado: plan.estado,
           etapas: (validatedData.etapas ?? []).map((etapa) => etapa.nombre),
+          clinicLogoBase64,
         }),
       });
     }
@@ -377,6 +380,7 @@ export async function sendPlanTratamientoEmail(
     }
 
     const doctorName = await resolveDoctorSenderName();
+    const clinicLogoBase64 = await getTenantLogoBase64();
     const emailService = new EmailService();
 
     await emailService.sendMail({
@@ -390,6 +394,7 @@ export async function sendPlanTratamientoEmail(
         fechaInicio: plan.fechaInicio,
         estado: plan.estado,
         etapas: plan.etapas.map((etapa) => etapa.nombre),
+        clinicLogoBase64,
       }),
     });
 

@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ExportExcelButton } from "@/components/export-excel-button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
@@ -77,6 +78,7 @@ export function DataTable<TData, TValue>({
             <Plus />
           </Button>
         </Link>
+        <ExportExcelButton data={data as Record<string, unknown>[]} fileName="servicios" />
       </div>
 
       <div className="rounded-md border">
