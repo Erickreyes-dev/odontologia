@@ -173,6 +173,7 @@ const items = [
 export async function AppSidebar() {
   const usuario = await getSession(); // Obtiene el nombre del usuario
   const tenantLogoBase64 = await getTenantLogoBase64();
+  const tenantDisplayName = usuario?.TenantNombre || usuario?.TenantSlug || "la clínica";
   const permisosUsuario = usuario?.Permiso || [];
 
   // Filtrar los ítems basados en los permisos del usuario
@@ -197,7 +198,7 @@ export async function AppSidebar() {
               {tenantLogoBase64 ? (
                 <Image
                   src={tenantLogoBase64}
-                  alt={`Logo de ${usuario.TenantNombre || usuario.TenantSlug}`}
+                  alt={`Logo de ${tenantDisplayName}`}
                   width={24}
                   height={24}
                   className="h-6 w-6 rounded object-cover border"
