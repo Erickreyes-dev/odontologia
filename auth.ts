@@ -25,7 +25,6 @@ export interface UsuarioSesion extends JWTPayload {
   TenantId: string;
   TenantSlug: string;
   TenantNombre: string;
-  TenantLogoBase64: string | null;
 }
 
 export async function encrypt(payload: UsuarioSesion) {
@@ -52,7 +51,6 @@ export const decrypt = async (token: string): Promise<UsuarioSesion | null> => {
       TenantId: payload.TenantId as string,
       TenantSlug: payload.TenantSlug as string,
       TenantNombre: payload.TenantNombre as string,
-      TenantLogoBase64: (payload.TenantLogoBase64 as string | null) ?? null,
       iss: payload.iss as string,
       aud: payload.aud as string,
     };
@@ -183,7 +181,6 @@ async function authenticateDB(
       TenantId: user.tenantId ?? "",
       TenantSlug: user.tenant?.slug ?? "",
       TenantNombre: user.tenant?.nombre ?? "",
-      TenantLogoBase64: user.tenant?.logoBase64 ?? null,
       iss: "odontologia-saas",
       aud: "odontologia-clients",
     };
@@ -224,7 +221,6 @@ async function changePassword(tenantId: string, username: string, newPassword: s
       TenantId: updated.tenantId ?? "",
       TenantSlug: updated.tenant?.slug ?? "",
       TenantNombre: updated.tenant?.nombre ?? "",
-      TenantLogoBase64: updated.tenant?.logoBase64 ?? null,
       iss: "odontologia-saas",
       aud: "odontologia-clients",
     };
