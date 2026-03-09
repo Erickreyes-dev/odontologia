@@ -27,13 +27,13 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "MediSoftCore",
-  description: "Plataforma de gestión odontológica todo en uno",
+  description: "Plataforma de gestión clínica todo en uno",
   applicationName: "MediSoftCore",
   keywords: [
-    "software odontológico",
-    "gestión dental",
+    "software clínico",
+    "gestión de clínicas",
     "agenda de citas",
-    "historial clínico odontológico",
+    "historial clínico",
     "facturación clínica",
   ],
   authors: [{ name: "MediSoftCore" }],
@@ -61,8 +61,8 @@ export const metadata: Metadata = {
     locale: "es_DO",
     url: "/",
     siteName: "MediSoftCore",
-    title: "MediSoftCore | Plataforma de gestión odontológica",
-    description: "Administra pacientes, citas, pagos e inventario desde una plataforma odontológica todo en uno.",
+    title: "MediSoftCore | Plataforma de gestión clínica",
+    description: "Administra pacientes, citas, pagos e inventario desde una plataforma clínica todo en uno.",
     images: [
       {
         url: "/favicon.ico",
@@ -74,8 +74,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "MediSoftCore | Plataforma de gestión odontológica",
-    description: "Administra pacientes, citas, pagos e inventario desde una plataforma odontológica todo en uno.",
+    title: "MediSoftCore | Plataforma de gestión clínica",
+    description: "Administra pacientes, citas, pagos e inventario desde una plataforma clínica todo en uno.",
     images: ["/favicon.ico"],
   },
 };
