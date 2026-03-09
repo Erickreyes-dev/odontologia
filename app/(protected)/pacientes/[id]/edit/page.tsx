@@ -36,6 +36,7 @@ export default async function EditSeguro({ params }: { params: { id: string } })
         correo: paciente.correo,
         direccion: paciente.direccion,
         seguroId: paciente.seguroId,
+        conocioClinica: paciente.conocioClinica ?? null,
     }
 
 

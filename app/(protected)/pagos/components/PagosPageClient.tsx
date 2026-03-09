@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CreditCard, DollarSign } from "lucide-react";
+import { CalendarClock, CreditCard, DollarSign } from "lucide-react";
 import { DataTable } from "./data-table";
 import { FinanciamientoCard } from "./FinanciamientoCard";
 import { PagosListMobile } from "./pagos-list-mobile";
@@ -43,6 +43,13 @@ interface PagosPageClientProps {
     correo?: string | null;
     telefono?: string | null;
   };
+  cuotasPendientes: {
+    pacienteId: string;
+    pacienteNombre: string;
+    financiamientoId: string;
+    cuotasPendientes: { id: string; numero: number; monto: number; fechaVencimiento: Date }[];
+    totalPendiente: number;
+  }[];
 }
 
 export function PagosPageClient({
@@ -54,6 +61,7 @@ export function PagosPageClient({
   ordenesCobro,
   defaultPacienteId,
   clinicInfo,
+  cuotasPendientes,
 }: PagosPageClientProps) {
   const router = useRouter();
   const [pagoModalOpen, setPagoModalOpen] = useState(false);
@@ -124,6 +132,33 @@ export function PagosPageClient({
           <DataTable columns={columns} data={pagos} />
         </section>
 
+
+        <section>
+          <h2 className="text-lg font-semibold mb-3">Cuotas pendientes por cliente</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {cuotasPendientes.map((item) => (
+              <div key={item.financiamientoId} className="rounded-lg border p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium">{item.pacienteNombre}</p>
+                  <p className="text-sm text-muted-foreground">Fin. #{item.financiamientoId.slice(0, 8)}</p>
+                </div>
+                <div className="space-y-1">
+                  {item.cuotasPendientes.map((cuota) => (
+                    <div key={cuota.id} className="text-sm flex justify-between">
+                      <span className="inline-flex items-center gap-1"><CalendarClock className="h-3 w-3"/>Cuota {cuota.numero}</span>
+                      <span>L {cuota.monto.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm font-semibold">Total pendiente: L {item.totalPendiente.toFixed(2)}</p>
+              </div>
+            ))}
+            {cuotasPendientes.length === 0 && (
+              <p className="text-muted-foreground col-span-full">No hay cuotas pendientes.</p>
+            )}
+          </div>
+        </section>
+
         <section>
           <h2 className="text-lg font-semibold mb-3">Financiamientos Activos</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -145,6 +180,19 @@ export function PagosPageClient({
         <section>
           <h2 className="text-lg font-semibold mb-3">Pagos Recientes</h2>
           <PagosListMobile pagos={pagos} onDownloadRecibo={handleDownloadRecibo} />
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold mb-3">Cuotas pendientes</h2>
+          <div className="space-y-3">
+            {cuotasPendientes.map((item) => (
+              <div key={item.financiamientoId} className="rounded-lg border p-3">
+                <p className="font-medium">{item.pacienteNombre}</p>
+                <p className="text-xs text-muted-foreground">{item.cuotasPendientes.length} cuotas · L {item.totalPendiente.toFixed(2)}</p>
+              </div>
+            ))}
+            {cuotasPendientes.length === 0 && <p className="text-muted-foreground">No hay cuotas pendientes.</p>}
+          </div>
         </section>
 
         <section>

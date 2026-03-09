@@ -297,6 +297,38 @@ export function PacienteFormulario({
           )}
         />
 
+
+        {/* ¿Cómo conoció la clínica? */}
+        <Controller
+          name="conocioClinica"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel>¿Cómo conoció la clínica?</FieldLabel>
+              <FieldContent>
+                <Select
+                  value={field.value || "none"}
+                  onValueChange={(val) => field.onChange(val === "none" ? null : val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione una opción" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin especificar</SelectItem>
+                    <SelectItem value="REDES_SOCIALES">Redes sociales</SelectItem>
+                    <SelectItem value="AMIGOS">Amigos</SelectItem>
+                    <SelectItem value="MEDIO_COMUNICACION">Medio de comunicación</SelectItem>
+                    <SelectItem value="OTROS">Otros</SelectItem>
+                  </SelectContent>
+                </Select>
+
+              </FieldContent>
+              <FieldDescription>Fuente por la cual el paciente conoció la clínica.</FieldDescription>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+
         {/* Seguro */}
         <Controller
           name="seguroId"

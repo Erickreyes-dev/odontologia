@@ -89,6 +89,7 @@ export async function getConsultaByCitaId(citaId: string): Promise<Consulta | nu
       notas: r.notas,
       observacionesClinicas: r.observacionesClinicas,
       total: Number(r.total),
+      descuento: r.descuento !== null ? Number(r.descuento) : null,
       seguimientoId: r.seguimientoId ?? null,
       financiamientoId: r.financiamientoId ?? null,
       promocionId: r.promocionId ?? null,
@@ -165,6 +166,7 @@ export async function getConsultaById(id: string): Promise<Consulta | null> {
       notas: r.notas,
       observacionesClinicas: r.observacionesClinicas,
       total: Number(r.total),
+      descuento: r.descuento !== null ? Number(r.descuento) : null,
       seguimientoId: r.seguimientoId ?? null,
       financiamientoId: r.financiamientoId ?? null,
       promocionId: r.promocionId ?? null,
@@ -219,6 +221,7 @@ export async function upsertConsulta(
         0
       ) ?? 0;
 
+    const descuento = Math.max(Number(validatedData.descuento ?? 0), 0);
     let totalConsulta = totalServicios;
     if (validatedData.promocionId) {
       const promocion = await prisma.promocion.findFirst({
@@ -233,6 +236,8 @@ export async function upsertConsulta(
       }
       totalConsulta = Number(promocion.precioPromocional);
     }
+
+    totalConsulta = Math.max(totalConsulta - descuento, 0);
 
     // Verificar si ya existe una consulta para esta cita
     const existingConsulta = await prisma.consulta.findFirst({
@@ -257,6 +262,7 @@ export async function upsertConsulta(
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
             total: totalConsulta,
+            descuento,
           },
         });
         await tx.consultaServicio.deleteMany({ where: { consultaId: existingConsulta.id } });
@@ -322,6 +328,7 @@ export async function upsertConsulta(
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
             total: totalConsulta,
+            descuento,
             detalles: validatedData.servicios?.length
               ? {
                   create: validatedData.servicios.map((servicio) => ({
@@ -415,6 +422,7 @@ export async function finalizarConsulta(
         0
       ) ?? 0;
 
+    const descuento = Math.max(Number(validatedData.descuento ?? 0), 0);
     let totalPromocion: number | null = null;
     if (validatedData.promocionId) {
       const promocion = await prisma.promocion.findFirst({
@@ -431,6 +439,8 @@ export async function finalizarConsulta(
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      const totalCalculado = Math.max((totalPromocion ?? serviciosTotal) - descuento, 0);
+
       let productosExistentes: { productoId: string; cantidad: number }[] = [];
       if (consultaId) {
         productosExistentes = await tx.consultaProducto.findMany({
@@ -447,7 +457,8 @@ export async function finalizarConsulta(
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
-            total: totalPromocion ?? serviciosTotal,
+            total: totalCalculado,
+            descuento,
           },
         });
         await tx.consultaServicio.deleteMany({ where: { consultaId } });
@@ -465,7 +476,8 @@ export async function finalizarConsulta(
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
-            total: totalPromocion ?? serviciosTotal,
+            total: totalCalculado,
+            descuento,
           }),
         });
       }
@@ -565,6 +577,21 @@ export async function finalizarConsulta(
           },
         });
         planTratamientoId = seguimiento.etapa.planId;
+
+        const pendientes = await tx.seguimiento.count({
+          where: {
+            tenantId,
+            etapa: { planId: planTratamientoId },
+            estado: "PENDIENTE",
+          },
+        });
+
+        if (pendientes === 0) {
+          await tx.planTratamiento.update({
+            where: { id: planTratamientoId },
+            data: { estado: "COMPLETADO", fechaFin: new Date() },
+          });
+        }
       }
 
       const financiamientoId: string | null = validatedData.financiamientoId ?? null;
@@ -585,13 +612,13 @@ export async function finalizarConsulta(
           throw new Error("El financiamiento no tiene cuotas pendientes");
         }
         cuotaSeleccionada = { id: cuota.id, numero: cuota.numero, monto: Number(cuota.monto) };
-      } else if ((totalPromocion ?? serviciosTotal) <= 0) {
+      } else if (totalCalculado <= 0) {
         throw new Error("Debe registrar servicios con monto válido");
       }
 
       const montoTotal = financiamientoId
         ? cuotaSeleccionada?.monto ?? 0
-        : (totalPromocion ?? serviciosTotal);
+        : totalCalculado;
 
       const orden = await tx.ordenDeCobro.create({
         data: await withTenantData({
