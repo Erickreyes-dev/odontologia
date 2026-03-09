@@ -9,7 +9,7 @@ import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { getTenantContext } from "@/lib/tenant";
 import { EmailService } from "@/lib/sendEmail";
 import { generateCotizacionEmailHtml } from "@/lib/templates/clinical-notifications";
-import { getTenantLogoBase64 } from "@/lib/tenant-branding";
+import { getTenantEmailBranding } from "@/lib/tenant-branding";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
 
 /**
@@ -198,7 +198,7 @@ export async function createCotizacion(
       }
 
       const doctorName = await resolveDoctorSenderName();
-      const clinicLogoBase64 = await getTenantLogoBase64();
+      const { clinicLogoBase64, tenantName } = await getTenantEmailBranding();
       const emailService = new EmailService();
       await emailService.sendMail({
         to: cotizacion.paciente.correo,
@@ -212,6 +212,7 @@ export async function createCotizacion(
           estado: cotizacion.estado,
           servicios: cotizacion.detalles.map((d) => d.servicio.nombre),
           clinicLogoBase64,
+          tenantName,
         }),
       });
     }
@@ -428,7 +429,7 @@ export async function sendCotizacionEmail(
     }
 
     const doctorName = await resolveDoctorSenderName();
-    const clinicLogoBase64 = await getTenantLogoBase64();
+    const { clinicLogoBase64, tenantName } = await getTenantEmailBranding();
     const emailService = new EmailService();
 
     await emailService.sendMail({
@@ -443,6 +444,7 @@ export async function sendCotizacionEmail(
         estado: cotizacion.estado,
         servicios: cotizacion.detalles.map((d) => d.servicio.nombre),
         clinicLogoBase64,
+        tenantName,
       }),
     });
 
