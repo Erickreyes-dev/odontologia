@@ -61,20 +61,26 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   });
 
   const consultasFiltradas = useMemo(() => {
-    if (!range?.from || !range?.to) return data.consultas;
+    if (!range?.from) return data.consultas;
+
+    const from = startOfDay(range.from);
+    const to = endOfDay(range.to ?? range.from);
 
     return data.consultas.filter((item) => {
       const date = new Date(item.fecha);
-      return date >= startOfDay(range.from) && date <= endOfDay(range.to);
+      return date >= from && date <= to;
     });
   }, [data.consultas, range]);
 
   const pagosFiltrados = useMemo(() => {
-    if (!range?.from || !range?.to) return data.pagos;
+    if (!range?.from) return data.pagos;
+
+    const from = startOfDay(range.from);
+    const to = endOfDay(range.to ?? range.from);
 
     return data.pagos.filter((item) => {
       const date = new Date(item.fechaPago);
-      return date >= startOfDay(range.from) && date <= endOfDay(range.to);
+      return date >= from && date <= to;
     });
   }, [data.pagos, range]);
 
