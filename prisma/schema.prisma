@@ -224,6 +224,7 @@ model Paciente {
   telefono        String?   @db.VarChar(20)
   correo          String?   @db.VarChar(150)
   direccion       String?   @db.VarChar(255)
+  conocioClinica  ConocioClinica?
 
   seguroId String? @db.VarChar(36)
   seguro   Seguro? @relation(fields: [seguroId], references: [id])
@@ -244,6 +245,13 @@ model Paciente {
   @@unique([tenantId, identidad])
   @@index([tenantId])
   @@index([seguroId])
+}
+
+enum ConocioClinica {
+  REDES_SOCIALES
+  AMIGOS
+  MEDIO_COMUNICACION
+  OTROS
 }
 
 model Profesion {
@@ -380,6 +388,7 @@ model Consulta {
   notas                 String?   @db.Text
   observacionesClinicas String?   @db.Text
   total                 Decimal   @default(0) @db.Decimal(10, 2)
+  descuento             Decimal?  @db.Decimal(10, 2)
   seguimientoId         String?   @db.VarChar(36)
   financiamientoId      String?   @db.VarChar(36)
   promocionId           String?   @db.VarChar(36)

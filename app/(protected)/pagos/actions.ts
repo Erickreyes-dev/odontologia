@@ -1094,3 +1094,68 @@ export async function getPlanesActivos(): Promise<
     return [];
   }
 }
+
+
+export async function getCuotasPendientesResumen(): Promise<{
+  pacienteId: string;
+  pacienteNombre: string;
+  financiamientoId: string;
+  cuotasPendientes: {
+    id: string;
+    numero: number;
+    monto: number;
+    fechaVencimiento: Date;
+  }[];
+  totalPendiente: number;
+}[]> {
+  try {
+    const cuotas = await prisma.cuotaFinanciamiento.findMany({
+      where: await tenantWhere<Prisma.CuotaFinanciamientoWhereInput>({ pagada: false }),
+      include: {
+        financiamiento: {
+          include: {
+            paciente: {
+              select: { id: true, nombre: true, apellido: true },
+            },
+          },
+        },
+      },
+      orderBy: [{ fechaVencimiento: "asc" }],
+    });
+
+    const grouped = new Map<string, {
+      pacienteId: string;
+      pacienteNombre: string;
+      financiamientoId: string;
+      cuotasPendientes: { id: string; numero: number; monto: number; fechaVencimiento: Date }[];
+      totalPendiente: number;
+    }>();
+
+    cuotas.forEach((cuota) => {
+      const key = cuota.financiamientoId;
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          pacienteId: cuota.financiamiento.paciente.id,
+          pacienteNombre: `${cuota.financiamiento.paciente.nombre} ${cuota.financiamiento.paciente.apellido}`,
+          financiamientoId: cuota.financiamientoId,
+          cuotasPendientes: [],
+          totalPendiente: 0,
+        });
+      }
+
+      const item = grouped.get(key)!;
+      item.cuotasPendientes.push({
+        id: cuota.id,
+        numero: cuota.numero,
+        monto: Number(cuota.monto),
+        fechaVencimiento: cuota.fechaVencimiento,
+      });
+      item.totalPendiente += Number(cuota.monto);
+    });
+
+    return Array.from(grouped.values());
+  } catch (error) {
+    console.error("Error al obtener cuotas pendientes:", error);
+    return [];
+  }
+}

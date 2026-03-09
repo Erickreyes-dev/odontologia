@@ -46,7 +46,7 @@ export function DataTable<TData, TValue>({
   onPageChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
 
   const table = useReactTable({
@@ -76,6 +76,7 @@ export function DataTable<TData, TValue>({
     },
 
     onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
 
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -107,6 +108,21 @@ export function DataTable<TData, TValue>({
             <Plus className="h-4 w-4" />
           </Button>
         </Link>
+      </div>
+
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 pb-3">
+        {table
+          .getAllLeafColumns()
+          .filter((column) => column.getCanFilter() && column.id !== "actions")
+          .map((column) => (
+            <Input
+              key={column.id}
+              placeholder={`Filtrar ${column.id}...`}
+              value={(column.getFilterValue() as string) ?? ""}
+              onChange={(event) => column.setFilterValue(event.target.value)}
+            />
+          ))}
       </div>
 
       {/* Tabla */}

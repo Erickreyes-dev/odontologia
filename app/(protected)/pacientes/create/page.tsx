@@ -29,6 +29,7 @@ export default async function Create() {
         correo: "",
         direccion: "",
         seguroId: "",
+        conocioClinica: null,
     }
 
     return (

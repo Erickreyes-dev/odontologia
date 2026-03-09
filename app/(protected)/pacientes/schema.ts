@@ -24,6 +24,10 @@ export const PacienteSchema = z.object({
             "Correo inválido"
         ),
     direccion: z.string().optional().nullable(),
+    conocioClinica: z
+        .enum(["REDES_SOCIALES", "AMIGOS", "MEDIO_COMUNICACION", "OTROS"])
+        .optional()
+        .nullable(),
     seguroId: z.string().optional(),
     activo: z.boolean(),
 });

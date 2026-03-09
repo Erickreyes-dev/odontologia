@@ -71,3 +71,58 @@ export async function putProducto(data: Producto) {
     },
   });
 }
+
+
+export async function getInventarioHistorial(fechaInicio?: Date, fechaFin?: Date) {
+  const start = fechaInicio ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const end = fechaFin ?? new Date();
+
+  const usos = await prisma.consultaProducto.findMany({
+    where: await tenantWhere<Prisma.ConsultaProductoWhereInput>({
+      createAt: { gte: start, lte: end },
+    }),
+    include: {
+      producto: { select: { id: true, nombre: true } },
+      consulta: {
+        select: {
+          id: true,
+          fechaConsulta: true,
+          detalles: {
+            select: { servicio: { select: { nombre: true } } },
+          },
+        },
+      },
+    },
+    orderBy: { createAt: "desc" },
+  });
+
+  const byProducto = new Map<string, {
+    productoId: string;
+    productoNombre: string;
+    totalUsado: number;
+    servicios: Record<string, number>;
+  }>();
+
+  usos.forEach((uso) => {
+    const key = uso.productoId;
+    if (!byProducto.has(key)) {
+      byProducto.set(key, {
+        productoId: uso.productoId,
+        productoNombre: uso.producto.nombre,
+        totalUsado: 0,
+        servicios: {},
+      });
+    }
+
+    const item = byProducto.get(key)!;
+    item.totalUsado += uso.cantidad;
+
+    const servicios = uso.consulta.detalles.map((detalle) => detalle.servicio.nombre);
+    const unique = servicios.length ? Array.from(new Set(servicios)) : ["Sin servicio asociado"];
+    unique.forEach((servicio) => {
+      item.servicios[servicio] = (item.servicios[servicio] ?? 0) + uso.cantidad;
+    });
+  });
+
+  return Array.from(byProducto.values()).sort((a, b) => b.totalUsado - a.totalUsado);
+}

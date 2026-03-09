@@ -54,6 +54,7 @@ export async function getPacientes({
       correo: r.correo,
       direccion: r.direccion,
       seguroId: r.seguroId || "",
+      conocioClinica: r.conocioClinica,
       activo: r.activo,
     }));
 
@@ -93,6 +94,7 @@ export async function getPacientesActivos(): Promise<Paciente[]> {
             correo: r.correo,
             direccion: r.direccion,
             seguroId: r.seguroId || "",
+            conocioClinica: r.conocioClinica,
             activo: r.activo,
         }));
     } catch (error) {
@@ -146,6 +148,7 @@ export async function getPacienteById(id: string): Promise<Paciente | null> {
             correo: r.correo,
             direccion: r.direccion,
             seguroId: r.seguroId || "",
+            conocioClinica: r.conocioClinica,
             activo: r.activo,
         };
     } catch (error) {
@@ -181,6 +184,7 @@ export async function createPaciente(data: Paciente): Promise<{ success: true; d
                 correo: normalizeOptionalEmail(validatedData.correo),
                 direccion: validatedData.direccion,
                 seguroId: normalizeOptionalSeguroId(validatedData.seguroId),
+                conocioClinica: validatedData.conocioClinica ?? null,
                 activo: validatedData.activo,
             }),
         });
@@ -196,6 +200,7 @@ export async function createPaciente(data: Paciente): Promise<{ success: true; d
             correo: r.correo,
             direccion: r.direccion,
             seguroId: r.seguroId || "",
+            conocioClinica: r.conocioClinica,
             activo: r.activo,
         };
 
@@ -241,6 +246,7 @@ export async function updatePaciente(id: string, data: Partial<Paciente>): Promi
                 ...(validatedData.correo !== undefined && { correo: normalizeOptionalEmail(validatedData.correo) }),
                 ...(validatedData.direccion !== undefined && { direccion: validatedData.direccion }),
                 ...(validatedData.seguroId !== undefined && { seguroId: normalizeOptionalSeguroId(validatedData.seguroId) }),
+                ...(validatedData.conocioClinica !== undefined && { conocioClinica: validatedData.conocioClinica }),
                 ...(validatedData.activo !== undefined && { activo: validatedData.activo }),
             },
         });
@@ -256,6 +262,7 @@ export async function updatePaciente(id: string, data: Partial<Paciente>): Promi
             correo: r.correo,
             direccion: r.direccion,
             seguroId: r.seguroId || "",
+            conocioClinica: r.conocioClinica,
             activo: r.activo,
         };
 

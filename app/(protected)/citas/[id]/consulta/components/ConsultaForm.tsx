@@ -130,6 +130,7 @@ export function ConsultaForm({
       seguimientoId: consulta?.seguimientoId ?? null,
       financiamientoId: consulta?.financiamientoId ?? null,
       promocionId: consulta?.promocionId ?? null,
+      descuento: consulta?.descuento ?? 0,
     },
   });
 
@@ -160,6 +161,7 @@ export function ConsultaForm({
   const seguimientoId = useWatch({ control: form.control, name: "seguimientoId" });
   const financiamientoId = useWatch({ control: form.control, name: "financiamientoId" });
   const promocionId = useWatch({ control: form.control, name: "promocionId" });
+  const descuento = useWatch({ control: form.control, name: "descuento" }) ?? 0;
 
   const totalServicios = useMemo(
     () =>
@@ -185,11 +187,13 @@ export function ConsultaForm({
     return promociones.find((promo) => promo.id === promocionId) ?? null;
   }, [promocionId, promociones]);
 
-  const totalConsulta = financiamientoSeleccionado
+  const subtotalConsulta = financiamientoSeleccionado
     ? cuotaPendiente?.monto ?? 0
     : promocionSeleccionada
       ? promocionSeleccionada.precioPromocional
       : totalServicios;
+
+  const totalConsulta = Math.max(subtotalConsulta - Number(descuento || 0), 0);
 
   const hasServiciosPlan = Boolean(seguimientoId);
 
@@ -827,6 +831,38 @@ export function ConsultaForm({
                       ))}
                     </SelectContent>
                   </Select>
+                </FieldContent>
+              </Field>
+
+              <Controller
+                name="descuento"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel>Descuento (opcional)</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={field.value ?? 0}
+                        onChange={(event) => field.onChange(Number(event.target.value || 0))}
+                      />
+                    </FieldContent>
+                    <FieldDescription>Se descuenta del subtotal de la consulta.</FieldDescription>
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+
+              <Field>
+                <FieldLabel>Subtotal de la consulta</FieldLabel>
+                <FieldContent>
+                  <Input
+                    value={subtotalConsulta.toFixed(2)}
+                    readOnly
+                    className="bg-muted"
+                  />
                 </FieldContent>
               </Field>
 
