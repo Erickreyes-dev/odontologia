@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ExportExcelButton } from "@/components/export-excel-button";
 import {
   ColumnDef,
   flexRender,
@@ -65,6 +66,7 @@ export function DataTable({ columns, data }: DataTableProps) {
           onChange={(event) => setGlobalFilter(event.target.value)}
           className="w-full md:max-w-sm"
         />
+        <ExportExcelButton data={data as Record<string, unknown>[]} fileName="pagos" />
       </div>
 
       <div className="rounded-md border">

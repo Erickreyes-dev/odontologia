@@ -2,6 +2,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ExportExcelButton } from "@/components/export-excel-button";
 import {
   ColumnDef,
   flexRender,
@@ -77,6 +78,7 @@ export function DataTable<TData, TValue>({
       <Plus />
     </Button>
   </Link>
+  <ExportExcelButton data={data as Record<string, unknown>[]} fileName="empleados" />
 </div>
 
       <div className="rounded-md border">

@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ExportExcelButton } from "@/components/export-excel-button";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -75,6 +76,7 @@ export function DataTable<TData, TValue>({
             <Plus />
           </Button>
         </Link>
+        <ExportExcelButton data={data as Record<string, unknown>[]} fileName="inventario" />
       </div>
 
       <div className="rounded-md border">

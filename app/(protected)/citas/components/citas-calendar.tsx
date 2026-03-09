@@ -8,7 +8,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Cita } from "../schema";
+import { Cita, ESTADOS_CITA } from "../schema";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface CitasCalendarProps {
   citas: Cita[];
@@ -17,22 +18,41 @@ interface CitasCalendarProps {
 
 export function CitasCalendar({ citas, initialDate }: CitasCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(parseISO(initialDate));
+  const [estadoFiltro, setEstadoFiltro] = useState<string>("todos");
+
+  const citasFiltradas = useMemo(() => {
+    if (estadoFiltro === "todos") return citas;
+    return citas.filter((cita) => cita.estado === estadoFiltro);
+  }, [citas, estadoFiltro]);
 
   const citasPorDia = useMemo(() => {
-    return citas.filter((cita) => isSameDay(new Date(cita.fechaHora), selectedDate));
-  }, [citas, selectedDate]);
+    return citasFiltradas.filter((cita) => isSameDay(new Date(cita.fechaHora), selectedDate));
+  }, [citasFiltradas, selectedDate]);
 
-  const fechasConCitas = useMemo(() => {
-    return citas
-      .filter((cita) => cita.estado === "programada")
-      .map((cita) => new Date(cita.fechaHora));
-  }, [citas]);
+  const fechasProgramadas = useMemo(() => citas.filter((cita) => cita.estado === "programada").map((cita) => new Date(cita.fechaHora)), [citas]);
+  const fechasAtendidas = useMemo(() => citas.filter((cita) => cita.estado === "atendida").map((cita) => new Date(cita.fechaHora)), [citas]);
+  const fechasCanceladas = useMemo(() => citas.filter((cita) => cita.estado === "cancelada").map((cita) => new Date(cita.fechaHora)), [citas]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
       <Card>
-        <CardHeader>
+        <CardHeader className="space-y-3">
           <CardTitle>Calendario de citas</CardTitle>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Select value={estadoFiltro} onValueChange={setEstadoFiltro}>
+              <SelectTrigger className="w-full sm:w-52">
+                <SelectValue placeholder="Filtrar por estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los estados</SelectItem>
+                {ESTADOS_CITA.map((estado) => (
+                  <SelectItem key={estado.value} value={estado.value}>
+                    {estado.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent className="flex justify-center">
           <Calendar
@@ -41,10 +61,15 @@ export function CitasCalendar({ citas, initialDate }: CitasCalendarProps) {
             onSelect={(date) => date && setSelectedDate(date)}
             showOutsideDays
             className="w-full"
-            modifiers={{ conCitas: fechasConCitas }}
+            modifiers={{
+              programadas: fechasProgramadas,
+              atendidas: fechasAtendidas,
+              canceladas: fechasCanceladas,
+            }}
             modifiersClassNames={{
-              conCitas:
-                "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-primary",
+              programadas: "relative after:absolute after:bottom-1 after:left-[35%] after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-primary",
+              atendidas: "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-emerald-500",
+              canceladas: "relative after:absolute after:bottom-1 after:left-[65%] after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-destructive",
             }}
           />
         </CardContent>
@@ -93,7 +118,7 @@ export function CitasCalendar({ citas, initialDate }: CitasCalendarProps) {
             ))
           ) : (
             <p className="text-sm text-muted-foreground">
-              No hay citas programadas para este dia.
+              No hay citas para este día con el estado seleccionado.
             </p>
           )}
         </CardContent>

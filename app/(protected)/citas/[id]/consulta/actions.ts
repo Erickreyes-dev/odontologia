@@ -221,7 +221,7 @@ export async function upsertConsulta(
         0
       ) ?? 0;
 
-    const descuento = Math.max(Number(validatedData.descuento ?? 0), 0);
+    const descuentoPorcentaje = Math.min(Math.max(Number(validatedData.descuento ?? 0), 0), 100);
     let totalConsulta = totalServicios;
     if (validatedData.promocionId) {
       const promocion = await prisma.promocion.findFirst({
@@ -237,7 +237,8 @@ export async function upsertConsulta(
       totalConsulta = Number(promocion.precioPromocional);
     }
 
-    totalConsulta = Math.max(totalConsulta - descuento, 0);
+    const descuentoMonto = totalConsulta * (descuentoPorcentaje / 100);
+    totalConsulta = Math.max(totalConsulta - descuentoMonto, 0);
 
     // Verificar si ya existe una consulta para esta cita
     const existingConsulta = await prisma.consulta.findFirst({
@@ -262,7 +263,7 @@ export async function upsertConsulta(
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
             total: totalConsulta,
-            descuento,
+            descuento: descuentoPorcentaje,
           },
         });
         await tx.consultaServicio.deleteMany({ where: { consultaId: existingConsulta.id } });
@@ -328,7 +329,7 @@ export async function upsertConsulta(
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
             total: totalConsulta,
-            descuento,
+            descuento: descuentoPorcentaje,
             detalles: validatedData.servicios?.length
               ? {
                   create: validatedData.servicios.map((servicio) => ({
@@ -422,7 +423,7 @@ export async function finalizarConsulta(
         0
       ) ?? 0;
 
-    const descuento = Math.max(Number(validatedData.descuento ?? 0), 0);
+    const descuentoPorcentaje = Math.min(Math.max(Number(validatedData.descuento ?? 0), 0), 100);
     let totalPromocion: number | null = null;
     if (validatedData.promocionId) {
       const promocion = await prisma.promocion.findFirst({
@@ -439,7 +440,9 @@ export async function finalizarConsulta(
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const totalCalculado = Math.max((totalPromocion ?? serviciosTotal) - descuento, 0);
+      const baseTotal = totalPromocion ?? serviciosTotal;
+      const descuentoMonto = baseTotal * (descuentoPorcentaje / 100);
+      const totalCalculado = Math.max(baseTotal - descuentoMonto, 0);
 
       let productosExistentes: { productoId: string; cantidad: number }[] = [];
       if (consultaId) {
@@ -458,7 +461,7 @@ export async function finalizarConsulta(
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
             total: totalCalculado,
-            descuento,
+            descuento: descuentoPorcentaje,
           },
         });
         await tx.consultaServicio.deleteMany({ where: { consultaId } });
@@ -477,7 +480,7 @@ export async function finalizarConsulta(
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
             total: totalCalculado,
-            descuento,
+            descuento: descuentoPorcentaje,
           }),
         });
       }

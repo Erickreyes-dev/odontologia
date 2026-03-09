@@ -3,6 +3,7 @@ import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ExportExcelButton } from "@/components/export-excel-button";
 import { Tags } from "lucide-react";
 import Link from "next/link";
 import { getPromociones } from "./actions";
@@ -20,11 +21,14 @@ export default async function PromocionesPage() {
     <div className="container mx-auto py-4 space-y-5">
       <HeaderComponent Icon={Tags} screenName="Promociones" description="Paquetes y promociones de servicios por clínica." />
 
-      {permisos.includes("crear_promociones") && (
-        <Link href="/promociones/create">
-          <Button>Crear promoción</Button>
-        </Link>
-      )}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        {permisos.includes("crear_promociones") && (
+          <Link href="/promociones/create">
+            <Button>Crear promoción</Button>
+          </Link>
+        )}
+        <ExportExcelButton data={promociones as unknown as Record<string, unknown>[]} fileName="promociones" />
+      </div>
 
       <div className="space-y-3">
         {promociones.map((promo) => (

@@ -3,12 +3,15 @@ import { es } from "date-fns/locale";
 
 const HONDURAS_TIMEZONE = "America/Tegucigalpa";
 
-function layout(title: string, subtitle: string, content: string) {
+function layout(title: string, subtitle: string, content: string, clinicLogoBase64?: string | null) {
   return `
   <div style="font-family: Inter, Arial, sans-serif; background:#f3f7fb; padding:28px; color:#0f172a;">
     <div style="max-width:680px; margin:0 auto; background:#ffffff; border:1px solid #dbeafe; border-radius:16px; overflow:hidden;">
       <div style="background:linear-gradient(135deg,#0f172a,#0f766e); padding:28px; color:#fff;">
-        <p style="margin:0; font-size:12px; letter-spacing:.12em; text-transform:uppercase; opacity:.85;">MedisoftCore</p>
+        <div style="display:flex; align-items:center; gap:10px;">
+          ${clinicLogoBase64 ? `<img src="${clinicLogoBase64}" alt="Logo clínica" style="width:36px; height:36px; border-radius:8px; object-fit:cover; background:#fff;" />` : ""}
+          <p style="margin:0; font-size:12px; letter-spacing:.12em; text-transform:uppercase; opacity:.85;">MedisoftCore</p>
+        </div>
         <h2 style="margin:8px 0 4px; font-size:24px;">${title}</h2>
         <p style="margin:0; font-size:14px; opacity:.9;">${subtitle}</p>
       </div>
@@ -23,6 +26,7 @@ function layout(title: string, subtitle: string, content: string) {
 }
 
 export function generateAppointmentEmailHtml(params: {
+  clinicLogoBase64?: string | null;
   pacienteNombre: string;
   medicoNombre: string;
   consultorioNombre: string;
@@ -51,10 +55,11 @@ export function generateAppointmentEmailHtml(params: {
      ${params.observacion ? `<p><strong>Observaciones:</strong> ${params.observacion}</p>` : ""}
      <p>Le recomendamos llegar 10 minutos antes de su cita.</p>
      <p>Atentamente,<br/>Dr(a). ${params.medicoNombre}</p>`
-  );
+  , params.clinicLogoBase64);
 }
 
 export function generateCotizacionEmailHtml(params: {
+  clinicLogoBase64?: string | null;
   pacienteNombre: string;
   medicoNombre: string;
   fecha: Date;
@@ -74,10 +79,11 @@ export function generateCotizacionEmailHtml(params: {
      <ul>${params.servicios.map((s) => `<li>${s}</li>`).join("")}</ul>
      <p>Para continuar, puede responder este correo o comunicarse con recepción.</p>
      <p>Atentamente,<br/>Dr(a). ${params.medicoNombre}</p>`
-  );
+  , params.clinicLogoBase64);
 }
 
 export function generatePlanEmailHtml(params: {
+  clinicLogoBase64?: string | null;
   pacienteNombre: string;
   medicoNombre: string;
   planNombre: string;
@@ -97,10 +103,11 @@ export function generatePlanEmailHtml(params: {
      <ol>${params.etapas.map((e) => `<li>${e}</li>`).join("")}</ol>
      <p>Si necesita ajustes en fechas o alcance, nuestro equipo puede apoyarle.</p>
      <p>Atentamente,<br/>Dr(a). ${params.medicoNombre}</p>`
-  );
+  , params.clinicLogoBase64);
 }
 
 export function generatePagoEmailHtml(params: {
+  clinicLogoBase64?: string | null;
   pacienteNombre: string;
   medicoNombre: string;
   fechaPago: Date;
@@ -119,5 +126,5 @@ export function generatePagoEmailHtml(params: {
      <strong>Referencia:</strong> ${params.referencia || "N/A"}</p>
      <p>Gracias por su confianza.</p>
      <p>Atentamente,<br/>Dr(a). ${params.medicoNombre}</p>`
-  );
+  , params.clinicLogoBase64);
 }

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import {  Boxes, Calendar, ChevronDown, ChevronUp, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
 import Link from "next/link";
+import Image from "next/image";
 import { NavUser } from "./nav-user";
 import { ModeToggle } from "./buton-theme";
 
@@ -189,8 +190,19 @@ export async function AppSidebar() {
     <Sidebar collapsible="icon" variant="floating" data-tour="sidebar">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="flex justify-between items-center" data-tour="workspace-label">
-            <span>{usuario?.TenantSlug || "Sistema Autogestión MP"}</span>
+          <SidebarGroupLabel className="flex items-center justify-between gap-2" data-tour="workspace-label">
+            <div className="flex items-center gap-2 min-w-0">
+              {usuario?.TenantLogoBase64 ? (
+                <Image
+                  src={usuario.TenantLogoBase64}
+                  alt={`Logo de ${usuario.TenantNombre || usuario.TenantSlug}`}
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 rounded object-cover border"
+                />
+              ) : null}
+              <span className="truncate">{usuario?.TenantSlug || "Sistema Autogestión MP"}</span>
+            </div>
             <ModeToggle></ModeToggle>
           </SidebarGroupLabel>
 
