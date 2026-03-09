@@ -31,6 +31,11 @@ export default async function DashboardPage() {
         detalles: {
           select: {
             cantidad: true,
+            servicio: {
+              select: {
+                nombre: true,
+              },
+            },
           },
         },
       },
@@ -87,6 +92,10 @@ export default async function DashboardPage() {
         consultas: consultas.map((consulta) => ({
           fecha: (consulta.fechaConsulta ?? consulta.createAt).toISOString(),
           servicios: consulta.detalles.reduce((acc, d) => acc + d.cantidad, 0),
+          detalleServicios: consulta.detalles.map((d) => ({
+            nombre: d.servicio.nombre,
+            cantidad: d.cantidad,
+          })),
         })),
         pagos: pagos.map((pago) => ({
           fechaPago: pago.fechaPago.toISOString(),
