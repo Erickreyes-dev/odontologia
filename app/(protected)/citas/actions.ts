@@ -10,7 +10,7 @@ import { Prisma } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { EmailService } from "@/lib/sendEmail";
 import { generateAppointmentEmailHtml } from "@/lib/templates/clinical-notifications";
-import { getTenantLogoBase64 } from "@/lib/tenant-branding";
+import { getTenantEmailBranding } from "@/lib/tenant-branding";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
 
 /**
@@ -384,7 +384,7 @@ export async function createCita(
       }
 
       const doctorName = `${r.medico?.empleado?.nombre ?? ""} ${r.medico?.empleado?.apellido ?? ""}`.trim() || await resolveDoctorSenderName();
-      const clinicLogoBase64 = await getTenantLogoBase64();
+      const { clinicLogoBase64, tenantName } = await getTenantEmailBranding();
       const emailService = new EmailService();
 
       await emailService.sendMail({
@@ -399,6 +399,7 @@ export async function createCita(
           motivo: r.motivo,
           observacion: r.observacion,
           clinicLogoBase64,
+          tenantName,
         }),
       });
     }
@@ -565,7 +566,7 @@ export async function sendCitaEmail(
     }
 
     const doctorName = `${cita.medico?.empleado?.nombre ?? ""} ${cita.medico?.empleado?.apellido ?? ""}`.trim() || await resolveDoctorSenderName();
-    const clinicLogoBase64 = await getTenantLogoBase64();
+    const { clinicLogoBase64, tenantName } = await getTenantEmailBranding();
     const emailService = new EmailService();
 
     await emailService.sendMail({
@@ -580,6 +581,7 @@ export async function sendCitaEmail(
         motivo: cita.motivo,
         observacion: cita.observacion,
         clinicLogoBase64,
+        tenantName,
       }),
     });
 

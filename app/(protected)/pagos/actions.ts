@@ -20,7 +20,7 @@ import { getSession } from "@/auth";
 import { EmailService } from "@/lib/sendEmail";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
 import { generatePagoEmailHtml } from "@/lib/templates/clinical-notifications";
-import { getTenantLogoBase64 } from "@/lib/tenant-branding";
+import { getTenantEmailBranding } from "@/lib/tenant-branding";
 
 const CENTRAL_AMERICA_OFFSET_MS = 6 * 60 * 60 * 1000;
 
@@ -978,7 +978,7 @@ export async function sendPagoEmail(
     }
 
     const doctorName = await resolveDoctorSenderName();
-    const clinicLogoBase64 = await getTenantLogoBase64();
+    const { clinicLogoBase64, tenantName } = await getTenantEmailBranding();
     const emailService = new EmailService();
 
     await emailService.sendMail({
@@ -993,6 +993,7 @@ export async function sendPagoEmail(
         metodo: getMetodoPagoLabel(pago.metodo),
         referencia: pago.referencia,
         clinicLogoBase64,
+        tenantName,
       }),
     });
 
