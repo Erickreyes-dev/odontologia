@@ -4,6 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { RequestAccessForm } from "@/components/request-access-form";
+import { headers } from "next/headers";
+import { prisma } from "@/lib/prisma";
+import Image from "next/image";
 
 const services = [
   {
@@ -68,11 +71,95 @@ const faqs = [
   },
 ];
 
+function normalizeLogo(logoBase64: string | null): string | null {
+  if (!logoBase64) return null;
+  if (logoBase64.startsWith("data:image/")) return logoBase64;
+  return `data:image/png;base64,${logoBase64}`;
+}
+
 export default async function LandingPage() {
   const session = await getSession();
 
   if (session) {
     redirect("/profile");
+  }
+
+  const tenantSlug = headers().get("x-tenant-slug");
+
+  let tenantLanding = null;
+  if (tenantSlug) {
+    try {
+      tenantLanding = await prisma.tenant.findUnique({
+        where: { slug: tenantSlug },
+        select: {
+          nombre: true,
+          slug: true,
+          logoBase64: true,
+          mision: true,
+          vision: true,
+          serviciosInfo: true,
+          horariosInfo: true,
+          redesSociales: true,
+          contactoCorreo: true,
+          telefono: true,
+          activo: true,
+        },
+      });
+    } catch {
+      tenantLanding = null;
+    }
+  }
+
+  if (tenantLanding?.activo) {
+    const logo = normalizeLogo(tenantLanding.logoBase64);
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100">
+        <section className="mx-auto w-full max-w-5xl px-4 py-12 sm:px-6 lg:py-16 space-y-8">
+          <div className="text-center space-y-4">
+            {logo ? (
+              <Image src={logo} alt={`Logo ${tenantLanding.nombre}`} width={96} height={96} className="mx-auto h-24 w-24 rounded border object-cover" unoptimized />
+            ) : null}
+            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">Bienvenido a</p>
+            <h1 className="text-4xl font-bold">{tenantLanding.nombre}</h1>
+            <p className="text-slate-300">Subdominio: {tenantLanding.slug}</p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="border-slate-700 bg-slate-900/60">
+              <CardHeader><CardTitle>Misión</CardTitle></CardHeader>
+              <CardContent className="text-sm text-slate-300 whitespace-pre-line">{tenantLanding.mision || "No definida aún."}</CardContent>
+            </Card>
+            <Card className="border-slate-700 bg-slate-900/60">
+              <CardHeader><CardTitle>Visión</CardTitle></CardHeader>
+              <CardContent className="text-sm text-slate-300 whitespace-pre-line">{tenantLanding.vision || "No definida aún."}</CardContent>
+            </Card>
+            <Card className="border-slate-700 bg-slate-900/60">
+              <CardHeader><CardTitle>Servicios</CardTitle></CardHeader>
+              <CardContent className="text-sm text-slate-300 whitespace-pre-line">{tenantLanding.serviciosInfo || "No definidos aún."}</CardContent>
+            </Card>
+            <Card className="border-slate-700 bg-slate-900/60">
+              <CardHeader><CardTitle>Horarios</CardTitle></CardHeader>
+              <CardContent className="text-sm text-slate-300 whitespace-pre-line">{tenantLanding.horariosInfo || "No definidos aún."}</CardContent>
+            </Card>
+          </div>
+
+          <Card className="border-slate-700 bg-slate-900/60">
+            <CardHeader><CardTitle>Redes sociales y contacto</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-sm text-slate-300 whitespace-pre-line">
+              <p>{tenantLanding.redesSociales || "Sin redes sociales configuradas."}</p>
+              <p>Correo: {tenantLanding.contactoCorreo || "No especificado"}</p>
+              <p>Teléfono: {tenantLanding.telefono || "No especificado"}</p>
+            </CardContent>
+          </Card>
+
+          <div className="text-center">
+            <Button asChild className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+              <Link href="/login">Acceso al portal</Link>
+            </Button>
+          </div>
+        </section>
+      </div>
+    );
   }
 
   return (

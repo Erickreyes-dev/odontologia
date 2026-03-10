@@ -17,7 +17,7 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import {  Boxes, Calendar, ChevronDown, ChevronUp, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
+import {  Boxes, Building2, Calendar, ChevronDown, ChevronUp, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
 import Link from "next/link";
 import Image from "next/image";
 import { NavUser } from "./nav-user";
@@ -167,7 +167,14 @@ const items = [
     url: "/ordenes-cobro",
     icon: Receipt,
     permiso: "ver_pagos",
-  }
+  },
+
+  {
+    title: "Mi Clínica",
+    url: "/mi-clinica",
+    icon: Building2,
+    permiso: "editar_tenant",
+  },
 ];
 
 export async function AppSidebar() {

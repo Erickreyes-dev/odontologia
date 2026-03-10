@@ -1,6 +1,5 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useState, useTransition } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -8,14 +7,8 @@ import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Mail, Phone } from "lucide-react";
-import Image from "next/image";
 import type { Employee } from "../type";
 import { calcularEdad, calculateServiceDuration } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { updateTenantContactInfo } from "../actions";
-import { toast } from "sonner";
 
 interface EmployeeProfileProps {
   employee: Employee;
@@ -26,47 +19,6 @@ export default function EmployeeProfile({ employee }: EmployeeProfileProps) {
   const yearsOfService = employee.fechaIngreso
     ? calculateServiceDuration(employee.fechaIngreso)
     : { years: 0, months: 0, days: 0 };
-
-  const [tenantTelefono, setTenantTelefono] = useState(employee.tenantTelefono ?? "");
-  const [tenantCorreo, setTenantCorreo] = useState(employee.tenantCorreo ?? "");
-  const [tenantLogoBase64, setTenantLogoBase64] = useState(employee.tenantLogoBase64 ?? "");
-  const [isPending, startTransition] = useTransition();
-
-  const handleLogoChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setTenantLogoBase64("");
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Seleccione una imagen válida");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => setTenantLogoBase64(String(reader.result || ""));
-    reader.readAsDataURL(file);
-  };
-
-  const handleTenantContactSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    startTransition(async () => {
-      const result = await updateTenantContactInfo({
-        telefono: tenantTelefono,
-        correo: tenantCorreo,
-        logoBase64: tenantLogoBase64 || null,
-      });
-
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-
-      toast.success("Información de tenant actualizada");
-    });
-  };
 
   return (
     <div className="container mx-auto py-2">
@@ -151,50 +103,7 @@ export default function EmployeeProfile({ employee }: EmployeeProfileProps) {
 
                 <dt className="font-medium text-muted-foreground">Correo:</dt>
                 <dd>{employee.correo ?? "No especificado"}</dd>
-
-                <dt className="font-medium text-muted-foreground">Teléfono tenant:</dt>
-                <dd>{employee.tenantTelefono ?? "No especificado"}</dd>
-
-                <dt className="font-medium text-muted-foreground">Correo tenant:</dt>
-                <dd>{employee.tenantCorreo ?? "No especificado"}</dd>
               </dl>
-
-              {employee.canEditTenantContact && (
-                <form className="space-y-3 rounded-md border p-4" onSubmit={handleTenantContactSubmit}>
-                  <h4 className="font-medium">Editar contacto y logo del tenant</h4>
-                  <div className="space-y-1">
-                    <Label htmlFor="tenantTelefono">Teléfono</Label>
-                    <Input
-                      id="tenantTelefono"
-                      value={tenantTelefono}
-                      onChange={(event) => setTenantTelefono(event.target.value)}
-                      maxLength={20}
-                      placeholder="Opcional"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="tenantCorreo">Correo</Label>
-                    <Input
-                      id="tenantCorreo"
-                      type="email"
-                      value={tenantCorreo}
-                      onChange={(event) => setTenantCorreo(event.target.value)}
-                      maxLength={150}
-                      placeholder="Opcional"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="tenantLogo">Logo</Label>
-                    <Input id="tenantLogo" type="file" accept="image/*" onChange={handleLogoChange} />
-                    {tenantLogoBase64 && (
-                      <Image src={tenantLogoBase64} alt="Logo tenant" width={64} height={64} className="h-16 w-16 rounded border object-cover" unoptimized />
-                    )}
-                  </div>
-                  <Button type="submit" disabled={isPending}>
-                    {isPending ? "Guardando..." : "Guardar datos del tenant"}
-                  </Button>
-                </form>
-              )}
             </div>
           </div>
         </CardContent>

@@ -1,0 +1,6 @@
+ALTER TABLE `Tenant`
+  ADD COLUMN `mision` LONGTEXT NULL,
+  ADD COLUMN `vision` LONGTEXT NULL,
+  ADD COLUMN `serviciosInfo` LONGTEXT NULL,
+  ADD COLUMN `horariosInfo` LONGTEXT NULL,
+  ADD COLUMN `redesSociales` LONGTEXT NULL;
