@@ -55,6 +55,7 @@ export async function getPromociones(): Promise<Promocion[]> {
     fechaInicio: p.fechaInicio,
     fechaFin: p.fechaFin,
     activo: p.activo,
+    mostrarEnLanding: p.mostrarEnLanding,
     servicios: p.servicios.map((s) => ({
       servicioId: s.servicioId,
       cantidad: s.cantidad,
@@ -80,6 +81,7 @@ export async function getPromocionById(id: string): Promise<Promocion | null> {
     fechaInicio: promocion.fechaInicio,
     fechaFin: promocion.fechaFin,
     activo: promocion.activo,
+    mostrarEnLanding: promocion.mostrarEnLanding,
     servicios: promocion.servicios.map((s) => ({
       servicioId: s.servicioId,
       cantidad: s.cantidad,
@@ -103,6 +105,7 @@ export async function createPromocion(data: Promocion) {
         fechaInicio: parsed.fechaInicio ?? null,
         fechaFin: parsed.fechaFin ?? null,
         activo: parsed.activo ?? true,
+        mostrarEnLanding: parsed.mostrarEnLanding ?? false,
         servicios: {
           create: parsed.servicios.map((servicio) => ({
             id: randomUUID(),
@@ -143,6 +146,7 @@ export async function updatePromocion(id: string, data: Promocion) {
         fechaInicio: parsed.fechaInicio ?? null,
         fechaFin: parsed.fechaFin ?? null,
         activo: parsed.activo ?? true,
+        mostrarEnLanding: parsed.mostrarEnLanding ?? false,
         servicios: {
           deleteMany: {},
           create: parsed.servicios.map((servicio) => ({

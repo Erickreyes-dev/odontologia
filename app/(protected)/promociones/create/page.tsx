@@ -28,6 +28,7 @@ export default async function CreatePromocionPage() {
           fechaInicio: null,
           fechaFin: null,
           activo: true,
+          mostrarEnLanding: false,
           servicios: [],
         }}
       />

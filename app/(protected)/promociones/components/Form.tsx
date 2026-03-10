@@ -126,20 +126,31 @@ export function PromocionForm({
           )}
         />
 
-        {isUpdate && (
-          <Controller
-            name="activo"
-            control={form.control}
-            render={({ field }) => (
-              <Field>
-                <FieldLabel>Activo</FieldLabel>
-                <FieldContent>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                </FieldContent>
-              </Field>
-            )}
-          />
-        )}
+        <Controller
+          name="activo"
+          control={form.control}
+          render={({ field }) => (
+            <Field>
+              <FieldLabel>Activo</FieldLabel>
+              <FieldContent>
+                <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} />
+              </FieldContent>
+            </Field>
+          )}
+        />
+
+        <Controller
+          name="mostrarEnLanding"
+          control={form.control}
+          render={({ field }) => (
+            <Field>
+              <FieldLabel>Mostrar en landing del tenant</FieldLabel>
+              <FieldContent>
+                <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} />
+              </FieldContent>
+            </Field>
+          )}
+        />
       </div>
 
       <div className="space-y-2">
