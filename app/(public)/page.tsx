@@ -1,8 +1,6 @@
-import { getSession } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { RequestAccessForm } from "@/components/request-access-form";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
@@ -80,12 +78,6 @@ function normalizeLogo(logoBase64: string | null): string | null {
 }
 
 export default async function LandingPage() {
-  const session = await getSession();
-
-  if (session) {
-    redirect("/profile");
-  }
-
   const tenantSlug = headers().get("x-tenant-slug");
 
   let tenantLanding = null;
