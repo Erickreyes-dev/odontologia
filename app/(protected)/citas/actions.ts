@@ -126,6 +126,31 @@ function buildFechaRangeFilter(
   return { fechaHora };
 }
 
+function normalizeAppointmentDate(fechaHora: Date): Date {
+  const normalizedDate = new Date(fechaHora);
+  normalizedDate.setSeconds(0, 0);
+  return normalizedDate;
+}
+
+async function findCitaBySlot(fechaHora: Date, excludeId?: string) {
+  const slotStart = normalizeAppointmentDate(fechaHora);
+  const slotEnd = new Date(slotStart);
+  slotEnd.setMinutes(slotEnd.getMinutes() + 1);
+
+  return prisma.cita.findFirst({
+    where: await tenantWhere<Prisma.CitaWhereInput>({
+      fechaHora: {
+        gte: slotStart,
+        lt: slotEnd,
+      },
+      ...(excludeId && { id: { not: excludeId } }),
+    }),
+    select: {
+      id: true,
+    },
+  });
+}
+
 
 /**
  * Obtiene citas para calendario en un rango sin paginacion
@@ -359,6 +384,15 @@ export async function createCita(
       estado: data.estado || "programada",
     });
 
+    const fechaHora = normalizeAppointmentDate(new Date(validatedData.fechaHora));
+    const citaExistente = await findCitaBySlot(fechaHora);
+    if (citaExistente) {
+      return {
+        success: false,
+        error: "Ya existe una cita agendada para la fecha y hora seleccionada.",
+      };
+    }
+
     const id = randomUUID();
     const r = await prisma.cita.create({
       data: await withTenantData({
@@ -366,7 +400,7 @@ export async function createCita(
         pacienteId: validatedData.pacienteId,
         medicoId: validatedData.medicoId,
         consultorioId: validatedData.consultorioId,
-        fechaHora: new Date(validatedData.fechaHora),
+        fechaHora,
         estado: validatedData.estado,
         motivo: validatedData.motivo,
         observacion: validatedData.observacion,
@@ -440,9 +474,23 @@ export async function updateCita(
     }
 
     const validatedData = CitaSchema.partial().parse(data);
+    const fechaHora =
+      validatedData.fechaHora !== undefined
+        ? normalizeAppointmentDate(new Date(validatedData.fechaHora))
+        : undefined;
 
     const existing = await prisma.cita.findFirst({ where: await tenantWhere<Prisma.CitaWhereInput>({ id }) });
     if (!existing) return { success: false, error: "Cita no encontrada en la clínica" };
+
+    if (fechaHora) {
+      const citaExistente = await findCitaBySlot(fechaHora, id);
+      if (citaExistente) {
+        return {
+          success: false,
+          error: "Ya existe una cita agendada para la fecha y hora seleccionada.",
+        };
+      }
+    }
 
     const r = await prisma.cita.update({
       where: { id: existing.id },
@@ -450,7 +498,7 @@ export async function updateCita(
         ...(validatedData.pacienteId && { pacienteId: validatedData.pacienteId }),
         ...(validatedData.medicoId && { medicoId: validatedData.medicoId }),
         ...(validatedData.consultorioId && { consultorioId: validatedData.consultorioId }),
-        ...(validatedData.fechaHora !== undefined && { fechaHora: new Date(validatedData.fechaHora) }),
+        ...(fechaHora && { fechaHora }),
         ...(validatedData.estado !== undefined && { estado: validatedData.estado }),
         ...(validatedData.motivo !== undefined && { motivo: validatedData.motivo }),
         ...(validatedData.observacion !== undefined && { observacion: validatedData.observacion }),
