@@ -3,9 +3,16 @@
 "use server";
 
 import { EmailService } from "@/lib/sendEmail";
+import { prisma } from "@/lib/prisma";
+import { headers } from "next/headers";
 import { requestPasswordReset } from "./forgot-password/actions";
 
 export interface RequestAccessFormState {
+  status: "idle" | "success" | "error";
+  message: string;
+}
+
+export interface TenantAppointmentFormState {
   status: "idle" | "success" | "error";
   message: string;
 }
@@ -72,6 +79,133 @@ export async function requestAccessAction(_: RequestAccessFormState, formData: F
     return {
       status: "error",
       message: "No se pudo enviar la solicitud en este momento. Intenta más tarde.",
+    };
+  }
+}
+
+export async function requestTenantAppointmentAction(
+  _: TenantAppointmentFormState,
+  formData: FormData,
+): Promise<TenantAppointmentFormState> {
+  const tenantSlug = headers().get("x-tenant-slug");
+  if (!tenantSlug) {
+    return {
+      status: "error",
+      message: "No se pudo identificar la clínica. Recarga e inténtalo de nuevo.",
+    };
+  }
+
+  const nombre = formData.get("name");
+  const email = formData.get("email");
+  const telefono = formData.get("phone");
+  const motivo = formData.get("reason");
+  const appointmentDate = formData.get("appointmentDate");
+
+  if (
+    typeof nombre !== "string" ||
+    typeof email !== "string" ||
+    typeof telefono !== "string" ||
+    typeof motivo !== "string" ||
+    typeof appointmentDate !== "string"
+  ) {
+    return {
+      status: "error",
+      message: "Datos inválidos. Verifica el formulario e inténtalo nuevamente.",
+    };
+  }
+
+  const cleanNombre = nombre.trim();
+  const cleanEmail = email.trim();
+  const cleanTelefono = telefono.trim();
+  const cleanMotivo = motivo.trim();
+  const selectedDate = new Date(`${appointmentDate}T00:00:00`);
+
+  if (
+    cleanNombre.length < 3 ||
+    cleanTelefono.length < 7 ||
+    cleanMotivo.length < 5 ||
+    !cleanEmail.includes("@") ||
+    Number.isNaN(selectedDate.getTime())
+  ) {
+    return {
+      status: "error",
+      message: "Completa correctamente nombre, correo, teléfono, motivo y fecha.",
+    };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (selectedDate < today) {
+    return {
+      status: "error",
+      message: "Selecciona una fecha válida (hoy o futura).",
+    };
+  }
+
+  try {
+    const tenant = await prisma.tenant.findUnique({
+      where: { slug: tenantSlug },
+      select: {
+        id: true,
+        nombre: true,
+        contactoCorreo: true,
+      },
+    });
+
+    if (!tenant || !tenant.contactoCorreo) {
+      return {
+        status: "error",
+        message: "La clínica aún no tiene correo de contacto configurado.",
+      };
+    }
+
+    await prisma.solicitudCitaPublica.create({
+      data: {
+        tenantId: tenant.id,
+        nombrePaciente: cleanNombre,
+        correoPaciente: cleanEmail,
+        telefonoPaciente: cleanTelefono,
+        motivo: cleanMotivo,
+        fechaSolicitada: selectedDate,
+      },
+    });
+
+    const formattedDate = selectedDate.toLocaleDateString("es-HN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const emailService = new EmailService();
+    await emailService.sendMail({
+      to: tenant.contactoCorreo,
+      subject: `Nueva solicitud de cita - ${tenant.nombre}`,
+      text: `Se registró una nueva solicitud de cita.\n\nFecha solicitada: ${formattedDate}\nNombre: ${cleanNombre}\nCorreo: ${cleanEmail}\nTeléfono: ${cleanTelefono}\nMotivo: ${cleanMotivo}`,
+      html: `
+        <h2>Nueva solicitud de cita</h2>
+        <p>Se registró una nueva solicitud de cita desde el landing del tenant.</p>
+        <ul>
+          <li><strong>Fecha solicitada:</strong> ${formattedDate}</li>
+          <li><strong>Nombre:</strong> ${cleanNombre}</li>
+          <li><strong>Correo:</strong> ${cleanEmail}</li>
+          <li><strong>Teléfono:</strong> ${cleanTelefono}</li>
+          <li><strong>Motivo:</strong> ${cleanMotivo}</li>
+        </ul>
+      `,
+    });
+
+    return {
+      status: "success",
+      message: "Tu cita fue solicitada correctamente. La clínica te contactará pronto.",
+    };
+  } catch (error) {
+    console.error("Error creando solicitud de cita pública:", error);
+
+    return {
+      status: "error",
+      message: "No se pudo registrar la cita en este momento. Intenta más tarde.",
     };
   }
 }

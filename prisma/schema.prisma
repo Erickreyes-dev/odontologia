@@ -31,38 +31,39 @@ model Tenant {
   createAt       DateTime  @default(now())
   updateAt       DateTime  @updatedAt
 
-  permisos             Permiso[]
-  roles                Rol[]
-  empleados            Empleados[]
-  puestos              Puesto[]
-  usuarios             Usuarios[]
-  seguros              Seguro[]
-  pacientes            Paciente[]
-  profesiones          Profesion[]
-  servicios            Servicio[]
-  promociones          Promocion[]
-  promocionServicios   PromocionServicio[]
-  medicos              Medico[]
-  consultorios         Consultorio[]
-  citas                Cita[]
-  consultas            Consulta[]
-  consultaServicios    ConsultaServicio[]
-  productos            Producto[]
-  consultaProductos    ConsultaProducto[]
-  cotizaciones         Cotizacion[]
-  cotizacionServicios  CotizacionServicio[]
-  planTratamientos     PlanTratamiento[]
-  planEtapas           PlanEtapa[]
-  planEtapaServicios   PlanEtapaServicio[]
-  seguimientos         Seguimiento[]
-  pagos                Pago[]
-  financiamientos      Financiamiento[]
-  ordenesCobro         OrdenDeCobro[]
-  cuotasFinanciamiento CuotaFinanciamiento[]
-  constanciasMedicas   ConstanciaMedica[]
-  recibos              Recibo[]
-  reciboDetalles       ReciboDetalle[]
-  paquete              Paquete?              @relation(fields: [paqueteId], references: [id])
+  permisos               Permiso[]
+  roles                  Rol[]
+  empleados              Empleados[]
+  puestos                Puesto[]
+  usuarios               Usuarios[]
+  seguros                Seguro[]
+  pacientes              Paciente[]
+  profesiones            Profesion[]
+  servicios              Servicio[]
+  promociones            Promocion[]
+  promocionServicios     PromocionServicio[]
+  medicos                Medico[]
+  consultorios           Consultorio[]
+  citas                  Cita[]
+  consultas              Consulta[]
+  consultaServicios      ConsultaServicio[]
+  productos              Producto[]
+  consultaProductos      ConsultaProducto[]
+  cotizaciones           Cotizacion[]
+  cotizacionServicios    CotizacionServicio[]
+  planTratamientos       PlanTratamiento[]
+  planEtapas             PlanEtapa[]
+  planEtapaServicios     PlanEtapaServicio[]
+  seguimientos           Seguimiento[]
+  pagos                  Pago[]
+  financiamientos        Financiamiento[]
+  ordenesCobro           OrdenDeCobro[]
+  cuotasFinanciamiento   CuotaFinanciamiento[]
+  constanciasMedicas     ConstanciaMedica[]
+  recibos                Recibo[]
+  reciboDetalles         ReciboDetalle[]
+  solicitudesCitaPublica SolicitudCitaPublica[]
+  paquete                Paquete?               @relation(fields: [paqueteId], references: [id])
 
   @@index([paqueteId])
 }
@@ -219,16 +220,16 @@ model Seguro {
 }
 
 model Paciente {
-  id              String    @id @default(uuid()) @db.VarChar(36)
-  tenantId        String?   @db.VarChar(36)
-  identidad       String    @db.VarChar(50)
-  nombre          String    @db.VarChar(100)
-  apellido        String    @db.VarChar(100)
-  fechaNacimiento DateTime? @db.DateTime(6)
-  genero          String?   @db.VarChar(20)
-  telefono        String?   @db.VarChar(20)
-  correo          String?   @db.VarChar(150)
-  direccion       String?   @db.VarChar(255)
+  id              String          @id @default(uuid()) @db.VarChar(36)
+  tenantId        String?         @db.VarChar(36)
+  identidad       String          @db.VarChar(50)
+  nombre          String          @db.VarChar(100)
+  apellido        String          @db.VarChar(100)
+  fechaNacimiento DateTime?       @db.DateTime(6)
+  genero          String?         @db.VarChar(20)
+  telefono        String?         @db.VarChar(20)
+  correo          String?         @db.VarChar(150)
+  direccion       String?         @db.VarChar(255)
   conocioClinica  ConocioClinica?
 
   seguroId String? @db.VarChar(36)
@@ -276,16 +277,16 @@ model Profesion {
 }
 
 model Servicio {
-  id          String   @id @default(uuid()) @db.VarChar(36)
-  tenantId    String?  @db.VarChar(36)
-  nombre      String   @db.VarChar(150)
-  descripcion String?  @db.VarChar(255)
-  precioBase  Decimal  @db.Decimal(10, 2)
-  duracionMin Int
-  activo      Boolean  @db.Bit(1)
-  mostrarEnLanding Boolean @default(false) @db.Bit(1)
-  createAt    DateTime @default(now())
-  updateAt    DateTime @updatedAt
+  id               String   @id @default(uuid()) @db.VarChar(36)
+  tenantId         String?  @db.VarChar(36)
+  nombre           String   @db.VarChar(150)
+  descripcion      String?  @db.VarChar(255)
+  precioBase       Decimal  @db.Decimal(10, 2)
+  duracionMin      Int
+  activo           Boolean  @db.Bit(1)
+  mostrarEnLanding Boolean  @default(false) @db.Bit(1)
+  createAt         DateTime @default(now())
+  updateAt         DateTime @updatedAt
 
   tenant              Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   medicosServicios    MedicoServicio[]
@@ -673,6 +674,22 @@ model Seguimiento {
   @@index([pacienteId])
   @@index([citaId])
   @@index([fechaProgramada])
+}
+
+model SolicitudCitaPublica {
+  id               String   @id @default(uuid()) @db.VarChar(36)
+  tenantId         String   @db.VarChar(36)
+  fechaSolicitada  DateTime @db.DateTime(3)
+  nombrePaciente   String   @db.VarChar(120)
+  correoPaciente   String   @db.VarChar(150)
+  telefonoPaciente String   @db.VarChar(25)
+  motivo           String   @db.VarChar(500)
+  createAt         DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([fechaSolicitada])
 }
 
 enum MetodoPago {
