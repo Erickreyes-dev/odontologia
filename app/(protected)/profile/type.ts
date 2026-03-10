@@ -21,11 +21,6 @@ export interface Employee {
   puesto_id: string;
   puesto: string;
 
-  tenantCorreo: string | null;
-  tenantTelefono: string | null;
-  tenantLogoBase64: string | null;
-  canEditTenantContact: boolean;
-
   createAt: Date;
   updateAt: Date;
 }

@@ -17,6 +17,11 @@ model Tenant {
   contactoCorreo String?   @db.VarChar(150)
   telefono       String?   @db.VarChar(20)
   logoBase64     String?   @db.LongText
+  mision         String?   @db.LongText
+  vision         String?   @db.LongText
+  serviciosInfo  String?   @db.LongText
+  horariosInfo   String?   @db.LongText
+  redesSociales  String?   @db.LongText
   activo         Boolean   @default(true) @db.Bit(1)
   plan           String    @default("starter") @db.VarChar(30)
   maxUsuarios    Int       @default(20)

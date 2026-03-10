@@ -60,6 +60,7 @@ const ROUTE_RATE_LIMITS: Record<string, RateLimitConfig> = {
   "/puestos": { limit: 70, windowMs: 60_000 },
   "/profesiones": { limit: 70, windowMs: 60_000 },
   "/protected": { limit: 50, windowMs: 60_000 },
+  "/mi-clinica": { limit: 60, windowMs: 60_000 },
 };
 
 const rateMap: Map<string, Bucket> =
@@ -191,6 +192,7 @@ export async function middleware(req: NextRequest) {
     "/puestos",
     "/profesiones",
     "/profile",
+    "/mi-clinica",
     "/protected",
   ];
 

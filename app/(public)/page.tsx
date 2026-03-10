@@ -4,6 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { RequestAccessForm } from "@/components/request-access-form";
+import { headers } from "next/headers";
+import { prisma } from "@/lib/prisma";
+import Image from "next/image";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { CalendarClock, HeartHandshake, Mail, PhoneCall, Sparkles, Stethoscope } from "lucide-react";
 
 const services = [
   {
@@ -68,12 +73,200 @@ const faqs = [
   },
 ];
 
+function normalizeLogo(logoBase64: string | null): string | null {
+  if (!logoBase64) return null;
+  if (logoBase64.startsWith("data:image/")) return logoBase64;
+  return `data:image/png;base64,${logoBase64}`;
+}
+
 export default async function LandingPage() {
   const session = await getSession();
 
   if (session) {
     redirect("/profile");
   }
+
+  const tenantSlug = headers().get("x-tenant-slug");
+
+  let tenantLanding = null;
+  if (tenantSlug) {
+    try {
+      tenantLanding = await prisma.tenant.findUnique({
+        where: { slug: tenantSlug },
+        select: {
+          nombre: true,
+          slug: true,
+          logoBase64: true,
+          mision: true,
+          vision: true,
+          serviciosInfo: true,
+          horariosInfo: true,
+          redesSociales: true,
+          contactoCorreo: true,
+          telefono: true,
+          activo: true,
+        },
+      });
+    } catch {
+      tenantLanding = null;
+    }
+  }
+
+  if (tenantLanding?.activo) {
+    const logo = normalizeLogo(tenantLanding.logoBase64);
+
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-cyan-50/20 dark:to-slate-950">
+        <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              {logo ? (
+                <Image
+                  src={logo}
+                  alt={`Logo ${tenantLanding.nombre}`}
+                  width={42}
+                  height={42}
+                  className="h-10 w-10 rounded-lg border border-border object-cover shadow-sm"
+                  unoptimized
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted text-sm font-bold text-cyan-600 dark:text-cyan-300">
+                  {tenantLanding.nombre.charAt(0)}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{tenantLanding.nombre}</p>
+                <p className="truncate text-xs text-muted-foreground">{tenantLanding.slug}.medisoftcore.com</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex">
+                <Link href="#servicios" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">Servicios</Link>
+                <Link href="#nosotros" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">Nosotros</Link>
+                <Link href="#contacto" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">Contacto</Link>
+              </nav>
+              <ThemeToggle />
+            </div>
+          </div>
+        </header>
+
+        <section className="relative overflow-hidden border-b border-border/60">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(8,145,178,0.18),_transparent_45%)]" />
+          <div className="relative mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:py-16">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-700 dark:text-cyan-300">
+                <Sparkles className="h-3.5 w-3.5" /> Atención odontológica moderna
+              </div>
+              <h1 className="text-3xl font-bold leading-tight sm:text-5xl">Tu sonrisa en manos de {tenantLanding.nombre}</h1>
+              <p className="max-w-2xl text-base text-muted-foreground sm:text-lg">
+                Un consultorio pensado para brindarte confianza, tecnología y cercanía en cada visita.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button asChild className="transition-transform hover:scale-[1.02] bg-cyan-600 text-white hover:bg-cyan-500">
+                  <Link href="#contacto">Agendar valoración</Link>
+                </Button>
+                <Button asChild variant="outline" className="transition-transform hover:scale-[1.02]">
+                  <Link href="#servicios">Ver tratamientos</Link>
+                </Button>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-border bg-card p-3 text-sm shadow-sm transition-transform hover:-translate-y-0.5">
+                  <Stethoscope className="mb-2 h-4 w-4 text-cyan-600 dark:text-cyan-300" />
+                  Especialistas certificados
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3 text-sm shadow-sm transition-transform hover:-translate-y-0.5">
+                  <HeartHandshake className="mb-2 h-4 w-4 text-cyan-600 dark:text-cyan-300" />
+                  Atención cálida y humana
+                </div>
+                <div className="rounded-lg border border-border bg-card p-3 text-sm shadow-sm transition-transform hover:-translate-y-0.5">
+                  <CalendarClock className="mb-2 h-4 w-4 text-cyan-600 dark:text-cyan-300" />
+                  Horarios flexibles
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+                <Image
+                  src="https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1400&q=80"
+                  alt="Consultorio odontológico moderno"
+                  width={1400}
+                  height={900}
+                  className="h-64 w-full object-cover transition-transform duration-500 hover:scale-105 sm:h-80"
+                  priority
+                />
+              </div>
+              <Card className="border-border bg-card/90 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Horario y atención</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm text-muted-foreground whitespace-pre-line">
+                  <p><span className="font-medium text-foreground">Horarios:</span> {tenantLanding.horariosInfo || "No definidos aún."}</p>
+                  <p><span className="font-medium text-foreground">Correo:</span> {tenantLanding.contactoCorreo || "No especificado"}</p>
+                  <p><span className="font-medium text-foreground">Teléfono:</span> {tenantLanding.telefono || "No especificado"}</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        <section id="servicios" className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
+          <div className="mb-6 text-center">
+            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Nuestros servicios</p>
+            <h2 className="text-2xl font-bold sm:text-3xl">Tratamientos diseñados para tu sonrisa</h2>
+          </div>
+          <Card className="border-border bg-card shadow-sm">
+            <CardContent className="pt-6 text-sm text-muted-foreground whitespace-pre-line">
+              {tenantLanding.serviciosInfo || "Estamos preparando el detalle de servicios para ti."}
+            </CardContent>
+          </Card>
+        </section>
+
+        <section id="nosotros" className="border-y border-border/60 bg-muted/30">
+          <div className="mx-auto grid w-full max-w-6xl gap-4 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:py-16">
+            <Card className="border-border bg-card shadow-sm transition-transform hover:-translate-y-0.5">
+              <CardHeader>
+                <CardTitle>Misión</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground whitespace-pre-line">
+                {tenantLanding.mision || "No definida aún."}
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-card shadow-sm transition-transform hover:-translate-y-0.5">
+              <CardHeader>
+                <CardTitle>Visión</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground whitespace-pre-line">
+                {tenantLanding.vision || "No definida aún."}
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+        <section id="contacto" className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader>
+              <CardTitle>Redes y contacto</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-muted-foreground whitespace-pre-line">
+              <p>{tenantLanding.redesSociales || "Sin redes sociales configuradas."}</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <p className="flex items-center gap-2"><Mail className="h-4 w-4" /> {tenantLanding.contactoCorreo || "No especificado"}</p>
+                  <p className="flex items-center gap-2"><PhoneCall className="h-4 w-4" /> {tenantLanding.telefono || "No especificado"}</p>
+                </div>
+                <Button asChild className="bg-cyan-600 text-white hover:bg-cyan-500 transition-transform hover:scale-[1.02]">
+                  <Link href="/login">Portal de pacientes / staff</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      </div>
+    );
+  }
+
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
