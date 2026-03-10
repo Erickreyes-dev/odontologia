@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import { randomBytes, randomUUID } from "crypto";
 import { addHours, isAfter } from "date-fns";
 import { headers } from "next/headers";
+import { normalizeLogoDataUri } from "@/lib/tenant-branding";
 
 const RESET_TOKEN_TTL_HOURS = 2; // Token válido por 2 horas
 
@@ -52,6 +53,9 @@ export async function requestPasswordReset(username: string): Promise<boolean> {
             Empleados: {
                 select: { correo: true, nombre: true, apellido: true },
             },
+            tenant: {
+                select: { nombre: true, logoBase64: true },
+            },
         },
     });
     // Si no existe usuario o no hay empleado/correo, no divulgamos la razón
@@ -82,7 +86,10 @@ export async function requestPasswordReset(username: string): Promise<boolean> {
 
     // 5️⃣ Preparar correo usando la plantilla
     const fullName = `${user.Empleados.nombre} ${user.Empleados.apellido}`;
-    const html = generatePasswordResetEmailHtml(fullName, link);
+    const html = generatePasswordResetEmailHtml(fullName, link, {
+        clinicLogoBase64: normalizeLogoDataUri(user.tenant?.logoBase64 ?? null),
+        clinicName: user.tenant?.nombre ?? null,
+    });
     const mailPayload: MailPayload = {
         to: user.Empleados.correo,
         subject: "Restablecer contraseña",

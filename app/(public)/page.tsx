@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { TenantAppointmentForm } from "@/components/tenant-appointment-form";
 import { CalendarClock, HeartHandshake, Mail, PhoneCall, Sparkles, Stethoscope } from "lucide-react";
 
 const services = [
@@ -353,23 +354,34 @@ export default async function LandingPage() {
         </section>
 
         <section id="contacto" className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
-          <Card className="border-border bg-card shadow-sm">
-            <CardHeader>
-              <CardTitle>Redes y contacto</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-muted-foreground whitespace-pre-line">
-              <p>{tenantLanding.redesSociales || "Sin redes sociales configuradas."}</p>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-1">
-                  <p className="flex items-center gap-2"><Mail className="h-4 w-4" /> {tenantLanding.contactoCorreo || "No especificado"}</p>
-                  <p className="flex items-center gap-2"><PhoneCall className="h-4 w-4" /> {tenantLanding.telefono || "No especificado"}</p>
+          <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
+            <Card className="border-border bg-card shadow-sm">
+              <CardHeader>
+                <CardTitle>Redes y contacto</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm text-muted-foreground whitespace-pre-line">
+                <p>{tenantLanding.redesSociales || "Sin redes sociales configuradas."}</p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <p className="flex items-center gap-2"><Mail className="h-4 w-4" /> {tenantLanding.contactoCorreo || "No especificado"}</p>
+                    <p className="flex items-center gap-2"><PhoneCall className="h-4 w-4" /> {tenantLanding.telefono || "No especificado"}</p>
+                  </div>
+                  <Button asChild className="bg-cyan-600 text-white hover:bg-cyan-500 transition-transform hover:scale-[1.02]">
+                    <Link href="/login">Portal de pacientes / staff</Link>
+                  </Button>
                 </div>
-                <Button asChild className="bg-cyan-600 text-white hover:bg-cyan-500 transition-transform hover:scale-[1.02]">
-                  <Link href="/login">Portal de pacientes / staff</Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card shadow-sm">
+              <CardHeader>
+                <CardTitle>Agenda tu cita</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TenantAppointmentForm />
+              </CardContent>
+            </Card>
+          </div>
         </section>
       </div>
     );

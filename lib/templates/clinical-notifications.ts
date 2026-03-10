@@ -3,14 +3,26 @@ import { es } from "date-fns/locale";
 
 const HONDURAS_TIMEZONE = "America/Tegucigalpa";
 
+function normalizeLogoForEmail(logoBase64?: string | null): string | null {
+  if (!logoBase64) return null;
+
+  const compact = logoBase64.trim().replace(/\s+/g, "");
+  if (!compact) return null;
+
+  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(compact)) return compact;
+  if (/^data:[^;]+;base64,/i.test(compact)) return compact;
+
+  return `data:image/png;base64,${compact}`;
+}
+
 function layout(title: string, subtitle: string, content: string, clinicLogoBase64?: string | null, tenantName?: string | null) {
   return `
   <div style="font-family: Inter, Arial, sans-serif; background:#f3f7fb; padding:28px; color:#0f172a;">
     <div style="max-width:680px; margin:0 auto; background:#ffffff; border:1px solid #dbeafe; border-radius:16px; overflow:hidden;">
       <div style="background:linear-gradient(135deg,#0f172a,#0f766e); padding:28px; color:#fff;">
         <div style="display:flex; align-items:center; gap:10px;">
-          ${clinicLogoBase64 ? `<img src="${clinicLogoBase64}" alt="Logo clínica" style="width:64px; height:64px; border-radius:12px; object-fit:contain; background:#fff; padding:4px;" />` : ""}
-          <p style="margin:0; font-size:12px; letter-spacing:.12em; text-transform:uppercase; opacity:.85;">medisoftcore${tenantName ? ` - ${tenantName}` : ""}</p>
+          ${normalizeLogoForEmail(clinicLogoBase64) ? `<img src="${normalizeLogoForEmail(clinicLogoBase64)}" alt="Logo clínica" style="width:64px; height:64px; border-radius:12px; object-fit:contain; background:#fff; padding:4px;" />` : ""}
+          <p style="margin:0; font-size:12px; letter-spacing:.12em; text-transform:uppercase; opacity:.85;">${tenantName || "Clínica odontológica"}</p>
         </div>
         <h2 style="margin:8px 0 4px; font-size:24px;">${title}</h2>
         <p style="margin:0; font-size:14px; opacity:.9;">${subtitle}</p>
@@ -138,5 +150,39 @@ export function generatePagoEmailHtml(params: {
      <p>Atentamente,<br/>Dr(a). ${params.medicoNombre}</p>`,
     params.clinicLogoBase64,
     params.tenantName
+  );
+}
+
+
+export function generatePublicAppointmentRequestEmailHtml(params: {
+  clinicLogoBase64?: string | null;
+  clinicName?: string | null;
+  nombrePaciente: string;
+  correoPaciente: string;
+  telefonoPaciente: string;
+  motivo: string;
+  fechaSolicitada: Date;
+}) {
+  const fecha = formatInTimeZone(
+    params.fechaSolicitada,
+    HONDURAS_TIMEZONE,
+    "EEEE d 'de' MMMM 'de' yyyy",
+    { locale: es },
+  );
+
+  return layout(
+    "Nueva solicitud de cita",
+    "Solicitud recibida desde el landing de la clínica",
+    `<p>Se registró una nueva solicitud para agenda de cita.</p>
+     <table style="width:100%; border-collapse:collapse; margin:16px 0;">
+      <tr><td style="padding:8px 0; color:#334155;"><strong>Fecha solicitada:</strong></td><td>${fecha}</td></tr>
+      <tr><td style="padding:8px 0; color:#334155;"><strong>Paciente:</strong></td><td>${params.nombrePaciente}</td></tr>
+      <tr><td style="padding:8px 0; color:#334155;"><strong>Teléfono:</strong></td><td>${params.telefonoPaciente}</td></tr>
+      <tr><td style="padding:8px 0; color:#334155;"><strong>Correo:</strong></td><td>${params.correoPaciente}</td></tr>
+      <tr><td style="padding:8px 0; color:#334155;"><strong>Motivo:</strong></td><td>${params.motivo}</td></tr>
+     </table>
+     <p>Se recomienda contactar al paciente para confirmar horario y disponibilidad médica.</p>`,
+    params.clinicLogoBase64,
+    params.clinicName
   );
 }
