@@ -31,6 +31,11 @@ export const columns: ColumnDef<Servicio>[] = [
     header: "Duración (min)",
   },
   {
+    accessorKey: "mostrarEnLanding",
+    header: "Landing",
+    cell: ({ row }) => (row.getValue("mostrarEnLanding") ? "Visible" : "Oculto"),
+  },
+  {
     accessorKey: "activo",
     header: "Estado",
     cell: ({ row }) => {

@@ -15,6 +15,7 @@ export const PromocionSchema = z.object({
   fechaInicio: z.date().optional().nullable(),
   fechaFin: z.date().optional().nullable(),
   activo: z.boolean().optional(),
+  mostrarEnLanding: z.boolean().optional(),
   servicios: z.array(PromocionServicioSchema).min(1, "Debe agregar al menos un servicio"),
 });
 

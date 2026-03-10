@@ -11,6 +11,7 @@ export const ServicioSchema = z.object({
   precioBase: z.number({ invalid_type_error: "El precio debe ser un número" }),
   duracionMin: z.number({ invalid_type_error: "La duración debe ser un número" }),
   activo: z.boolean().optional(),
+  mostrarEnLanding: z.boolean().optional(),
   medicos: z.array(MedicoServicioSchema), // Array de IDs
 });
 

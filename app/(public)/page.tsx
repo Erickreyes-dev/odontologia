@@ -1,8 +1,6 @@
-import { getSession } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { RequestAccessForm } from "@/components/request-access-form";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
@@ -80,12 +78,6 @@ function normalizeLogo(logoBase64: string | null): string | null {
 }
 
 export default async function LandingPage() {
-  const session = await getSession();
-
-  if (session) {
-    redirect("/profile");
-  }
-
   const tenantSlug = headers().get("x-tenant-slug");
 
   let tenantLanding = null;
@@ -105,6 +97,28 @@ export default async function LandingPage() {
           contactoCorreo: true,
           telefono: true,
           activo: true,
+          servicios: {
+            where: { activo: true, mostrarEnLanding: true },
+            select: {
+              id: true,
+              nombre: true,
+              descripcion: true,
+              precioBase: true,
+              duracionMin: true,
+            },
+            orderBy: { nombre: "asc" },
+          },
+          promociones: {
+            where: { activo: true, mostrarEnLanding: true },
+            select: {
+              id: true,
+              nombre: true,
+              descripcion: true,
+              precioReferencial: true,
+              precioPromocional: true,
+            },
+            orderBy: { createAt: "desc" },
+          },
         },
       });
     } catch {
@@ -143,6 +157,7 @@ export default async function LandingPage() {
               <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex">
                 <Link href="#servicios" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">Servicios</Link>
                 <Link href="#nosotros" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">Nosotros</Link>
+                <Link href="#promociones" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">Promociones</Link>
                 <Link href="#contacto" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">Contacto</Link>
               </nav>
               <ThemeToggle />
@@ -215,11 +230,105 @@ export default async function LandingPage() {
             <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Nuestros servicios</p>
             <h2 className="text-2xl font-bold sm:text-3xl">Tratamientos diseñados para tu sonrisa</h2>
           </div>
-          <Card className="border-border bg-card shadow-sm">
-            <CardContent className="pt-6 text-sm text-muted-foreground whitespace-pre-line">
-              {tenantLanding.serviciosInfo || "Estamos preparando el detalle de servicios para ti."}
-            </CardContent>
-          </Card>
+
+          {tenantLanding.servicios.length > 0 ? (
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {tenantLanding.servicios.map((servicio) => (
+                <Card
+                  key={servicio.id}
+                  className="group relative overflow-hidden border-border/70 bg-card/95 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/60 hover:shadow-xl"
+                >
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-500 via-sky-400 to-blue-500" />
+                  <CardHeader className="space-y-3 pb-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">
+                        Servicio
+                      </span>
+                      <span className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                        {servicio.duracionMin} min
+                      </span>
+                    </div>
+                    <CardTitle className="line-clamp-2 text-lg leading-tight">{servicio.nombre}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="line-clamp-3 min-h-[60px] text-sm text-muted-foreground">
+                      {servicio.descripcion || "Sin descripción disponible."}
+                    </p>
+                    <div className="flex items-center justify-between rounded-xl border border-border/70 bg-muted/40 px-3 py-2">
+                      <p className="text-xs text-muted-foreground">Precio desde</p>
+                      <p className="text-base font-bold text-foreground">L {Number(servicio.precioBase).toFixed(2)}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="border-border bg-card shadow-sm">
+              <CardContent className="pt-6 text-sm text-muted-foreground whitespace-pre-line">
+                {tenantLanding.serviciosInfo || "Estamos preparando el detalle de servicios para ti."}
+              </CardContent>
+            </Card>
+          )}
+        </section>
+
+        <section id="promociones" className="border-y border-border/60 bg-muted/30">
+          <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
+            <div className="mb-6 text-center">
+              <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Promociones</p>
+              <h2 className="text-2xl font-bold sm:text-3xl">Ofertas vigentes para tu tratamiento</h2>
+            </div>
+            {tenantLanding.promociones.length > 0 ? (
+              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {tenantLanding.promociones.map((promo) => {
+                  const ahorro = Number(promo.precioReferencial) - Number(promo.precioPromocional);
+
+                  return (
+                    <Card
+                      key={promo.id}
+                      className="group relative overflow-hidden border-cyan-500/25 bg-gradient-to-br from-cyan-500/5 via-background to-background shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/60 hover:shadow-xl"
+                    >
+                      <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-cyan-400/20 blur-2xl" />
+                      <CardHeader className="space-y-3 pb-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                            Promoción
+                          </span>
+                          {ahorro > 0 ? (
+                            <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
+                              Ahorra L {ahorro.toFixed(2)}
+                            </span>
+                          ) : null}
+                        </div>
+                        <CardTitle className="line-clamp-2 text-lg leading-tight">{promo.nombre}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <p className="line-clamp-3 min-h-[60px] text-sm text-muted-foreground">
+                          {promo.descripcion || "Promoción especial por tiempo limitado."}
+                        </p>
+                        <div className="rounded-xl border border-border/70 bg-card/80 p-3">
+                          <p className="text-xs text-muted-foreground">Precio promocional</p>
+                          <div className="mt-1 flex items-baseline gap-2">
+                            <span className="text-xl font-extrabold text-cyan-700 dark:text-cyan-300">
+                              L {Number(promo.precioPromocional).toFixed(2)}
+                            </span>
+                            <span className="text-sm text-muted-foreground line-through">
+                              L {Number(promo.precioReferencial).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <Card className="border-border bg-card shadow-sm">
+                <CardContent className="pt-6 text-sm text-muted-foreground">
+                  No hay promociones públicas disponibles en este momento.
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </section>
 
         <section id="nosotros" className="border-y border-border/60 bg-muted/30">
