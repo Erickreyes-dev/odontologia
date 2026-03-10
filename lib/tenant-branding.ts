@@ -1,19 +1,20 @@
 import { prisma } from "@/lib/prisma";
 import { getTenantContext } from "@/lib/tenant";
 
-const DATA_URI_PREFIX_REGEX = /^data:image\/[a-zA-Z0-9.+-]+;base64,/;
+const IMAGE_DATA_URI_PREFIX_REGEX = /^data:image\/[a-zA-Z0-9.+-]+;base64,/i;
+const GENERIC_DATA_URI_PREFIX_REGEX = /^data:[^;]+;base64,/i;
 
-function normalizeLogoDataUri(logoBase64: string | null): string | null {
+export function normalizeLogoDataUri(logoBase64: string | null): string | null {
   if (!logoBase64) return null;
 
-  const trimmed = logoBase64.trim();
-  if (!trimmed) return null;
+  const compact = logoBase64.trim().replace(/\s+/g, "");
+  if (!compact) return null;
 
-  if (DATA_URI_PREFIX_REGEX.test(trimmed)) {
-    return trimmed;
+  if (IMAGE_DATA_URI_PREFIX_REGEX.test(compact) || GENERIC_DATA_URI_PREFIX_REGEX.test(compact)) {
+    return compact;
   }
 
-  return `data:image/png;base64,${trimmed}`;
+  return `data:image/png;base64,${compact}`;
 }
 
 export async function getTenantLogoBase64(): Promise<string | null> {

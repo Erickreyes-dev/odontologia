@@ -5,6 +5,8 @@
 import { EmailService } from "@/lib/sendEmail";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
+import { normalizeLogoDataUri } from "@/lib/tenant-branding";
+import { generatePublicAppointmentRequestEmailHtml } from "@/lib/templates/clinical-notifications";
 import { requestPasswordReset } from "./forgot-password/actions";
 
 export interface RequestAccessFormState {
@@ -150,6 +152,7 @@ export async function requestTenantAppointmentAction(
         id: true,
         nombre: true,
         contactoCorreo: true,
+        logoBase64: true,
       },
     });
 
@@ -198,17 +201,15 @@ Nombre: ${cleanNombre}
 Correo: ${cleanEmail}
 Teléfono: ${cleanTelefono}
 Motivo: ${cleanMotivo}`,
-        html: `
-          <h2>Nueva solicitud de cita</h2>
-          <p>Se registró una nueva solicitud de cita desde el landing del tenant.</p>
-          <ul>
-            <li><strong>Fecha solicitada:</strong> ${formattedDate}</li>
-            <li><strong>Nombre:</strong> ${cleanNombre}</li>
-            <li><strong>Correo:</strong> ${cleanEmail}</li>
-            <li><strong>Teléfono:</strong> ${cleanTelefono}</li>
-            <li><strong>Motivo:</strong> ${cleanMotivo}</li>
-          </ul>
-        `,
+        html: generatePublicAppointmentRequestEmailHtml({
+          clinicLogoBase64: normalizeLogoDataUri(tenant.logoBase64),
+          clinicName: tenant.nombre,
+          nombrePaciente: cleanNombre,
+          correoPaciente: cleanEmail,
+          telefonoPaciente: cleanTelefono,
+          motivo: cleanMotivo,
+          fechaSolicitada: selectedDate,
+        }),
       });
     } catch (mailError) {
       console.error("Error enviando correo de solicitud de cita:", mailError);

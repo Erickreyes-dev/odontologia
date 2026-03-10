@@ -8,6 +8,7 @@ import { randomBytes, randomUUID } from "crypto";
 import { Usuario } from "./schema";
 import { Prisma } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
+import { getTenantEmailBranding } from "@/lib/tenant-branding";
 
 /**
  * Obtener todos los usuarios con rol y empleado
@@ -68,10 +69,16 @@ export async function createUsuario(data: Usuario): Promise<Usuario> {
 
   if (empleado?.correo) {
     // 5️⃣ Construir payload del correo usando sólo la plantilla HTML
+    const { clinicLogoBase64, tenantName } = await getTenantEmailBranding();
+
     const html = generateUserCreatedEmailHtml(
       `${empleado.nombre} ${empleado.apellido}`,
       data.usuario,
-      tempPassword
+      tempPassword,
+      {
+        clinicLogoBase64,
+        clinicName: tenantName,
+      },
     );
 
     const mailPayload: MailPayload = {
