@@ -153,10 +153,10 @@ export async function requestTenantAppointmentAction(
       },
     });
 
-    if (!tenant || !tenant.contactoCorreo) {
+    if (!tenant) {
       return {
         status: "error",
-        message: "La clínica aún no tiene correo de contacto configurado.",
+        message: "No se encontró la clínica para esta solicitud.",
       };
     }
 
@@ -171,6 +171,13 @@ export async function requestTenantAppointmentAction(
       },
     });
 
+    if (!tenant.contactoCorreo) {
+      return {
+        status: "success",
+        message: "Tu cita fue solicitada correctamente. La clínica te contactará pronto.",
+      };
+    }
+
     const formattedDate = selectedDate.toLocaleDateString("es-HN", {
       weekday: "long",
       year: "numeric",
@@ -179,22 +186,39 @@ export async function requestTenantAppointmentAction(
     });
 
     const emailService = new EmailService();
-    await emailService.sendMail({
-      to: tenant.contactoCorreo,
-      subject: `Nueva solicitud de cita - ${tenant.nombre}`,
-      text: `Se registró una nueva solicitud de cita.\n\nFecha solicitada: ${formattedDate}\nNombre: ${cleanNombre}\nCorreo: ${cleanEmail}\nTeléfono: ${cleanTelefono}\nMotivo: ${cleanMotivo}`,
-      html: `
-        <h2>Nueva solicitud de cita</h2>
-        <p>Se registró una nueva solicitud de cita desde el landing del tenant.</p>
-        <ul>
-          <li><strong>Fecha solicitada:</strong> ${formattedDate}</li>
-          <li><strong>Nombre:</strong> ${cleanNombre}</li>
-          <li><strong>Correo:</strong> ${cleanEmail}</li>
-          <li><strong>Teléfono:</strong> ${cleanTelefono}</li>
-          <li><strong>Motivo:</strong> ${cleanMotivo}</li>
-        </ul>
-      `,
-    });
+
+    try {
+      await emailService.sendMail({
+        to: tenant.contactoCorreo,
+        subject: `Nueva solicitud de cita - ${tenant.nombre}`,
+        text: `Se registró una nueva solicitud de cita.
+
+Fecha solicitada: ${formattedDate}
+Nombre: ${cleanNombre}
+Correo: ${cleanEmail}
+Teléfono: ${cleanTelefono}
+Motivo: ${cleanMotivo}`,
+        html: `
+          <h2>Nueva solicitud de cita</h2>
+          <p>Se registró una nueva solicitud de cita desde el landing del tenant.</p>
+          <ul>
+            <li><strong>Fecha solicitada:</strong> ${formattedDate}</li>
+            <li><strong>Nombre:</strong> ${cleanNombre}</li>
+            <li><strong>Correo:</strong> ${cleanEmail}</li>
+            <li><strong>Teléfono:</strong> ${cleanTelefono}</li>
+            <li><strong>Motivo:</strong> ${cleanMotivo}</li>
+          </ul>
+        `,
+      });
+    } catch (mailError) {
+      console.error("Error enviando correo de solicitud de cita:", mailError);
+
+      return {
+        status: "success",
+        message:
+          "Tu cita fue solicitada correctamente. Ya la registramos y la clínica te contactará pronto.",
+      };
+    }
 
     return {
       status: "success",
