@@ -112,55 +112,126 @@ export default async function LandingPage() {
 
   if (tenantLanding?.activo) {
     const logo = normalizeLogo(tenantLanding.logoBase64);
+
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100">
-        <section className="mx-auto w-full max-w-5xl px-4 py-12 sm:px-6 lg:py-16 space-y-8">
-          <div className="text-center space-y-4">
-            {logo ? (
-              <Image src={logo} alt={`Logo ${tenantLanding.nombre}`} width={96} height={96} className="mx-auto h-24 w-24 rounded border object-cover" unoptimized />
-            ) : null}
-            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">Bienvenido a</p>
-            <h1 className="text-4xl font-bold">{tenantLanding.nombre}</h1>
-            <p className="text-slate-300">Subdominio: {tenantLanding.slug}</p>
+        <header className="sticky top-0 z-20 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+            <div className="flex items-center gap-3 min-w-0">
+              {logo ? (
+                <Image
+                  src={logo}
+                  alt={`Logo ${tenantLanding.nombre}`}
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 rounded-md border border-slate-700 object-cover"
+                  unoptimized
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-700 bg-slate-900 text-sm font-bold text-cyan-300">
+                  {tenantLanding.nombre.charAt(0)}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{tenantLanding.nombre}</p>
+                <p className="truncate text-xs text-slate-400">{tenantLanding.slug}.medisoftcore.com</p>
+              </div>
+            </div>
+            <nav className="hidden items-center gap-5 text-sm text-slate-300 md:flex">
+              <Link href="#servicios" className="hover:text-cyan-300">Servicios</Link>
+              <Link href="#nosotros" className="hover:text-cyan-300">Nosotros</Link>
+              <Link href="#contacto" className="hover:text-cyan-300">Contacto</Link>
+            </nav>
           </div>
+        </header>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="border-slate-700 bg-slate-900/60">
-              <CardHeader><CardTitle>Misión</CardTitle></CardHeader>
-              <CardContent className="text-sm text-slate-300 whitespace-pre-line">{tenantLanding.mision || "No definida aún."}</CardContent>
-            </Card>
-            <Card className="border-slate-700 bg-slate-900/60">
-              <CardHeader><CardTitle>Visión</CardTitle></CardHeader>
-              <CardContent className="text-sm text-slate-300 whitespace-pre-line">{tenantLanding.vision || "No definida aún."}</CardContent>
-            </Card>
-            <Card className="border-slate-700 bg-slate-900/60">
-              <CardHeader><CardTitle>Servicios</CardTitle></CardHeader>
-              <CardContent className="text-sm text-slate-300 whitespace-pre-line">{tenantLanding.serviciosInfo || "No definidos aún."}</CardContent>
-            </Card>
-            <Card className="border-slate-700 bg-slate-900/60">
-              <CardHeader><CardTitle>Horarios</CardTitle></CardHeader>
-              <CardContent className="text-sm text-slate-300 whitespace-pre-line">{tenantLanding.horariosInfo || "No definidos aún."}</CardContent>
+        <section className="relative overflow-hidden border-b border-slate-800">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.18),_transparent_45%)]" />
+          <div className="relative mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.3fr_1fr] lg:py-16">
+            <div className="space-y-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Clínica Dental</p>
+              <h1 className="text-3xl font-bold leading-tight sm:text-5xl">{tenantLanding.nombre}</h1>
+              <p className="max-w-2xl text-base text-slate-300 sm:text-lg">
+                Cuidamos sonrisas con atención profesional, tecnología moderna y una experiencia humana de principio a fin.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button asChild className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+                  <Link href="#contacto">Agendar evaluación</Link>
+                </Button>
+                <Button asChild variant="outline" className="border-slate-600 bg-transparent hover:bg-slate-800">
+                  <Link href="#servicios">Ver servicios</Link>
+                </Button>
+              </div>
+            </div>
+            <Card className="border-slate-700 bg-slate-900/70">
+              <CardHeader>
+                <CardTitle>Horario y atención</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-slate-300 whitespace-pre-line">
+                <p><span className="font-medium text-slate-100">Horarios:</span> {tenantLanding.horariosInfo || "No definidos aún."}</p>
+                <p><span className="font-medium text-slate-100">Correo:</span> {tenantLanding.contactoCorreo || "No especificado"}</p>
+                <p><span className="font-medium text-slate-100">Teléfono:</span> {tenantLanding.telefono || "No especificado"}</p>
+              </CardContent>
             </Card>
           </div>
+        </section>
 
+        <section id="servicios" className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
+          <div className="mb-6 text-center">
+            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">Nuestros servicios</p>
+            <h2 className="text-2xl font-bold sm:text-3xl">Tratamientos diseñados para tu sonrisa</h2>
+          </div>
           <Card className="border-slate-700 bg-slate-900/60">
-            <CardHeader><CardTitle>Redes sociales y contacto</CardTitle></CardHeader>
-            <CardContent className="space-y-2 text-sm text-slate-300 whitespace-pre-line">
-              <p>{tenantLanding.redesSociales || "Sin redes sociales configuradas."}</p>
-              <p>Correo: {tenantLanding.contactoCorreo || "No especificado"}</p>
-              <p>Teléfono: {tenantLanding.telefono || "No especificado"}</p>
+            <CardContent className="pt-6 text-sm text-slate-300 whitespace-pre-line">
+              {tenantLanding.serviciosInfo || "Estamos preparando el detalle de servicios para ti."}
             </CardContent>
           </Card>
+        </section>
 
-          <div className="text-center">
-            <Button asChild className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
-              <Link href="/login">Acceso al portal</Link>
-            </Button>
+        <section id="nosotros" className="border-y border-slate-800 bg-slate-900/40">
+          <div className="mx-auto grid w-full max-w-6xl gap-4 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:py-16">
+            <Card className="border-slate-700 bg-slate-900/60">
+              <CardHeader>
+                <CardTitle>Misión</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-slate-300 whitespace-pre-line">
+                {tenantLanding.mision || "No definida aún."}
+              </CardContent>
+            </Card>
+            <Card className="border-slate-700 bg-slate-900/60">
+              <CardHeader>
+                <CardTitle>Visión</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-slate-300 whitespace-pre-line">
+                {tenantLanding.vision || "No definida aún."}
+              </CardContent>
+            </Card>
           </div>
+        </section>
+
+        <section id="contacto" className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
+          <Card className="border-slate-700 bg-slate-900/60">
+            <CardHeader>
+              <CardTitle>Redes y contacto</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-slate-300 whitespace-pre-line">
+              <p>{tenantLanding.redesSociales || "Sin redes sociales configuradas."}</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p>Correo: {tenantLanding.contactoCorreo || "No especificado"}</p>
+                  <p>Teléfono: {tenantLanding.telefono || "No especificado"}</p>
+                </div>
+                <Button asChild className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+                  <Link href="/login">Portal de pacientes / staff</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </section>
       </div>
     );
   }
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
