@@ -232,15 +232,32 @@ export default async function LandingPage() {
           </div>
 
           {tenantLanding.servicios.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {tenantLanding.servicios.map((servicio) => (
-                <Card key={servicio.id} className="border-border bg-card shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-lg">{servicio.nombre}</CardTitle>
+                <Card
+                  key={servicio.id}
+                  className="group relative overflow-hidden border-border/70 bg-card/95 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/60 hover:shadow-xl"
+                >
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-500 via-sky-400 to-blue-500" />
+                  <CardHeader className="space-y-3 pb-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">
+                        Servicio
+                      </span>
+                      <span className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                        {servicio.duracionMin} min
+                      </span>
+                    </div>
+                    <CardTitle className="line-clamp-2 text-lg leading-tight">{servicio.nombre}</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2 text-sm text-muted-foreground">
-                    <p>{servicio.descripcion || "Sin descripción disponible."}</p>
-                    <p className="font-medium text-foreground">Desde L {Number(servicio.precioBase).toFixed(2)} · {servicio.duracionMin} min</p>
+                  <CardContent className="space-y-4">
+                    <p className="line-clamp-3 min-h-[60px] text-sm text-muted-foreground">
+                      {servicio.descripcion || "Sin descripción disponible."}
+                    </p>
+                    <div className="flex items-center justify-between rounded-xl border border-border/70 bg-muted/40 px-3 py-2">
+                      <p className="text-xs text-muted-foreground">Precio desde</p>
+                      <p className="text-base font-bold text-foreground">L {Number(servicio.precioBase).toFixed(2)}</p>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -261,18 +278,48 @@ export default async function LandingPage() {
               <h2 className="text-2xl font-bold sm:text-3xl">Ofertas vigentes para tu tratamiento</h2>
             </div>
             {tenantLanding.promociones.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {tenantLanding.promociones.map((promo) => (
-                  <Card key={promo.id} className="border-border bg-card shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="text-lg">{promo.nombre}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm text-muted-foreground">
-                      <p>{promo.descripcion || "Promoción especial por tiempo limitado."}</p>
-                      <p className="font-medium text-foreground">Antes: L {Number(promo.precioReferencial).toFixed(2)} · Ahora: L {Number(promo.precioPromocional).toFixed(2)}</p>
-                    </CardContent>
-                  </Card>
-                ))}
+              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {tenantLanding.promociones.map((promo) => {
+                  const ahorro = Number(promo.precioReferencial) - Number(promo.precioPromocional);
+
+                  return (
+                    <Card
+                      key={promo.id}
+                      className="group relative overflow-hidden border-cyan-500/25 bg-gradient-to-br from-cyan-500/5 via-background to-background shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/60 hover:shadow-xl"
+                    >
+                      <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-cyan-400/20 blur-2xl" />
+                      <CardHeader className="space-y-3 pb-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                            Promoción
+                          </span>
+                          {ahorro > 0 ? (
+                            <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
+                              Ahorra L {ahorro.toFixed(2)}
+                            </span>
+                          ) : null}
+                        </div>
+                        <CardTitle className="line-clamp-2 text-lg leading-tight">{promo.nombre}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <p className="line-clamp-3 min-h-[60px] text-sm text-muted-foreground">
+                          {promo.descripcion || "Promoción especial por tiempo limitado."}
+                        </p>
+                        <div className="rounded-xl border border-border/70 bg-card/80 p-3">
+                          <p className="text-xs text-muted-foreground">Precio promocional</p>
+                          <div className="mt-1 flex items-baseline gap-2">
+                            <span className="text-xl font-extrabold text-cyan-700 dark:text-cyan-300">
+                              L {Number(promo.precioPromocional).toFixed(2)}
+                            </span>
+                            <span className="text-sm text-muted-foreground line-through">
+                              L {Number(promo.precioReferencial).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             ) : (
               <Card className="border-border bg-card shadow-sm">
