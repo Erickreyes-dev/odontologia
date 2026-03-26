@@ -9,6 +9,7 @@ export const UsuarioSchema = z.object({
   debeCambiarPassword: z.boolean().optional(),
   rol: z.string().optional(),
   empleado: z.string().optional(),
+  fotoUrl: z.string().optional(),
   rol_id: z.string().uuid("Role ID debe ser un UUID válido"),
   activo: z.boolean().optional(),
 });

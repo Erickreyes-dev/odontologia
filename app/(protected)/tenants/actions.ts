@@ -32,21 +32,8 @@ function calculateNextPaymentDate(periodoPlan: string, baseDate = new Date()): D
   return next;
 }
 
-function resolvePlanPrice(paquete: { precio: any; precioTrimestral: any; precioSemestral: any; precioAnual: any }, periodoPlan: string) {
-  switch (periodoPlan) {
-    case "trimestral":
-      return paquete.precioTrimestral ?? Number(paquete.precio) * 3;
-    case "semestral":
-      return paquete.precioSemestral ?? Number(paquete.precio) * 6;
-    case "anual":
-      return paquete.precioAnual ?? Number(paquete.precio) * 12;
-    default:
-      return paquete.precio;
-  }
-}
-
 export async function getTenantsData() {
-  const [paquetes, tenants] = await Promise.all([
+  const [paquetes, tenants, paidInvoices, pendingInvoices] = await Promise.all([
     prisma.paquete.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.tenant.findMany({
       take: 30,
@@ -56,9 +43,28 @@ export async function getTenantsData() {
         _count: { select: { usuarios: true, pacientes: true, roles: true } },
       },
     }),
+    prisma.tenantInvoice.aggregate({
+      _sum: { total: true, monto: true },
+      _count: { _all: true },
+      where: { estado: "pagada" },
+    }),
+    prisma.tenantInvoice.aggregate({
+      _sum: { total: true, monto: true },
+      _count: { _all: true },
+      where: { estado: "pendiente" },
+    }),
   ]);
 
-  return { paquetes, tenants };
+  return {
+    paquetes,
+    tenants,
+    metrics: {
+      paidCount: paidInvoices._count._all,
+      pendingCount: pendingInvoices._count._all,
+      ingresosTotales: Number(paidInvoices._sum.total ?? paidInvoices._sum.monto ?? 0),
+      ingresosPendientes: Number(pendingInvoices._sum.total ?? pendingInvoices._sum.monto ?? 0),
+    },
+  };
 }
 
 export async function createTenant(
@@ -91,8 +97,9 @@ export async function createTenant(
       : randomBytes(9).toString("base64").slice(0, 12);
 
     await prisma.$transaction(async (tx) => {
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+      const trialEndsAt = paquete.trialActivo && paquete.trialDias > 0
+        ? new Date(Date.now() + paquete.trialDias * 24 * 60 * 60 * 1000)
+        : null;
 
       const tenant = await tx.tenant.create({
         data: {
@@ -165,17 +172,6 @@ export async function createTenant(
         },
       });
 
-      await tx.tenantInvoice.create({
-        data: {
-          id: randomUUID(),
-          tenantId: tenant.id,
-          paqueteId: paquete.id,
-          periodoPlan: data.periodoPlan,
-          monto: resolvePlanPrice(paquete, data.periodoPlan),
-          moneda: "USD",
-          estado: "pendiente",
-        },
-      });
     });
 
     revalidatePath("/tenants");
@@ -221,23 +217,30 @@ export async function updateTenantPlan(
         },
       });
 
-      await tx.tenantInvoice.create({
-        data: {
-          id: randomUUID(),
-          tenantId: data.tenantId,
-          paqueteId: paquete.id,
-          periodoPlan: data.periodoPlan,
-          monto: resolvePlanPrice(paquete, data.periodoPlan),
-          moneda: "USD",
-          estado: "pendiente",
-        },
-      });
     });
 
     revalidatePath("/tenants");
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "No se pudo actualizar el plan" };
+  }
+}
+
+export async function deleteTenant(
+  tenantId: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.Permiso?.includes("gestionar_tenants")) {
+      return { success: false, error: "No tiene permisos para eliminar tenants" };
+    }
+
+    await prisma.tenant.delete({ where: { id: tenantId } });
+    revalidatePath("/tenants");
+    revalidatePath("/dashboard-admin");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "No se pudo eliminar el tenant" };
   }
 }
 

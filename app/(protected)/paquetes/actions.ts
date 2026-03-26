@@ -40,6 +40,8 @@ export async function createPaquete(
         precioSemestral: data.precioSemestral ?? null,
         precioAnual: data.precioAnual ?? null,
         maxUsuarios: data.maxUsuarios,
+        trialActivo: Boolean(data.trialActivo),
+        trialDias: data.trialActivo ? (data.trialDias ?? 7) : 0,
         activo: true,
       },
     });

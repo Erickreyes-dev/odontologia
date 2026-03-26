@@ -7,6 +7,7 @@ import { getTenantsData } from "./actions";
 import CreateTenantForm from "./components/create-tenant-form";
 import TenantStatusToggle from "./components/tenant-status-toggle";
 import TenantPlanEditor from "./components/tenant-plan-editor";
+import TenantDeleteButton from "./components/tenant-delete-button";
 
 export default async function TenantsPage() {
   const permisos = await getSessionPermisos();
@@ -15,7 +16,7 @@ export default async function TenantsPage() {
     return <NoAcceso />;
   }
 
-  const { paquetes, tenants } = await getTenantsData();
+  const { paquetes, tenants, metrics } = await getTenantsData();
 
   return (
     <div className="container mx-auto py-2 space-y-6">
@@ -38,6 +39,24 @@ export default async function TenantsPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ganancias por suscripciones</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm md:grid-cols-2">
+          <div className="rounded border p-3">
+            <p className="text-muted-foreground">Ingresos cobrados</p>
+            <p className="text-xl font-semibold">USD {metrics.ingresosTotales.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">Facturas pagadas: {metrics.paidCount}</p>
+          </div>
+          <div className="rounded border p-3">
+            <p className="text-muted-foreground">Pendiente por cobrar</p>
+            <p className="text-xl font-semibold">USD {metrics.ingresosPendientes.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">Facturas pendientes: {metrics.pendingCount}</p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -71,6 +90,9 @@ export default async function TenantsPage() {
                     />
                     <div className="mt-2">
                       <TenantStatusToggle tenantId={t.id} activo={t.activo} />
+                    </div>
+                    <div className="mt-2">
+                      <TenantDeleteButton tenantId={t.id} tenantName={t.nombre} />
                     </div>
                   </>
                 )}

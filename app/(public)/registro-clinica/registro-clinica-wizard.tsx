@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { registerTenantWithGoogle } from "../google-onboarding/actions";
+import { loginGoogleExistingTenant, registerTenantWithGoogle } from "../google-onboarding/actions";
 import { BadgeCheck, Building2, Check, Globe, ShieldCheck, Sparkles, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,8 @@ type PackageOption = {
   nombre: string;
   descripcion: string | null;
   maxUsuarios: number;
+  trialActivo: boolean;
+  trialDias: number;
   precio: any;
   precioTrimestral: any;
   precioAnual: any;
@@ -62,8 +64,6 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
   const [paisCodigo, setPaisCodigo] = useState("US");
   const [packageId, setPackageId] = useState(activePackages[0]?.id ?? "");
   const [periodoPlan, setPeriodoPlan] = useState<Period>("anual");
-  const [freeTrialEnabled, setFreeTrialEnabled] = useState(true);
-  const [trialDays, setTrialDays] = useState(7);
   const [error, setError] = useState<string | null>(null);
   const [tenantUrl, setTenantUrl] = useState("");
   const [alreadyExists, setAlreadyExists] = useState(false);
@@ -98,7 +98,20 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
 
     window.google.accounts.id.initialize({
       client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-      callback: (response: { credential: string }) => setCredential(response.credential),
+      callback: async (response: { credential: string }) => {
+        setCredential(response.credential);
+        const existing = await loginGoogleExistingTenant(response.credential);
+        if (!existing.success) {
+          setError(existing.error);
+          return;
+        }
+        if (existing.exists && existing.tenantUrl) {
+          setAlreadyExists(true);
+          setTenantUrl(existing.tenantUrl);
+          window.localStorage.setItem("tenant_url", existing.tenantUrl);
+          setTimeout(() => router.replace("/profile"), 900);
+        }
+      },
     });
 
     window.google.accounts.id.prompt();
@@ -118,8 +131,6 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
         paisCodigo,
         packageId: selectedPackage.id,
         periodoPlan,
-        freeTrialEnabled,
-        trialDays,
       });
 
       if (!response.success) {
@@ -197,23 +208,17 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
               </div>
             </div>
 
-            <div className="space-y-2 rounded-xl border border-slate-700 p-3">
-              <label className="flex items-center gap-2 text-sm text-slate-200">
-                <input type="checkbox" checked={freeTrialEnabled} onChange={(e) => setFreeTrialEnabled(e.target.checked)} /> Activar prueba gratis
-              </label>
-              <div className="space-y-1">
-                <Label className="text-xs text-slate-400">Días de prueba</Label>
-                <Input type="number" min={1} max={60} value={trialDays} disabled={!freeTrialEnabled} onChange={(e) => setTrialDays(Number(e.target.value || 0))} className="border-slate-700 bg-slate-900" />
-              </div>
+            <div className="rounded-xl border border-slate-700 p-3 text-xs text-slate-300">
+              Prueba gratis: {selectedPackage?.trialActivo ? `${selectedPackage.trialDias} días (configurado desde root)` : "No incluida en este paquete"}
             </div>
           </section>
 
           <section className="space-y-3 rounded-2xl border border-slate-700 bg-slate-950/40 p-4">
             <p className="flex items-center gap-2 text-sm font-semibold text-cyan-300"><ShieldCheck className="h-4 w-4" /> 3) Confirma con Google</p>
             <Button type="button" variant="outline" onClick={onGoogleClick} className="w-full border-slate-600 bg-slate-900 text-slate-100 hover:bg-slate-800">
-              Continuar con Google
+              Iniciar sesión con Google
             </Button>
-            <Button type="button" onClick={onSubmit} disabled={isPending || !credential || consultorioNombre.trim().length < 3} className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+            <Button type="button" onClick={onSubmit} disabled={isPending || !credential} className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400">
               {isPending ? "Procesando..." : "Crear clínica / iniciar sesión"}
             </Button>
             {!credential ? <p className="text-xs text-slate-400">Primero conecta tu cuenta Google para finalizar.</p> : <p className="text-xs text-emerald-300">Google conectado correctamente.</p>}

@@ -9,7 +9,7 @@ export default function GoogleOnboardingButton() {
     <div className="space-y-2">
       <Button asChild type="button" className="w-full rounded-xl bg-cyan-500 font-semibold text-slate-950 hover:bg-cyan-400">
         <Link href="/registro-clinica">
-          <Rocket className="mr-2 h-4 w-4" /> Crear clínica y contratar paquete
+          <Rocket className="mr-2 h-4 w-4" /> Iniciar sesión con Google
         </Link>
       </Button>
       <p className="flex items-center justify-center gap-1 text-center text-xs text-slate-400">

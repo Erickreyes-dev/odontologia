@@ -14,8 +14,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { Usuario } from "../schema";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export const columns: ColumnDef<Usuario>[] = [
+  {
+    accessorKey: "fotoUrl",
+    header: "Foto",
+    cell: ({ row }) => {
+      const fotoUrl = row.original.fotoUrl;
+      return (
+        <Avatar>
+          <AvatarImage src={fotoUrl} alt={`Foto de ${row.original.usuario}`} />
+          <AvatarFallback>{row.original.usuario?.slice(0, 2).toUpperCase()}</AvatarFallback>
+        </Avatar>
+      );
+    },
+  },
 
   {
     accessorKey: "usuario",

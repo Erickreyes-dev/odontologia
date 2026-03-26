@@ -11,6 +11,8 @@ export default async function RegistroClinicaPage() {
       nombre: true,
       descripcion: true,
       maxUsuarios: true,
+      trialActivo: true,
+      trialDias: true,
       precio: true,
       precioTrimestral: true,
       precioAnual: true,

@@ -6,6 +6,7 @@ import { Pencil, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Usuario } from "../schema";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface UserListProps {
   usuarios: Usuario[];
@@ -44,15 +45,21 @@ export default function UserListMobile({ usuarios }: UserListProps) {
       {/* Listado de usuarios */}
       {filteredUsuarios.map((user) => (
         <div key={user.id} className="flex items-center justify-between p-4 rounded-lg shadow border">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center">
-              <span
-                className={`w-2 h-2 rounded-full mr-2 ${user.activo ? "bg-green-500" : "bg-red-500"}`}
-              ></span>
-              <h3 className="text-sm font-medium truncate">{user.usuario}</h3>
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={user.fotoUrl} alt={`Foto de ${user.usuario}`} />
+              <AvatarFallback>{user.usuario?.slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <div className="flex items-center">
+                <span
+                  className={`w-2 h-2 rounded-full mr-2 ${user.activo ? "bg-green-500" : "bg-red-500"}`}
+                ></span>
+                <h3 className="text-sm font-medium truncate">{user.usuario}</h3>
+              </div>
+              <p className="text-xs mt-1 truncate">Empleado: {user.empleado}</p>
+              <p className="text-xs mt-1 truncate">Rol: {user.rol}</p>
             </div>
-            <p className="text-xs mt-1 truncate">Empleado: {user.empleado}</p>
-            <p className="text-xs mt-1 truncate">Rol: {user.rol}</p>
           </div>
           <div className="flex items-center ml-4">
             <Link href={`/usuarios/${user.id}/edit`}>
