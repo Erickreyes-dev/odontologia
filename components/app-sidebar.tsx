@@ -17,7 +17,7 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import {  Boxes, Building2, Calendar, ChevronDown, ChevronUp, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
+import {  Boxes, Building2, Calendar, ChevronDown, ChevronUp, CreditCard, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
 import Link from "next/link";
 import Image from "next/image";
 import { NavUser } from "./nav-user";
@@ -156,6 +156,13 @@ const items = [
     icon: LayersIcon,
     permiso: "ver_planes_tratamiento",
   },
+  {
+    title: "Facturación SaaS",
+    url: "/billing",
+    icon: CreditCard,
+    permiso: "ver_pagos",
+  },
+
   {
     title: "Pagos",
     url: "/pagos",

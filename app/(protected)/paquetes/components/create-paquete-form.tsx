@@ -22,6 +22,9 @@ export default function CreatePaqueteForm() {
         nombre: String(formData.get("nombre") || ""),
         descripcion: String(formData.get("descripcion") || ""),
         precio: Number(formData.get("precio") || 0),
+        precioTrimestral: Number(formData.get("precioTrimestral") || 0),
+        precioSemestral: Number(formData.get("precioSemestral") || 0),
+        precioAnual: Number(formData.get("precioAnual") || 0),
         maxUsuarios: Number(formData.get("maxUsuarios") || 20),
       });
 
@@ -50,8 +53,20 @@ export default function CreatePaqueteForm() {
         <Input id="descripcion" name="descripcion" placeholder="Plan para clínicas medianas" />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="precio">Precio</Label>
+        <Label htmlFor="precio">Precio mensual (USD)</Label>
         <Input id="precio" name="precio" type="number" min={0} step="0.01" defaultValue={0} required />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="precioTrimestral">Precio trimestral (USD)</Label>
+        <Input id="precioTrimestral" name="precioTrimestral" type="number" min={0} step="0.01" defaultValue={0} required />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="precioSemestral">Precio semestral (USD)</Label>
+        <Input id="precioSemestral" name="precioSemestral" type="number" min={0} step="0.01" defaultValue={0} required />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="precioAnual">Precio anual (USD)</Label>
+        <Input id="precioAnual" name="precioAnual" type="number" min={0} step="0.01" defaultValue={0} required />
       </div>
 
       {error && <p className="text-sm text-red-500 md:col-span-2">{error}</p>}

@@ -45,7 +45,10 @@ export default async function PaquetesPage() {
               <div key={p.id} className="rounded border p-3 text-sm">
                 <div className="font-medium">{p.nombre}</div>
                 <div className="text-muted-foreground">
-                  Precio: {Number(p.precio).toFixed(2)} · Máx usuarios: {p.maxUsuarios} · Estado: {p.activo ? "Activo" : "Inactivo"}
+                  USD mensual: {Number(p.precio).toFixed(2)} · Trimestral: {Number(p.precioTrimestral ?? 0).toFixed(2)} · Semestral: {Number(p.precioSemestral ?? 0).toFixed(2)} · Anual: {Number(p.precioAnual ?? 0).toFixed(2)}
+                </div>
+                <div className="text-muted-foreground">
+                  Máx usuarios: {p.maxUsuarios} · Estado: {p.activo ? "Activo" : "Inactivo"}
                 </div>
                 <div className="text-muted-foreground">{p.descripcion ?? "Sin descripción"}</div>
                 {permisos.includes("gestionar_paquetes") && <PaqueteStatusToggle paqueteId={p.id} activo={p.activo} />}

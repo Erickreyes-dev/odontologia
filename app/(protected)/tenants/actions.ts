@@ -8,6 +8,7 @@ import bcrypt from "bcryptjs";
 import { randomBytes, randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { TenantCreateInput, TenantPlanUpdateInput, tenantCreateSchema, tenantPlanUpdateSchema } from "./schema";
+import { resolveCurrencyByCountry } from "@/lib/country-currency";
 
 function calculateNextPaymentDate(periodoPlan: string, baseDate = new Date()): Date {
   const next = new Date(baseDate);
@@ -29,6 +30,19 @@ function calculateNextPaymentDate(periodoPlan: string, baseDate = new Date()): D
       break;
   }
   return next;
+}
+
+function resolvePlanPrice(paquete: { precio: any; precioTrimestral: any; precioSemestral: any; precioAnual: any }, periodoPlan: string) {
+  switch (periodoPlan) {
+    case "trimestral":
+      return paquete.precioTrimestral ?? Number(paquete.precio) * 3;
+    case "semestral":
+      return paquete.precioSemestral ?? Number(paquete.precio) * 6;
+    case "anual":
+      return paquete.precioAnual ?? Number(paquete.precio) * 12;
+    default:
+      return paquete.precio;
+  }
 }
 
 export async function getTenantsData() {
@@ -77,6 +91,9 @@ export async function createTenant(
       : randomBytes(9).toString("base64").slice(0, 12);
 
     await prisma.$transaction(async (tx) => {
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+
       const tenant = await tx.tenant.create({
         data: {
           id: randomUUID(),
@@ -89,6 +106,9 @@ export async function createTenant(
           proximoPago: calculateNextPaymentDate(data.periodoPlan),
           contactoNombre: data.adminNombre,
           contactoCorreo: data.adminCorreo,
+          paisCodigo: "HN",
+          monedaCodigo: "HNL",
+          trialEndsAt,
           activo: true,
         },
       });
@@ -144,6 +164,18 @@ export async function createTenant(
           DebeCambiarPassword: true,
         },
       });
+
+      await tx.tenantInvoice.create({
+        data: {
+          id: randomUUID(),
+          tenantId: tenant.id,
+          paqueteId: paquete.id,
+          periodoPlan: data.periodoPlan,
+          monto: resolvePlanPrice(paquete, data.periodoPlan),
+          moneda: "USD",
+          estado: "pendiente",
+        },
+      });
     });
 
     revalidatePath("/tenants");
@@ -174,15 +206,32 @@ export async function updateTenantPlan(
       return { success: false, error: "El paquete seleccionado no está disponible" };
     }
 
-    await prisma.tenant.update({
-      where: { id: data.tenantId },
-      data: {
-        paqueteId: paquete.id,
-        plan: paquete.nombre,
-        maxUsuarios: paquete.maxUsuarios,
-        periodoPlan: data.periodoPlan,
-        proximoPago: calculateNextPaymentDate(data.periodoPlan),
-      },
+    const tenant = await prisma.tenant.findUnique({ where: { id: data.tenantId }, select: { paisCodigo: true } });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.tenant.update({
+        where: { id: data.tenantId },
+        data: {
+          paqueteId: paquete.id,
+          plan: paquete.nombre,
+          maxUsuarios: paquete.maxUsuarios,
+          periodoPlan: data.periodoPlan,
+          proximoPago: calculateNextPaymentDate(data.periodoPlan),
+          monedaCodigo: resolveCurrencyByCountry(tenant?.paisCodigo).currency,
+        },
+      });
+
+      await tx.tenantInvoice.create({
+        data: {
+          id: randomUUID(),
+          tenantId: data.tenantId,
+          paqueteId: paquete.id,
+          periodoPlan: data.periodoPlan,
+          monto: resolvePlanPrice(paquete, data.periodoPlan),
+          moneda: "USD",
+          estado: "pendiente",
+        },
+      });
     });
 
     revalidatePath("/tenants");
