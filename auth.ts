@@ -10,6 +10,7 @@ import { schemaSignIn, TSchemaSignIn } from './lib/shemas';
 import { prisma } from './lib/prisma';
 import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
 import { getSessionCookieDomain } from "@/lib/session-cookie";
+import { isSubscriptionActive, resolveSubscriptionStatus, type SubscriptionStatus } from "@/lib/subscription-status";
 
 const key = new TextEncoder().encode(process.env.AUTH_SECRET!);
 
@@ -27,6 +28,8 @@ export interface UsuarioSesion extends JWTPayload {
   TenantSlug: string;
   TenantNombre: string;
   SuscripcionActiva: boolean;
+  SubscriptionStatus: SubscriptionStatus;
+  TenantActivo: boolean;
   TrialEndsAt?: string | null;
   ProximoPago?: string | null;
 }
@@ -56,6 +59,8 @@ export const decrypt = async (token: string): Promise<UsuarioSesion | null> => {
       TenantSlug: payload.TenantSlug as string,
       TenantNombre: payload.TenantNombre as string,
       SuscripcionActiva: Boolean(payload.SuscripcionActiva),
+      SubscriptionStatus: (payload.SubscriptionStatus as SubscriptionStatus) ?? "expirado",
+      TenantActivo: payload.TenantActivo !== false,
       TrialEndsAt: (payload.TrialEndsAt as string | null) ?? null,
       ProximoPago: (payload.ProximoPago as string | null) ?? null,
       iss: payload.iss as string,
@@ -190,9 +195,11 @@ async function authenticateDB(
     }
 
     const permisos = user.rol.permisos.map(rp => rp.permiso.nombre);
-    const now = new Date();
-    const hasTrial = Boolean(user.tenant?.trialEndsAt && user.tenant.trialEndsAt > now);
-    const hasPaidPeriod = Boolean(user.tenant?.proximoPago && user.tenant.proximoPago > now);
+    const subscriptionStatus = resolveSubscriptionStatus({
+      tenantActivo: user.tenant?.activo,
+      trialEndsAt: user.tenant?.trialEndsAt,
+      proximoPago: user.tenant?.proximoPago,
+    });
 
     const payload: UsuarioSesion = {
       IdUser: user.id,
@@ -207,7 +214,9 @@ async function authenticateDB(
       TenantId: user.tenantId ?? "",
       TenantSlug: user.tenant?.slug ?? "",
       TenantNombre: user.tenant?.nombre ?? "",
-      SuscripcionActiva: hasTrial || hasPaidPeriod,
+      SuscripcionActiva: isSubscriptionActive(subscriptionStatus),
+      SubscriptionStatus: subscriptionStatus,
+      TenantActivo: Boolean(user.tenant?.activo),
       TrialEndsAt: user.tenant?.trialEndsAt?.toISOString() ?? null,
       ProximoPago: user.tenant?.proximoPago?.toISOString() ?? null,
       iss: "odontologia-saas",
@@ -237,9 +246,11 @@ async function changePassword(tenantId: string, username: string, newPassword: s
     });
 
     const permisos = updated.rol.permisos.map(rp => rp.permiso.nombre);
-    const now = new Date();
-    const hasTrial = Boolean(updated.tenant?.trialEndsAt && updated.tenant.trialEndsAt > now);
-    const hasPaidPeriod = Boolean(updated.tenant?.proximoPago && updated.tenant.proximoPago > now);
+    const subscriptionStatus = resolveSubscriptionStatus({
+      tenantActivo: updated.tenant?.activo,
+      trialEndsAt: updated.tenant?.trialEndsAt,
+      proximoPago: updated.tenant?.proximoPago,
+    });
     const payload: UsuarioSesion = {
       IdUser: updated.id,
       User: updated.usuario,
@@ -253,7 +264,9 @@ async function changePassword(tenantId: string, username: string, newPassword: s
       TenantId: updated.tenantId ?? "",
       TenantSlug: updated.tenant?.slug ?? "",
       TenantNombre: updated.tenant?.nombre ?? "",
-      SuscripcionActiva: hasTrial || hasPaidPeriod,
+      SuscripcionActiva: isSubscriptionActive(subscriptionStatus),
+      SubscriptionStatus: subscriptionStatus,
+      TenantActivo: Boolean(updated.tenant?.activo),
       TrialEndsAt: updated.tenant?.trialEndsAt?.toISOString() ?? null,
       ProximoPago: updated.tenant?.proximoPago?.toISOString() ?? null,
       iss: "odontologia-saas",

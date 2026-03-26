@@ -7,11 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createCheckoutForPlan, saveTenantBillingProfile } from "./actions";
 import { toast } from "sonner";
+import type { SubscriptionStatus } from "@/lib/subscription-status";
 
 type BillingClientProps = {
   tenantSlug: string;
   paqueteNombre: string;
+  subscriptionStatus: SubscriptionStatus;
   trialEndsAt: string | null;
+  proximoPago: string | null;
   precioMensual: number;
   precioTrimestral: number;
   precioSemestral: number;
@@ -57,6 +60,11 @@ export function BillingClient(props: BillingClientProps) {
   const trialDaysLeft = props.trialEndsAt
     ? Math.max(0, Math.ceil((new Date(props.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 0;
+  const statusTone = props.subscriptionStatus === "vigente"
+    ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/40"
+    : props.subscriptionStatus === "cancelado"
+      ? "bg-rose-500/10 text-rose-700 border-rose-500/40"
+      : "bg-amber-500/10 text-amber-700 border-amber-500/40";
 
   const onPaypalCheckout = (periodo: "mensual" | "trimestral" | "semestral" | "anual") => {
     startTransition(async () => {
@@ -91,9 +99,15 @@ export function BillingClient(props: BillingClientProps) {
       <div className="rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 via-sky-500/10 to-indigo-500/10 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="flex items-center gap-2 text-sm font-semibold"><BadgeCheck className="h-4 w-4 text-cyan-500" /> Suscripción activa: {props.paqueteNombre}</p>
+            <p className="flex items-center gap-2 text-sm font-semibold"><BadgeCheck className="h-4 w-4 text-cyan-500" /> Suscripción: {props.paqueteNombre}</p>
+            <p className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${statusTone}`}>
+              Estado: {props.subscriptionStatus}
+            </p>
             {props.trialEndsAt ? (
               <p className="mt-1 text-xs text-muted-foreground">Prueba gratuita: {trialDaysLeft} día(s) restantes</p>
+            ) : null}
+            {props.proximoPago ? (
+              <p className="mt-1 text-xs text-muted-foreground">Próximo pago: {new Date(props.proximoPago).toLocaleDateString()}</p>
             ) : null}
             <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground"><Globe className="h-3.5 w-3.5" /> {props.tenantSlug}.medisoftcore.com</p>
           </div>

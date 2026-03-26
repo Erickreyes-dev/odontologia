@@ -3,6 +3,7 @@ import { CreditCard } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { resolveSubscriptionStatus } from "@/lib/subscription-status";
 import { capturePaypalAndCreateInvoice, getTenantBilling } from "./actions";
 import { BillingClient } from "./billing-client";
 
@@ -57,6 +58,11 @@ export default async function BillingPage({
 
   if (!data) return <div className="p-4">No se encontró información de facturación.</div>;
   const latestInvoice = data.tenantInvoices[0];
+  const subscriptionStatus = resolveSubscriptionStatus({
+    tenantActivo: data.activo,
+    trialEndsAt: data.trialEndsAt,
+    proximoPago: data.proximoPago,
+  });
 
   return (
     <div className="container mx-auto py-2 space-y-6">
@@ -71,7 +77,9 @@ export default async function BillingPage({
       <BillingClient
         tenantSlug={data.slug}
         paqueteNombre={data.paquete?.nombre ?? "Sin paquete"}
+        subscriptionStatus={subscriptionStatus}
         trialEndsAt={data.trialEndsAt ? data.trialEndsAt.toISOString() : null}
+        proximoPago={data.proximoPago ? data.proximoPago.toISOString() : null}
         precioMensual={Number(data.paquete?.precio ?? 0)}
         precioTrimestral={Number(data.paquete?.precioTrimestral ?? Number(data.paquete?.precio ?? 0) * 3)}
         precioSemestral={Number(data.paquete?.precioSemestral ?? Number(data.paquete?.precio ?? 0) * 6)}
