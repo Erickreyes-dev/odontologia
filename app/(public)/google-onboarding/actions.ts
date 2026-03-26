@@ -13,42 +13,16 @@ interface GoogleOnboardingInput {
   consultorioNombre: string;
   teamSize: "1" | "2" | "3-5" | ">5";
   paisCodigo: string;
-  packageCode: "start" | "growth" | "pro" | "enterprise";
+  packageId: string;
   periodoPlan: "mensual" | "trimestral" | "anual";
+  freeTrialEnabled: boolean;
+  trialDays: number;
 }
-
-const packageConfig = {
-  start: { keywords: ["start", "starter"], label: "Start Clinic" },
-  growth: { keywords: ["growth"], label: "Growth Clinic" },
-  pro: { keywords: ["pro"], label: "Pro Revenue" },
-  enterprise: { keywords: ["enterprise", "multi"], label: "Multi-Clinic / Enterprise" },
-} as const;
 
 function resolveMontoByPeriod(paquete: { precio: any; precioTrimestral: any; precioAnual: any }, periodoPlan: GoogleOnboardingInput["periodoPlan"]) {
   if (periodoPlan === "trimestral") return Number(paquete.precioTrimestral ?? Number(paquete.precio) * 3);
   if (periodoPlan === "anual") return Number(paquete.precioAnual ?? Number(paquete.precio) * 12);
   return Number(paquete.precio);
-}
-
-async function resolvePackageForRegistration(packageCode: GoogleOnboardingInput["packageCode"]) {
-  const activePackages = await prisma.paquete.findMany({
-    where: { activo: true },
-    orderBy: [{ maxUsuarios: "asc" }, { precio: "asc" }],
-  });
-
-  if (!activePackages.length) return null;
-
-  const config = packageConfig[packageCode];
-  const byName = activePackages.find((pkg) =>
-    config.keywords.some((keyword) => pkg.nombre.toLowerCase().includes(keyword)),
-  );
-
-  if (byName) return byName;
-
-  if (packageCode === "enterprise") return activePackages[activePackages.length - 1];
-  if (packageCode === "pro") return activePackages.find((pkg) => pkg.maxUsuarios >= 40) ?? activePackages[activePackages.length - 1];
-  if (packageCode === "growth") return activePackages.find((pkg) => pkg.maxUsuarios >= 20) ?? activePackages[Math.min(1, activePackages.length - 1)];
-  return activePackages[0];
 }
 
 async function verifyGoogleCredential(credential: string) {
@@ -65,7 +39,7 @@ async function verifyGoogleCredential(credential: string) {
   }
 
   return {
-    email: String(tokenInfo.email),
+    email: String(tokenInfo.email).toLowerCase(),
     name: String(tokenInfo.name ?? tokenInfo.email.split("@")[0]),
     sub: String(tokenInfo.sub),
   };
@@ -82,8 +56,38 @@ function normalizeSlug(input: string) {
     .slice(0, 50);
 }
 
-export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Promise<{ success: true; tenantUrl: string } | { success: false; error: string }> {
+async function createSession(payload: UsuarioSesion) {
+  const token = await encrypt(payload);
+  cookies().set("session", token, { expires: new Date(Date.now() + 6 * 60 * 60 * 1000), httpOnly: true, path: "/" });
+}
+
+function usernameFromEmail(email: string) {
+  return email.split("@")[0].slice(0, 50);
+}
+
+async function findGoogleUserByEmail(email: string) {
+  return prisma.usuarios.findFirst({
+    where: {
+      correo: email,
+      tenant: { authProvider: "google" },
+      activo: true,
+      tenantId: { not: null },
+    },
+    include: {
+      rol: true,
+      tenant: { include: { roles: true, permisos: true } },
+    },
+  });
+}
+
+export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Promise<{ success: true; tenantUrl: string; alreadyExists?: boolean } | { success: false; error: string }> {
   try {
+    if (!input.credential) return { success: false, error: "Debes autenticar con Google para continuar" };
+    if (!input.packageId) return { success: false, error: "Selecciona un paquete para continuar" };
+    if (input.freeTrialEnabled && (input.trialDays < 1 || input.trialDays > 60)) {
+      return { success: false, error: "Los días de prueba deben estar entre 1 y 60" };
+    }
+
     const identity = await verifyGoogleCredential(input.credential);
     const consultorioNombre = input.consultorioNombre.trim();
 
@@ -91,9 +95,32 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
       return { success: false, error: "El nombre del consultorio es obligatorio" };
     }
 
-    const selectedPackage = await resolvePackageForRegistration(input.packageCode);
+    const existingGoogleUser = await findGoogleUserByEmail(identity.email);
+    if (existingGoogleUser?.tenant && existingGoogleUser.tenantId) {
+      const payload: UsuarioSesion = {
+        IdUser: existingGoogleUser.id,
+        User: existingGoogleUser.usuario,
+        Rol: existingGoogleUser.rol.nombre,
+        IdRol: existingGoogleUser.rol_id,
+        IdEmpleado: existingGoogleUser.empleado_id,
+        Permiso: existingGoogleUser.tenant.permisos.map((p) => p.nombre),
+        DebeCambiar: Boolean(existingGoogleUser.DebeCambiarPassword),
+        Puesto: "",
+        PuestoId: "",
+        TenantId: existingGoogleUser.tenantId,
+        TenantSlug: existingGoogleUser.tenant.slug,
+        TenantNombre: existingGoogleUser.tenant.nombre,
+        iss: "odontologia-saas",
+        aud: "odontologia-clients",
+      };
+
+      await createSession(payload);
+      return { success: true, tenantUrl: `https://${existingGoogleUser.tenant.slug}.medisoftcore.com`, alreadyExists: true };
+    }
+
+    const selectedPackage = await prisma.paquete.findFirst({ where: { id: input.packageId, activo: true } });
     if (!selectedPackage) {
-      return { success: false, error: "No hay paquetes activos para crear la prueba" };
+      return { success: false, error: "El paquete seleccionado ya no está disponible" };
     }
 
     const slugBase = normalizeSlug(consultorioNombre);
@@ -108,8 +135,7 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
     const tempPassword = await bcrypt.hash(`${identity.sub}-${Date.now()}`, 10);
 
     const result = await prisma.$transaction(async (tx) => {
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+      const trialEndsAt = input.freeTrialEnabled ? new Date(Date.now() + input.trialDays * 24 * 60 * 60 * 1000) : null;
 
       const tenant = await tx.tenant.create({
         data: {
@@ -160,11 +186,20 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
         await tx.rolPermiso.create({ data: { id: randomUUID(), rolId: adminRole.id, permisoId: permiso.id } });
       }
 
+      const baseUser = usernameFromEmail(identity.email);
+      let usuario = baseUser;
+      let usernameAttempt = 1;
+      while (await tx.usuarios.findUnique({ where: { tenantId_usuario: { tenantId: tenant.id, usuario } } })) {
+        usuario = `${baseUser}${usernameAttempt}`.slice(0, 50);
+        usernameAttempt += 1;
+      }
+
       const user = await tx.usuarios.create({
         data: {
           id: randomUUID(),
           tenantId: tenant.id,
-          usuario: identity.email.toLowerCase(),
+          usuario,
+          correo: identity.email,
           contrasena: tempPassword,
           empleado_id: null,
           rol_id: adminRole.id,
@@ -173,15 +208,24 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
         },
       });
 
+      const monto = resolveMontoByPeriod(selectedPackage, input.periodoPlan);
       await tx.tenantInvoice.create({
         data: {
           id: randomUUID(),
           tenantId: tenant.id,
           paqueteId: selectedPackage.id,
           periodoPlan: input.periodoPlan,
-          monto: resolveMontoByPeriod(selectedPackage, input.periodoPlan),
+          monto,
+          subtotal: monto,
+          impuesto: 0,
+          total: monto,
           moneda: "USD",
           estado: "pendiente",
+          numeroFactura: `INV-${Date.now()}`,
+          facturarNombre: identity.name,
+          facturarCorreo: identity.email,
+          facturarPais: input.paisCodigo,
+          descripcion: `Suscripción ${selectedPackage.nombre} (${input.periodoPlan})`,
         },
       });
 
@@ -205,8 +249,7 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
       aud: "odontologia-clients",
     };
 
-    const token = await encrypt(payload);
-    cookies().set("session", token, { expires: new Date(Date.now() + 6 * 60 * 60 * 1000), httpOnly: true, path: "/" });
+    await createSession(payload);
 
     return { success: true, tenantUrl: `https://${result.tenant.slug}.medisoftcore.com` };
   } catch (error) {

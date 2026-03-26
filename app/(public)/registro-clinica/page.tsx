@@ -6,7 +6,15 @@ import { RegistroClinicaWizard } from "./registro-clinica-wizard";
 export default async function RegistroClinicaPage() {
   const activePackages = await prisma.paquete.findMany({
     where: { activo: true },
-    select: { id: true, nombre: true, maxUsuarios: true },
+    select: {
+      id: true,
+      nombre: true,
+      descripcion: true,
+      maxUsuarios: true,
+      precio: true,
+      precioTrimestral: true,
+      precioAnual: true,
+    },
     orderBy: [{ maxUsuarios: "asc" }, { createAt: "asc" }],
   });
 
