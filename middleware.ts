@@ -9,6 +9,7 @@ type RateLimitConfig = { limit: number; windowMs: number };
 
 interface SessionPayload extends JWTPayload {
   Permiso?: string[];
+  SuscripcionActiva?: boolean;
 }
 
 const authSecret = process.env.AUTH_SECRET
@@ -28,6 +29,22 @@ async function getSessionPermissions(req: NextRequest): Promise<string[] | null>
   try {
     const { payload } = await jwtVerify<SessionPayload>(token, authSecret, { algorithms: ["HS256"] });
     return Array.isArray(payload.Permiso) ? payload.Permiso : [];
+  } catch {
+    return null;
+  }
+}
+
+async function getSessionSubscriptionStatus(req: NextRequest): Promise<boolean | null> {
+  const token =
+    req.cookies.get("session")?.value ??
+    req.cookies.get("next-auth.session-token")?.value ??
+    req.cookies.get("__Secure-next-auth.session-token")?.value;
+
+  if (!token || !authSecret) return null;
+
+  try {
+    const { payload } = await jwtVerify<SessionPayload>(token, authSecret, { algorithms: ["HS256"] });
+    return payload.SuscripcionActiva === true;
   } catch {
     return null;
   }
@@ -193,6 +210,7 @@ export async function middleware(req: NextRequest) {
     "/profesiones",
     "/profile",
     "/mi-clinica",
+    "/billing",
     "/protected",
   ];
 
@@ -202,6 +220,26 @@ export async function middleware(req: NextRequest) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", path + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
+  }
+
+  const subscriptionExemptPrefixes = [
+    "/billing",
+    "/mi-clinica",
+    "/dashboard-admin",
+    "/tenants",
+    "/paquetes",
+  ];
+
+  const requiresActiveSubscription =
+    isProtectedRoute && !subscriptionExemptPrefixes.some((prefix) => path.startsWith(prefix));
+
+  if (requiresActiveSubscription) {
+    const isSubscriptionActive = await getSessionSubscriptionStatus(req);
+    if (isSubscriptionActive === false) {
+      const billingUrl = new URL("/billing", req.url);
+      billingUrl.searchParams.set("subscription", "required");
+      return NextResponse.redirect(billingUrl);
+    }
   }
 
   if (path.startsWith("/dashboard-admin")) {

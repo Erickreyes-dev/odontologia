@@ -2,7 +2,7 @@
 
 import { getSession } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { createPaypalOrder } from "@/lib/paypal";
+import { capturePaypalOrder, createPaypalOrder } from "@/lib/paypal";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 
@@ -30,29 +30,127 @@ export async function getTenantBilling() {
   });
 }
 
-export async function createCheckoutForLatestInvoice() {
+function calculateAmountByPeriod(paquete: {
+  precio: unknown;
+  precioTrimestral: unknown;
+  precioSemestral: unknown;
+  precioAnual: unknown;
+}, periodoPlan: "mensual" | "trimestral" | "semestral" | "anual") {
+  const mensual = Number(paquete.precio ?? 0);
+  if (periodoPlan === "trimestral") return Number(paquete.precioTrimestral ?? mensual * 3);
+  if (periodoPlan === "semestral") return Number(paquete.precioSemestral ?? mensual * 6);
+  if (periodoPlan === "anual") return Number(paquete.precioAnual ?? mensual * 12);
+  return mensual;
+}
+
+function getNextBillingDate(periodoPlan: "mensual" | "trimestral" | "semestral" | "anual") {
+  const next = new Date();
+  const monthsToAdd = periodoPlan === "mensual" ? 1 : periodoPlan === "trimestral" ? 3 : periodoPlan === "semestral" ? 6 : 12;
+  next.setMonth(next.getMonth() + monthsToAdd);
+  return next;
+}
+
+export async function createCheckoutForPlan(periodoPlan: "mensual" | "trimestral" | "semestral" | "anual") {
   const session = await getSession();
   if (!session?.TenantId) return { success: false as const, error: "Sesión inválida" };
 
-  const invoice = await prisma.tenantInvoice.findFirst({
-    where: { tenantId: session.TenantId, estado: "pendiente" },
-    orderBy: { createAt: "desc" },
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: session.TenantId },
     include: { paquete: true },
   });
 
-  if (!invoice) return { success: false as const, error: "No hay facturas pendientes" };
+  if (!tenant?.paquete) return { success: false as const, error: "No hay paquete activo" };
 
-  const order = await createPaypalOrder(Number(invoice.monto), `Plan ${invoice.paquete.nombre} (${invoice.periodoPlan})`);
+  const monto = calculateAmountByPeriod(tenant.paquete, periodoPlan);
+  const order = await createPaypalOrder(monto, `Plan ${tenant.paquete.nombre} (${periodoPlan})`);
   const approveLink = order.links?.find((link: any) => link.rel === "approve")?.href;
 
-  await prisma.tenantInvoice.update({
-    where: { id: invoice.id },
-    data: { paypalOrderId: order.id },
+  await prisma.tenant.update({
+    where: { id: tenant.id },
+    data: { periodoPlan, paypalCustomerId: order.id },
   });
 
   revalidatePath("/billing");
 
   return { success: true as const, approveLink };
+}
+
+export async function capturePaypalAndCreateInvoice(orderId: string) {
+  const session = await getSession();
+  if (!session?.TenantId) return { success: false as const, error: "Sesión inválida" };
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: session.TenantId },
+    include: { paquete: true },
+  });
+
+  if (!tenant?.paquete) return { success: false as const, error: "No hay paquete activo" };
+  if (!orderId) return { success: false as const, error: "Orden de PayPal inválida" };
+
+  const alreadyCaptured = await prisma.tenantInvoice.findFirst({
+    where: { tenantId: session.TenantId, paypalOrderId: orderId, estado: "pagada" },
+  });
+  if (alreadyCaptured) {
+    return { success: true as const };
+  }
+
+  try {
+    const captured = await capturePaypalOrder(orderId);
+    const captureId = captured?.purchase_units?.[0]?.payments?.captures?.[0]?.id as string | undefined;
+    const status = String(captured?.status ?? "");
+
+    if (!captureId || status !== "COMPLETED") {
+      return { success: false as const, error: "PayPal no confirmó la captura del pago" };
+    }
+
+    const periodoPlan = (tenant.periodoPlan || "mensual") as "mensual" | "trimestral" | "semestral" | "anual";
+    const monto = calculateAmountByPeriod(tenant.paquete, periodoPlan);
+    const nextBillingDate = getNextBillingDate(periodoPlan);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.tenant.update({
+        where: { id: tenant.id },
+        data: {
+          proximoPago: nextBillingDate,
+          trialEndsAt: null,
+          paypalCustomerId: null,
+        },
+      });
+
+      await tx.tenantInvoice.create({
+        data: {
+          id: randomUUID(),
+          tenantId: tenant.id,
+          paqueteId: tenant.paquete!.id,
+          periodoPlan,
+          monto,
+          subtotal: monto,
+          impuesto: 0,
+          total: monto,
+          moneda: "USD",
+          estado: "pagada",
+          numeroFactura: `INV-${Date.now()}`,
+          facturarNombre: tenant.contactoNombre,
+          facturarCorreo: tenant.contactoCorreo,
+          facturarTelefono: tenant.telefono,
+          facturarPais: tenant.paisCodigo,
+          descripcion: `Suscripción ${tenant.paquete!.nombre} (${periodoPlan})`,
+          paypalOrderId: orderId,
+          paypalCaptureId: captureId,
+          fechaPago: new Date(),
+        },
+      });
+    });
+
+    revalidatePath("/billing");
+
+    return { success: true as const };
+  } catch (error) {
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : "Error al confirmar pago con PayPal",
+    };
+  }
 }
 
 export async function saveTenantBillingProfile(input: BillingProfileInput) {

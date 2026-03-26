@@ -92,6 +92,10 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
         TenantId: existingGoogleUser.tenantId,
         TenantSlug: existingGoogleUser.tenant.slug,
         TenantNombre: existingGoogleUser.tenant.nombre,
+        SuscripcionActiva: Boolean(
+          (existingGoogleUser.tenant.trialEndsAt && existingGoogleUser.tenant.trialEndsAt > new Date()) ||
+          (existingGoogleUser.tenant.proximoPago && existingGoogleUser.tenant.proximoPago > new Date()),
+        ),
         iss: "odontologia-saas",
         aud: "odontologia-clients",
       };
@@ -215,6 +219,7 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
       TenantId: result.tenant.id,
       TenantSlug: result.tenant.slug,
       TenantNombre: result.tenant.nombre,
+      SuscripcionActiva: true,
       iss: "odontologia-saas",
       aud: "odontologia-clients",
     };
@@ -250,6 +255,10 @@ export async function loginGoogleExistingTenant(credential: string): Promise<{ s
       TenantId: existingGoogleUser.tenantId,
       TenantSlug: existingGoogleUser.tenant.slug,
       TenantNombre: existingGoogleUser.tenant.nombre,
+      SuscripcionActiva: Boolean(
+        (existingGoogleUser.tenant.trialEndsAt && existingGoogleUser.tenant.trialEndsAt > new Date()) ||
+        (existingGoogleUser.tenant.proximoPago && existingGoogleUser.tenant.proximoPago > new Date()),
+      ),
       iss: "odontologia-saas",
       aud: "odontologia-clients",
     };
