@@ -71,6 +71,10 @@ export default function InventarioListMobile({ productos }: InventarioListMobile
                   <div className="text-sm text-muted-foreground flex flex-wrap gap-3">
                     <span>Stock: {producto.stock}</span>
                     <span>Mínimo: {producto.stockMinimo}</span>
+                    <span>Tipo: {producto.tipo === "VENTA" ? "Venta" : "Consumible"}</span>
+                    {producto.tipo === "VENTA" ? (
+                      <span>Precio: L {Number(producto.precioVenta ?? 0).toFixed(2)}</span>
+                    ) : null}
                     {producto.unidad && <span>Unidad: {producto.unidad}</span>}
                   </div>
                 </div>

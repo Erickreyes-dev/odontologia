@@ -23,6 +23,7 @@ export const ConsultaSchema = z.object({
       id: z.string().optional(),
       productoId: z.string().min(1, "El producto es requerido"),
       cantidad: z.number().min(1, "La cantidad debe ser mayor a 0"),
+      precioUnitarioAplicado: z.number().min(0, "El precio debe ser mayor o igual a 0").optional().nullable(),
       productoNombre: z.string().optional(),
     })
   ).optional(),

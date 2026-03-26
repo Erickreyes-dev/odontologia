@@ -75,7 +75,7 @@ interface ConsultaFormProps {
   cita: CitaData;
   consulta: Consulta | null;
   servicios: { id: string; nombre: string; precioBase: number }[];
-  productos: { id: string; nombre: string; unidad: string | null; stock: number }[];
+  productos: { id: string; nombre: string; unidad: string | null; stock: number; tipo: "CONSUMIBLE" | "VENTA"; precioVenta: number | null }[];
   seguimientos: {
     id: string;
     planNombre?: string;
@@ -171,6 +171,15 @@ export function ConsultaForm({
       ),
     [serviciosWatch]
   );
+  const totalProductosVenta = useMemo(
+    () =>
+      productosWatch.reduce((acc, item) => {
+        const producto = productos.find((p) => p.id === item.productoId);
+        if (!producto || producto.tipo !== "VENTA") return acc;
+        return acc + (producto.precioVenta ?? 0) * (item.cantidad || 0);
+      }, 0),
+    [productosWatch, productos]
+  );
 
   const financiamientoSeleccionado = useMemo(() => {
     if (!financiamientoId) return null;
@@ -189,9 +198,9 @@ export function ConsultaForm({
 
   const subtotalConsulta = financiamientoSeleccionado
     ? cuotaPendiente?.monto ?? 0
-    : promocionSeleccionada
+      : promocionSeleccionada
       ? promocionSeleccionada.precioPromocional
-      : totalServicios;
+      : totalServicios + totalProductosVenta;
 
   const descuentoMonto = subtotalConsulta * (Number(descuentoPorcentaje || 0) / 100);
   const totalConsulta = Math.max(subtotalConsulta - descuentoMonto, 0);
@@ -645,6 +654,7 @@ export function ConsultaForm({
                                 {productos.map((producto) => (
                                   <SelectItem key={producto.id} value={producto.id}>
                                     {producto.nombre} · Stock: {producto.stock}
+                                    {producto.tipo === "VENTA" ? ` · Venta L ${Number(producto.precioVenta ?? 0).toFixed(2)}` : ""}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -897,7 +907,7 @@ export function ConsultaForm({
                       ? "Precio promocional aplicado al paquete seleccionado."
                       : hasServiciosPlan
                         ? "Total calculado en base a los servicios del plan."
-                        : "Total calculado en base a los servicios seleccionados."}
+                        : "Total calculado en base a servicios y productos de venta seleccionados."}
                 </FieldDescription>
               </Field>
             </div>

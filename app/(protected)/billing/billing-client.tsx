@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { BadgeCheck, CalendarClock, Check, Globe, ReceiptText, Sparkles, WalletCards } from "lucide-react";
+import { BadgeCheck, CalendarClock, Check, Globe, ReceiptText, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 type BillingClientProps = {
   tenantSlug: string;
   paqueteNombre: string;
+  trialEndsAt: string | null;
   precioMensual: number;
   precioTrimestral: number;
   precioSemestral: number;
@@ -53,6 +54,9 @@ export function BillingClient(props: BillingClientProps) {
     anual: props.precioAnual,
   };
   const selectedAmount = pricingByPeriod[selectedPlan];
+  const trialDaysLeft = props.trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(props.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 0;
 
   const onPaypalCheckout = (periodo: "mensual" | "trimestral" | "semestral" | "anual") => {
     startTransition(async () => {
@@ -88,6 +92,9 @@ export function BillingClient(props: BillingClientProps) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="flex items-center gap-2 text-sm font-semibold"><BadgeCheck className="h-4 w-4 text-cyan-500" /> Suscripción activa: {props.paqueteNombre}</p>
+            {props.trialEndsAt ? (
+              <p className="mt-1 text-xs text-muted-foreground">Prueba gratuita: {trialDaysLeft} día(s) restantes</p>
+            ) : null}
             <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground"><Globe className="h-3.5 w-3.5" /> {props.tenantSlug}.medisoftcore.com</p>
           </div>
           <div className="rounded-xl border bg-background/80 px-3 py-2 text-right">
@@ -129,7 +136,7 @@ export function BillingClient(props: BillingClientProps) {
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={onBillingSave} disabled={isPending}>Guardar datos</Button>
           <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending}>
-            <Sparkles className="mr-2 h-4 w-4" /> Continuar pago con PayPal
+            Continuar pago con PayPal
           </Button>
         </div>
       </div>

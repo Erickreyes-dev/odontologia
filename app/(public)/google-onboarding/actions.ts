@@ -6,7 +6,8 @@ import bcrypt from "bcryptjs";
 import { TENANT_PERMISSIONS } from "@/lib/permission-catalog";
 import { resolveCurrencyByCountry } from "@/lib/country-currency";
 import { encrypt, type UsuarioSesion } from "@/auth";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
 
 interface GoogleOnboardingInput {
   credential: string;
@@ -68,6 +69,32 @@ async function findGoogleUserByEmail(email: string) {
     include: {
       rol: true,
       tenant: { include: { roles: true, permisos: true } },
+    },
+  });
+}
+
+async function resolveTenantSlugForGoogle() {
+  const requestHeaders = headers();
+  const slugFromHeader = requestHeaders.get("x-tenant-slug")?.trim().toLowerCase();
+  if (slugFromHeader) return slugFromHeader;
+  return resolveTenantSlugFromHost(requestHeaders.get("host"));
+}
+
+async function findUserForTenantGoogleLogin(email: string, tenantSlug?: string | null) {
+  if (!tenantSlug) return null;
+
+  return prisma.usuarios.findFirst({
+    where: {
+      tenant: { slug: tenantSlug, activo: true },
+      activo: true,
+      OR: [
+        { correo: email },
+        { Empleados: { correo: email } },
+      ],
+    },
+    include: {
+      rol: true,
+      tenant: { include: { permisos: true } },
     },
   });
 }
@@ -236,7 +263,8 @@ export async function loginGoogleExistingTenant(credential: string): Promise<{ s
   try {
     if (!credential) return { success: false, error: "Credencial inválida" };
     const identity = await verifyGoogleCredential(credential);
-    const existingGoogleUser = await findGoogleUserByEmail(identity.email);
+    const tenantSlug = await resolveTenantSlugForGoogle();
+    const existingGoogleUser = await findUserForTenantGoogleLogin(identity.email, tenantSlug) ?? await findGoogleUserByEmail(identity.email);
 
     if (!existingGoogleUser?.tenant || !existingGoogleUser.tenantId) {
       return { success: true, exists: false };

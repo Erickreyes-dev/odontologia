@@ -56,6 +56,7 @@ export async function createUsuario(data: Usuario): Promise<Usuario> {
     data: await withTenantData({
       id: randomUUID(),
       usuario: data.usuario,
+      correo: undefined,
       rol_id: data.rol_id,
       empleado_id: data.empleado_id,
       contrasena: hashed,
@@ -71,6 +72,11 @@ export async function createUsuario(data: Usuario): Promise<Usuario> {
   });
 
   if (empleado?.correo) {
+    await prisma.usuarios.update({
+      where: { id: newUser.id },
+      data: { correo: empleado.correo },
+    });
+
     // 5️⃣ Construir payload del correo usando sólo la plantilla HTML
     const { clinicLogoBase64, tenantName } = await getTenantEmailBranding();
 
@@ -130,6 +136,14 @@ export async function updateUsuario(data: Usuario): Promise<Usuario> {
     where: { id: existing.id },
     data: {
       usuario: data.usuario,
+      correo: data.empleado_id
+        ? (
+          await prisma.empleados.findFirst({
+            where: await tenantWhere<Prisma.EmpleadosWhereInput>({ id: data.empleado_id }),
+            select: { correo: true },
+          })
+        )?.correo ?? existing.correo
+        : existing.correo,
       rol_id: data.rol_id,
       empleado_id: data.empleado_id,
       activo: data.activo,

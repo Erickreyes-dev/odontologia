@@ -1,4 +1,5 @@
 const PAYPAL_BASE_URL = process.env.PAYPAL_MODE === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
 async function getAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID;
@@ -27,17 +28,28 @@ async function getAccessToken() {
   return data.access_token as string;
 }
 
-export async function createPaypalOrder(amount: number, description: string) {
-  if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error("Monto inválido para crear la orden");
-  }
-
+function buildTenantBillingReturnUrl(tenantSlug: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
   if (!appUrl) {
     throw new Error("Falta NEXT_PUBLIC_APP_URL para el retorno de PayPal");
   }
+  const root = new URL(appUrl);
+  const host = LOCAL_HOSTS.has(root.hostname)
+    ? `${tenantSlug}.${root.hostname}`
+    : `${tenantSlug}.${process.env.ROOT_DOMAIN ?? root.hostname}`;
+  const port = root.port ? `:${root.port}` : "";
+  return `${root.protocol}//${host}${port}/billing`;
+}
+
+export async function createPaypalOrder(amount: number, description: string, tenantSlug: string) {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Monto inválido para crear la orden");
+  }
+
+  if (!tenantSlug?.trim()) throw new Error("No se pudo resolver el tenant para el retorno de PayPal");
 
   const token = await getAccessToken();
+  const billingUrl = buildTenantBillingReturnUrl(tenantSlug);
 
   const response = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders`, {
     method: "POST",
@@ -58,8 +70,8 @@ export async function createPaypalOrder(amount: number, description: string) {
       ],
       application_context: {
         user_action: "PAY_NOW",
-        return_url: `${appUrl}/billing?paypal=success`,
-        cancel_url: `${appUrl}/billing?paypal=cancelled`,
+        return_url: `${billingUrl}?paypal=success`,
+        cancel_url: `${billingUrl}?paypal=cancelled`,
       },
     }),
   });

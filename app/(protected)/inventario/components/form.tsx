@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Field, FieldContent, FieldError, FieldLabel } from "@/components/ui/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function FormularioProducto({
   isUpdate,
@@ -25,11 +26,14 @@ export function FormularioProducto({
     defaultValues: initialData || {
       nombre: "",
       descripcion: "",
+      tipo: "CONSUMIBLE",
+      precioVenta: null,
       unidad: "",
       stock: 0,
       stockMinimo: 0,
     },
   });
+  const tipo = form.watch("tipo");
 
   async function onSubmit(data: Producto) {
     try {
@@ -73,6 +77,50 @@ export function FormularioProducto({
             <FieldContent>
               <Input {...field} placeholder="Descripción" />
             </FieldContent>
+          </Field>
+        )}
+      />
+
+      <Controller
+        name="tipo"
+        control={form.control}
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel>Clasificación</FieldLabel>
+            <FieldContent>
+              <Select value={field.value} onValueChange={(value) => field.onChange(value as "CONSUMIBLE" | "VENTA")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CONSUMIBLE">Consumible (uso interno)</SelectItem>
+                  <SelectItem value="VENTA">Venta al paciente</SelectItem>
+                </SelectContent>
+              </Select>
+            </FieldContent>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </Field>
+        )}
+      />
+
+      <Controller
+        name="precioVenta"
+        control={form.control}
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel>Precio de venta</FieldLabel>
+            <FieldContent>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                disabled={tipo !== "VENTA"}
+                value={field.value ?? ""}
+                onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                placeholder={tipo === "VENTA" ? "Ej: 150.00" : "No aplica para consumibles"}
+              />
+            </FieldContent>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
           </Field>
         )}
       />
