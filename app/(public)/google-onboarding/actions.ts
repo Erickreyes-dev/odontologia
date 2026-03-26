@@ -15,14 +15,6 @@ interface GoogleOnboardingInput {
   paisCodigo: string;
   packageId: string;
   periodoPlan: "mensual" | "trimestral" | "anual";
-  freeTrialEnabled: boolean;
-  trialDays: number;
-}
-
-function resolveMontoByPeriod(paquete: { precio: any; precioTrimestral: any; precioAnual: any }, periodoPlan: GoogleOnboardingInput["periodoPlan"]) {
-  if (periodoPlan === "trimestral") return Number(paquete.precioTrimestral ?? Number(paquete.precio) * 3);
-  if (periodoPlan === "anual") return Number(paquete.precioAnual ?? Number(paquete.precio) * 12);
-  return Number(paquete.precio);
 }
 
 async function verifyGoogleCredential(credential: string) {
@@ -83,18 +75,8 @@ async function findGoogleUserByEmail(email: string) {
 export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Promise<{ success: true; tenantUrl: string; alreadyExists?: boolean } | { success: false; error: string }> {
   try {
     if (!input.credential) return { success: false, error: "Debes autenticar con Google para continuar" };
-    if (!input.packageId) return { success: false, error: "Selecciona un paquete para continuar" };
-    if (input.freeTrialEnabled && (input.trialDays < 1 || input.trialDays > 60)) {
-      return { success: false, error: "Los días de prueba deben estar entre 1 y 60" };
-    }
 
     const identity = await verifyGoogleCredential(input.credential);
-    const consultorioNombre = input.consultorioNombre.trim();
-
-    if (consultorioNombre.length < 3) {
-      return { success: false, error: "El nombre del consultorio es obligatorio" };
-    }
-
     const existingGoogleUser = await findGoogleUserByEmail(identity.email);
     if (existingGoogleUser?.tenant && existingGoogleUser.tenantId) {
       const payload: UsuarioSesion = {
@@ -117,10 +99,15 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
       await createSession(payload);
       return { success: true, tenantUrl: `https://${existingGoogleUser.tenant.slug}.medisoftcore.com`, alreadyExists: true };
     }
+    if (!input.packageId) return { success: false, error: "Selecciona un paquete para continuar" };
 
     const selectedPackage = await prisma.paquete.findFirst({ where: { id: input.packageId, activo: true } });
     if (!selectedPackage) {
       return { success: false, error: "El paquete seleccionado ya no está disponible" };
+    }
+    const consultorioNombre = input.consultorioNombre.trim();
+    if (consultorioNombre.length < 3) {
+      return { success: false, error: "El nombre del consultorio es obligatorio" };
     }
 
     const slugBase = normalizeSlug(consultorioNombre);
@@ -135,7 +122,11 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
     const tempPassword = await bcrypt.hash(`${identity.sub}-${Date.now()}`, 10);
 
     const result = await prisma.$transaction(async (tx) => {
-      const trialEndsAt = input.freeTrialEnabled ? new Date(Date.now() + input.trialDays * 24 * 60 * 60 * 1000) : null;
+      const trialConfigActivo = Boolean(selectedPackage.trialActivo);
+      const trialConfigDias = Math.max(0, Number(selectedPackage.trialDias ?? 0));
+      const trialEndsAt = trialConfigActivo && trialConfigDias > 0
+        ? new Date(Date.now() + trialConfigDias * 24 * 60 * 60 * 1000)
+        : null;
 
       const tenant = await tx.tenant.create({
         data: {
@@ -208,27 +199,6 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
         },
       });
 
-      const monto = resolveMontoByPeriod(selectedPackage, input.periodoPlan);
-      await tx.tenantInvoice.create({
-        data: {
-          id: randomUUID(),
-          tenantId: tenant.id,
-          paqueteId: selectedPackage.id,
-          periodoPlan: input.periodoPlan,
-          monto,
-          subtotal: monto,
-          impuesto: 0,
-          total: monto,
-          moneda: "USD",
-          estado: "pendiente",
-          numeroFactura: `INV-${Date.now()}`,
-          facturarNombre: identity.name,
-          facturarCorreo: identity.email,
-          facturarPais: input.paisCodigo,
-          descripcion: `Suscripción ${selectedPackage.nombre} (${input.periodoPlan})`,
-        },
-      });
-
       return { tenant, user, adminRole, permisos };
     });
 
@@ -254,5 +224,39 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
     return { success: true, tenantUrl: `https://${result.tenant.slug}.medisoftcore.com` };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "No se pudo completar el registro" };
+  }
+}
+
+export async function loginGoogleExistingTenant(credential: string): Promise<{ success: true; exists: boolean; tenantUrl?: string } | { success: false; error: string }> {
+  try {
+    if (!credential) return { success: false, error: "Credencial inválida" };
+    const identity = await verifyGoogleCredential(credential);
+    const existingGoogleUser = await findGoogleUserByEmail(identity.email);
+
+    if (!existingGoogleUser?.tenant || !existingGoogleUser.tenantId) {
+      return { success: true, exists: false };
+    }
+
+    const payload: UsuarioSesion = {
+      IdUser: existingGoogleUser.id,
+      User: existingGoogleUser.usuario,
+      Rol: existingGoogleUser.rol.nombre,
+      IdRol: existingGoogleUser.rol_id,
+      IdEmpleado: existingGoogleUser.empleado_id,
+      Permiso: existingGoogleUser.tenant.permisos.map((p) => p.nombre),
+      DebeCambiar: Boolean(existingGoogleUser.DebeCambiarPassword),
+      Puesto: "",
+      PuestoId: "",
+      TenantId: existingGoogleUser.tenantId,
+      TenantSlug: existingGoogleUser.tenant.slug,
+      TenantNombre: existingGoogleUser.tenant.nombre,
+      iss: "odontologia-saas",
+      aud: "odontologia-clients",
+    };
+
+    await createSession(payload);
+    return { success: true, exists: true, tenantUrl: `https://${existingGoogleUser.tenant.slug}.medisoftcore.com` };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "No se pudo validar tu cuenta" };
   }
 }

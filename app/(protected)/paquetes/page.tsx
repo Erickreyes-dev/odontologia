@@ -50,6 +50,9 @@ export default async function PaquetesPage() {
                 <div className="text-muted-foreground">
                   Máx usuarios: {p.maxUsuarios} · Estado: {p.activo ? "Activo" : "Inactivo"}
                 </div>
+                <div className="text-muted-foreground">
+                  Trial: {p.trialActivo ? `${p.trialDias} días` : "Sin trial"}
+                </div>
                 <div className="text-muted-foreground">{p.descripcion ?? "Sin descripción"}</div>
                 {permisos.includes("gestionar_paquetes") && <PaqueteStatusToggle paqueteId={p.id} activo={p.activo} />}
               </div>

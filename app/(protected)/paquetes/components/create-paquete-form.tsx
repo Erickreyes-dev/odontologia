@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 
 export default function CreatePaqueteForm() {
   const [isPending, startTransition] = useTransition();
+  const [trialActivo, setTrialActivo] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const router = useRouter();
@@ -26,6 +27,8 @@ export default function CreatePaqueteForm() {
         precioSemestral: Number(formData.get("precioSemestral") || 0),
         precioAnual: Number(formData.get("precioAnual") || 0),
         maxUsuarios: Number(formData.get("maxUsuarios") || 20),
+        trialActivo,
+        trialDias: Number(formData.get("trialDias") || 0),
       });
 
       if (!result.success) {
@@ -67,6 +70,17 @@ export default function CreatePaqueteForm() {
       <div className="space-y-2">
         <Label htmlFor="precioAnual">Precio anual (USD)</Label>
         <Input id="precioAnual" name="precioAnual" type="number" min={0} step="0.01" defaultValue={0} required />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="trialActivo">Prueba gratis</Label>
+        <div className="flex h-10 items-center gap-2 rounded-md border px-3">
+          <input id="trialActivo" type="checkbox" checked={trialActivo} onChange={(e) => setTrialActivo(e.target.checked)} />
+          <span className="text-sm">{trialActivo ? "Activa" : "Desactivada"}</span>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="trialDias">Días de prueba</Label>
+        <Input id="trialDias" name="trialDias" type="number" min={0} max={60} defaultValue={7} disabled={!trialActivo} />
       </div>
 
       {error && <p className="text-sm text-red-500 md:col-span-2">{error}</p>}

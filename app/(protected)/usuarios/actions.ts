@@ -31,6 +31,9 @@ export async function getUsuarios(): Promise<Usuario[]> {
       : "",
     empleado_id: r.empleado_id,
     activo: r.activo,
+    fotoUrl: r.correo
+      ? `https://www.google.com/s2/photos/profile/${encodeURIComponent(r.correo)}?sz=96`
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(r.usuario)}&background=0ea5e9&color=ffffff`,
   }));
 }
 
@@ -107,6 +110,9 @@ export async function createUsuario(data: Usuario): Promise<Usuario> {
       : "",
     empleado_id: newUser.empleado_id,
     activo: newUser.activo,
+    fotoUrl: newUser.correo
+      ? `https://www.google.com/s2/photos/profile/${encodeURIComponent(newUser.correo)}?sz=96`
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(newUser.usuario)}&background=0ea5e9&color=ffffff`,
   };
 }
 
@@ -142,6 +148,9 @@ export async function updateUsuario(data: Usuario): Promise<Usuario> {
       : "",
     empleado_id: updated.empleado_id,
     activo: updated.activo,
+    fotoUrl: updated.correo
+      ? `https://www.google.com/s2/photos/profile/${encodeURIComponent(updated.correo)}?sz=96`
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(updated.usuario)}&background=0ea5e9&color=ffffff`,
   };
 }
 
@@ -167,5 +176,8 @@ export async function getUsuarioById(id: string): Promise<Usuario | null> {
       : "",
     empleado_id: r.empleado_id,
     activo: r.activo,
+    fotoUrl: r.correo
+      ? `https://www.google.com/s2/photos/profile/${encodeURIComponent(r.correo)}?sz=96`
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(r.usuario)}&background=0ea5e9&color=ffffff`,
   };
 }

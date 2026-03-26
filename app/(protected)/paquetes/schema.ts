@@ -8,6 +8,8 @@ export const paqueteSchema = z.object({
   precioSemestral: z.number().min(0).optional(),
   precioAnual: z.number().min(0).optional(),
   maxUsuarios: z.number().int().min(1, "Debe permitir al menos 1 usuario").max(10000),
+  trialActivo: z.boolean().optional(),
+  trialDias: z.number().int().min(0).max(60).optional(),
 });
 
 export type PaqueteInput = z.infer<typeof paqueteSchema>;

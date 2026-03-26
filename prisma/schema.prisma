@@ -84,6 +84,8 @@ model Paquete {
   precioSemestral  Decimal? @db.Decimal(10, 2)
   precioAnual      Decimal? @db.Decimal(10, 2)
   maxUsuarios      Int      @default(20)
+  trialActivo      Boolean  @default(false) @db.Bit(1)
+  trialDias        Int      @default(0)
   activo           Boolean  @default(true) @db.Bit(1)
   createAt         DateTime @default(now())
   updateAt         DateTime @updatedAt
