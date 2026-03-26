@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { capturePaypalOrder, createPaypalOrder } from "@/lib/paypal";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { calculateExpirationDateByPlan, resolveSubscriptionStatus } from "@/lib/subscription-status";
 
 export interface BillingProfileInput {
   facturarNombre: string;
@@ -21,13 +22,29 @@ export async function getTenantBilling() {
   const session = await getSession();
   if (!session?.TenantId) return null;
 
-  return prisma.tenant.findUnique({
+  const tenant = await prisma.tenant.findUnique({
     where: { id: session.TenantId },
     include: {
       paquete: true,
       tenantInvoices: { orderBy: { createAt: "desc" }, take: 10 },
     },
   });
+
+  if (!tenant) return null;
+
+  const status = resolveSubscriptionStatus({
+    tenantActivo: tenant.activo,
+    trialEndsAt: tenant.trialEndsAt,
+    fechaExpiracion: tenant.fechaExpiracion,
+    proximoPago: tenant.proximoPago,
+  });
+
+  if (tenant.estado !== status) {
+    await prisma.tenant.update({ where: { id: tenant.id }, data: { estado: status } });
+    tenant.estado = status;
+  }
+
+  return tenant;
 }
 
 function calculateAmountByPeriod(paquete: {
@@ -41,13 +58,6 @@ function calculateAmountByPeriod(paquete: {
   if (periodoPlan === "semestral") return Number(paquete.precioSemestral ?? mensual * 6);
   if (periodoPlan === "anual") return Number(paquete.precioAnual ?? mensual * 12);
   return mensual;
-}
-
-function getNextBillingDate(periodoPlan: "mensual" | "trimestral" | "semestral" | "anual") {
-  const next = new Date();
-  const monthsToAdd = periodoPlan === "mensual" ? 1 : periodoPlan === "trimestral" ? 3 : periodoPlan === "semestral" ? 6 : 12;
-  next.setMonth(next.getMonth() + monthsToAdd);
-  return next;
 }
 
 export async function createCheckoutForPlan(periodoPlan: "mensual" | "trimestral" | "semestral" | "anual") {
@@ -116,7 +126,7 @@ export async function capturePaypalAndCreateInvoice(orderId: string) {
 
     const periodoPlan = (tenant.periodoPlan || "mensual") as "mensual" | "trimestral" | "semestral" | "anual";
     const monto = calculateAmountByPeriod(tenant.paquete, periodoPlan);
-    const nextBillingDate = getNextBillingDate(periodoPlan);
+    const nextBillingDate = calculateExpirationDateByPlan(periodoPlan);
 
     await prisma.$transaction(async (tx) => {
       await tx.tenant.update({
@@ -124,6 +134,8 @@ export async function capturePaypalAndCreateInvoice(orderId: string) {
         data: {
           proximoPago: nextBillingDate,
           trialEndsAt: null,
+          fechaExpiracion: nextBillingDate,
+          estado: resolveSubscriptionStatus({ tenantActivo: true, fechaExpiracion: nextBillingDate }),
           paypalCustomerId: null,
         },
       });
@@ -216,7 +228,14 @@ export async function createNewTenantInvoice(periodoPlan: "mensual" | "trimestra
         : Number(paquete.precioAnual ?? Number(paquete.precio) * 12);
 
   await prisma.$transaction(async (tx) => {
-    await tx.tenant.update({ where: { id: tenant.id }, data: { periodoPlan } });
+    await tx.tenant.update({
+      where: { id: tenant.id },
+      data: {
+        periodoPlan,
+        fechaExpiracion: calculateExpirationDateByPlan(periodoPlan),
+        estado: "vigente",
+      },
+    });
     await tx.tenantInvoice.create({
       data: {
         id: randomUUID(),

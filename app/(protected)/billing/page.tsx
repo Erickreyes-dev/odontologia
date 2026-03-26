@@ -61,6 +61,7 @@ export default async function BillingPage({
   const subscriptionStatus = resolveSubscriptionStatus({
     tenantActivo: data.activo,
     trialEndsAt: data.trialEndsAt,
+    fechaExpiracion: data.fechaExpiracion,
     proximoPago: data.proximoPago,
   });
 

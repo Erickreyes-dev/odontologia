@@ -9,28 +9,7 @@ import { randomBytes, randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { TenantCreateInput, TenantPlanUpdateInput, tenantCreateSchema, tenantPlanUpdateSchema } from "./schema";
 import { resolveCurrencyByCountry } from "@/lib/country-currency";
-
-function calculateNextPaymentDate(periodoPlan: string, baseDate = new Date()): Date {
-  const next = new Date(baseDate);
-  switch (periodoPlan) {
-    case "mensual":
-      next.setMonth(next.getMonth() + 1);
-      break;
-    case "trimestral":
-      next.setMonth(next.getMonth() + 3);
-      break;
-    case "semestral":
-      next.setMonth(next.getMonth() + 6);
-      break;
-    case "anual":
-      next.setFullYear(next.getFullYear() + 1);
-      break;
-    default:
-      next.setMonth(next.getMonth() + 1);
-      break;
-  }
-  return next;
-}
+import { calculateExpirationDateByPlan, resolveSubscriptionStatus } from "@/lib/subscription-status";
 
 export async function getTenantsData() {
   const [paquetes, tenants, paidInvoices, pendingInvoices] = await Promise.all([
@@ -110,12 +89,14 @@ export async function createTenant(
           paqueteId: paquete.id,
           maxUsuarios: paquete.maxUsuarios,
           periodoPlan: data.periodoPlan,
-          proximoPago: calculateNextPaymentDate(data.periodoPlan),
+          proximoPago: calculateExpirationDateByPlan(data.periodoPlan),
           contactoNombre: data.adminNombre,
           contactoCorreo: data.adminCorreo,
           paisCodigo: "HN",
           monedaCodigo: "HNL",
           trialEndsAt,
+          fechaExpiracion: trialEndsAt ?? calculateExpirationDateByPlan(data.periodoPlan),
+          estado: resolveSubscriptionStatus({ tenantActivo: true, trialEndsAt, fechaExpiracion: trialEndsAt ?? calculateExpirationDateByPlan(data.periodoPlan) }),
           activo: true,
         },
       });
@@ -212,7 +193,9 @@ export async function updateTenantPlan(
           plan: paquete.nombre,
           maxUsuarios: paquete.maxUsuarios,
           periodoPlan: data.periodoPlan,
-          proximoPago: calculateNextPaymentDate(data.periodoPlan),
+          proximoPago: calculateExpirationDateByPlan(data.periodoPlan),
+          fechaExpiracion: calculateExpirationDateByPlan(data.periodoPlan),
+          estado: "vigente",
           monedaCodigo: resolveCurrencyByCountry(tenant?.paisCodigo).currency,
         },
       });
