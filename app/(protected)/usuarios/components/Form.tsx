@@ -67,8 +67,9 @@ export function Formulario({
 
       router.push("/usuarios");
       router.refresh();
-    } catch {
-      toast.error("Hubo un problema al guardar.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Hubo un problema al guardar.";
+      toast.error(message);
     }
   }
 

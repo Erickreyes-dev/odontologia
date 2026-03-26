@@ -6,7 +6,7 @@ import { HelpCircle, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-const TOUR_STORAGE_KEY = "odontologia-tour-v1";
+const TOUR_STORAGE_KEY = "odontologia-tour-v2";
 
 type SeenMap = Record<string, boolean>;
 

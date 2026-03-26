@@ -1,4 +1,5 @@
 import { getSession } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import { getTenantLogoBase64 } from "@/lib/tenant-branding";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -22,6 +23,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { NavUser } from "./nav-user";
 import { ModeToggle } from "./buton-theme";
+
+function calculateTrialDaysLeft(trialEndsAt?: Date | null): number {
+  if (!trialEndsAt) return 0;
+  const diffMs = trialEndsAt.getTime() - Date.now();
+  if (diffMs <= 0) return 0;
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
 
 // Menú de mantenimiento
 const mantenimientoItems = [
@@ -187,6 +195,18 @@ export async function AppSidebar() {
   const usuario = await getSession(); // Obtiene el nombre del usuario
   const tenantLogoBase64 = await getTenantLogoBase64();
   const tenantDisplayName = usuario?.TenantNombre || usuario?.TenantSlug || "la clínica";
+  const tenantSubscription = usuario?.TenantId
+    ? await prisma.tenant.findUnique({
+      where: { id: usuario.TenantId },
+      select: {
+        plan: true,
+        trialEndsAt: true,
+        paquete: { select: { nombre: true } },
+      },
+    })
+    : null;
+  const packageName = tenantSubscription?.paquete?.nombre ?? tenantSubscription?.plan ?? "Sin paquete";
+  const trialDaysLeft = calculateTrialDaysLeft(tenantSubscription?.trialEndsAt);
   const permisosUsuario = usuario?.Permiso || [];
   // Filtrar los ítems basados en los permisos del usuario
   const filteredItems = items.filter(item =>
@@ -216,7 +236,13 @@ export async function AppSidebar() {
                   className="h-6 w-6 rounded object-cover border"
                 />
               ) : null}
-              <span className="truncate">{usuario?.TenantSlug || "Sistema Autogestión MP"}</span>
+              <div className="min-w-0">
+                <span className="truncate block">{usuario?.TenantSlug || "Sistema Autogestión MP"}</span>
+                <span className="truncate block text-[11px] font-normal text-muted-foreground">
+                  Paquete contratado: {packageName}
+                  {trialDaysLeft > 0 ? ` · Prueba: ${trialDaysLeft} día(s) restantes` : ""}
+                </span>
+              </div>
             </div>
             <ModeToggle></ModeToggle>
           </SidebarGroupLabel>

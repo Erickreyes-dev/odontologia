@@ -13,35 +13,78 @@ export type RouteTourConfig = {
 
 const defaultSteps: TourStep[] = [
   {
+    selector: "[data-tour='workspace-label']",
+    title: "Identidad de clínica y suscripción",
+    description:
+      "Confirma la clínica activa, el paquete contratado y los días de prueba. Este dato define límites como cantidad de usuarios.",
+  },
+  {
     selector: "[data-tour='sidebar-trigger']",
-    title: "Menú lateral",
-    description: "Abre o colapsa el menú para ganar espacio y enfocarte en la tarea del módulo.",
+    title: "Control del panel lateral",
+    description:
+      "Abre o colapsa el menú lateral para priorizar lectura de tablas/formularios sin perder acceso rápido a módulos clave.",
   },
   {
     selector: "[data-tour='sidebar']",
-    title: "Navegación principal",
+    title: "Mapa completo de navegación",
     description:
-      "Desde aquí puedes cambiar entre módulos clínicos, administrativos y financieros sin perder contexto.",
+      "Desde este panel cambias entre módulos clínicos, administrativos y financieros. Mantén este flujo para no perder contexto del paciente.",
+  },
+  {
+    selector: "[data-tour='main-menu']",
+    title: "Módulos operativos diarios",
+    description:
+      "Aquí vive el flujo principal del día: agenda, pacientes, cotizaciones, planes y cobros. Navega en ese orden para reducir retrabajos.",
+  },
+  {
+    selector: "[data-tour='maintenance-group']",
+    title: "Mantenimiento y seguridad",
+    description:
+      "Gestiona roles, permisos, usuarios y catálogos. Usa este bloque para controlar accesos y mantener datos consistentes.",
   },
   {
     selector: "[data-tour='main-content']",
     title: "Área de trabajo",
     description:
-      "Esta sección cambia según la pantalla. Aquí verás tablas, formularios, filtros y acciones rápidas.",
+      "Esta sección cambia según la pantalla. Revisa primero filtros, luego listado y finalmente acciones de crear/editar para evitar errores.",
   },
 ];
 
 function moduleSteps(moduleName: string, purpose: string, nextAction: string): TourStep[] {
   return [
     {
+      selector: "[data-tour='workspace-label']",
+      title: `Contexto antes de usar ${moduleName}`,
+      description:
+        `Verifica clínica activa, paquete y prueba disponible antes de operar ${moduleName}. Así validas límites funcionales y de acceso.`,
+    },
+    {
       selector: "[data-tour='main-content']",
       title: `¿Para qué sirve ${moduleName}?`,
       description: purpose,
     },
     {
+      selector: "[data-tour='main-content']",
+      title: `Cómo trabajar ${moduleName} por segmentos`,
+      description:
+        "1) Usa filtros/buscador. 2) Revisa resultados y estado. 3) Ejecuta crear/editar solo tras validar datos clave del registro.",
+    },
+    {
+      selector: "[data-tour='main-menu']",
+      title: `Integración de ${moduleName} con otros módulos`,
+      description:
+        `Este módulo no es aislado: confirma qué proceso alimenta o continúa después para mantener trazabilidad clínica y administrativa.`,
+    },
+    {
       selector: "[data-tour='sidebar']",
       title: `Cómo continuar desde ${moduleName}`,
       description: nextAction,
+    },
+    {
+      selector: "[data-tour='maintenance-group']",
+      title: `Control de acceso relacionado con ${moduleName}`,
+      description:
+        "Si un usuario no ve acciones, revisa su rol/permisos en Mantenimiento. Evita otorgar permisos globales sin necesidad.",
     },
     {
       selector: "[data-tour='sidebar-trigger']",
