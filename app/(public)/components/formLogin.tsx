@@ -39,7 +39,7 @@ export default function Login() {
   const [tenantSlugFromHost, setTenantSlugFromHost] = useState("");
   const [savedTenantUrl, setSavedTenantUrl] = useState("");
 
-  const redirectTo = searchParams.get("redirect") ?? "/profile";
+  const redirectTo = searchParams.get("redirect") ?? "/dashboard";
 
   const form = useForm<z.infer<typeof schemaSignIn>>({
     resolver: zodResolver(schemaSignIn),
