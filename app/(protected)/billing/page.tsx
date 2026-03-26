@@ -1,5 +1,6 @@
 import HeaderComponent from "@/components/HeaderComponent";
 import { CreditCard } from "lucide-react";
+import { redirect } from "next/navigation";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { capturePaypalAndCreateInvoice, getTenantBilling } from "./actions";
@@ -13,17 +14,36 @@ export default async function BillingPage({
   const paypalState = typeof searchParams?.paypal === "string" ? searchParams.paypal : undefined;
   const paypalToken = typeof searchParams?.token === "string" ? searchParams.token : undefined;
   const subscriptionRequired = searchParams?.subscription === "required";
+  const paymentState = typeof searchParams?.payment === "string" ? searchParams.payment : undefined;
   let paymentStatusMessage: { type: "ok" | "error"; message: string } | null = null;
 
   if (paypalState === "success" && paypalToken) {
-    const result = await capturePaypalAndCreateInvoice(paypalToken);
-    paymentStatusMessage = result.success
-      ? { type: "ok", message: "Pago confirmado con PayPal. La factura fue generada exitosamente." }
-      : { type: "error", message: result.error };
+    try {
+      const result = await capturePaypalAndCreateInvoice(paypalToken);
+      if (result.success) {
+        redirect("/billing?payment=success");
+      }
+      redirect(`/billing?payment=error&reason=${encodeURIComponent(result.error)}`);
+    } catch {
+      redirect("/billing?payment=error");
+    }
   }
 
   if (paypalState === "cancelled") {
+    redirect("/billing?payment=cancelled");
+  }
+
+  if (paymentState === "success") {
+    paymentStatusMessage = { type: "ok", message: "Pago confirmado con PayPal. La factura fue generada exitosamente." };
+  }
+
+  if (paymentState === "cancelled") {
     paymentStatusMessage = { type: "error", message: "Pago cancelado en PayPal. No se generó factura." };
+  }
+
+  if (paymentState === "error") {
+    const reason = typeof searchParams?.reason === "string" ? decodeURIComponent(searchParams.reason) : "";
+    paymentStatusMessage = { type: "error", message: reason || "No se pudo confirmar el pago en PayPal. Intenta nuevamente." };
   }
 
   if (subscriptionRequired) {
@@ -48,29 +68,22 @@ export default async function BillingPage({
         </div>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Pagos y período</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <BillingClient
-            tenantSlug={data.slug}
-            paqueteNombre={data.paquete?.nombre ?? "Sin paquete"}
-            precioMensual={Number(data.paquete?.precio ?? 0)}
-            precioTrimestral={Number(data.paquete?.precioTrimestral ?? Number(data.paquete?.precio ?? 0) * 3)}
-            precioSemestral={Number(data.paquete?.precioSemestral ?? Number(data.paquete?.precio ?? 0) * 6)}
-            precioAnual={Number(data.paquete?.precioAnual ?? Number(data.paquete?.precio ?? 0) * 12)}
-            facturarNombre={latestInvoice?.facturarNombre ?? data.contactoNombre ?? ""}
-            facturarCorreo={latestInvoice?.facturarCorreo ?? data.contactoCorreo ?? ""}
-            facturarTelefono={latestInvoice?.facturarTelefono ?? data.telefono ?? ""}
-            facturarTaxId={latestInvoice?.facturarTaxId ?? ""}
-            facturarDireccion={latestInvoice?.facturarDireccion ?? ""}
-            facturarCiudad={latestInvoice?.facturarCiudad ?? ""}
-            facturarPais={latestInvoice?.facturarPais ?? data.paisCodigo ?? ""}
-            facturarPostal={latestInvoice?.facturarPostal ?? ""}
-          />
-        </CardContent>
-      </Card>
+      <BillingClient
+        tenantSlug={data.slug}
+        paqueteNombre={data.paquete?.nombre ?? "Sin paquete"}
+        precioMensual={Number(data.paquete?.precio ?? 0)}
+        precioTrimestral={Number(data.paquete?.precioTrimestral ?? Number(data.paquete?.precio ?? 0) * 3)}
+        precioSemestral={Number(data.paquete?.precioSemestral ?? Number(data.paquete?.precio ?? 0) * 6)}
+        precioAnual={Number(data.paquete?.precioAnual ?? Number(data.paquete?.precio ?? 0) * 12)}
+        facturarNombre={latestInvoice?.facturarNombre ?? data.contactoNombre ?? ""}
+        facturarCorreo={latestInvoice?.facturarCorreo ?? data.contactoCorreo ?? ""}
+        facturarTelefono={latestInvoice?.facturarTelefono ?? data.telefono ?? ""}
+        facturarTaxId={latestInvoice?.facturarTaxId ?? ""}
+        facturarDireccion={latestInvoice?.facturarDireccion ?? ""}
+        facturarCiudad={latestInvoice?.facturarCiudad ?? ""}
+        facturarPais={latestInvoice?.facturarPais ?? data.paisCodigo ?? ""}
+        facturarPostal={latestInvoice?.facturarPostal ?? ""}
+      />
 
       <Card>
         <CardHeader><CardTitle>Historial</CardTitle></CardHeader>
