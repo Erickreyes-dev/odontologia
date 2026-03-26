@@ -25,6 +25,7 @@ export interface UsuarioSesion extends JWTPayload {
   TenantId: string;
   TenantSlug: string;
   TenantNombre: string;
+  SuscripcionActiva: boolean;
 }
 
 export async function encrypt(payload: UsuarioSesion) {
@@ -51,6 +52,7 @@ export const decrypt = async (token: string): Promise<UsuarioSesion | null> => {
       TenantId: payload.TenantId as string,
       TenantSlug: payload.TenantSlug as string,
       TenantNombre: payload.TenantNombre as string,
+      SuscripcionActiva: Boolean(payload.SuscripcionActiva),
       iss: payload.iss as string,
       aud: payload.aud as string,
     };
@@ -167,6 +169,9 @@ async function authenticateDB(
     }
 
     const permisos = user.rol.permisos.map(rp => rp.permiso.nombre);
+    const now = new Date();
+    const hasTrial = Boolean(user.tenant?.trialEndsAt && user.tenant.trialEndsAt > now);
+    const hasPaidPeriod = Boolean(user.tenant?.proximoPago && user.tenant.proximoPago > now);
 
     const payload: UsuarioSesion = {
       IdUser: user.id,
@@ -181,6 +186,7 @@ async function authenticateDB(
       TenantId: user.tenantId ?? "",
       TenantSlug: user.tenant?.slug ?? "",
       TenantNombre: user.tenant?.nombre ?? "",
+      SuscripcionActiva: hasTrial || hasPaidPeriod,
       iss: "odontologia-saas",
       aud: "odontologia-clients",
     };
@@ -208,6 +214,9 @@ async function changePassword(tenantId: string, username: string, newPassword: s
     });
 
     const permisos = updated.rol.permisos.map(rp => rp.permiso.nombre);
+    const now = new Date();
+    const hasTrial = Boolean(updated.tenant?.trialEndsAt && updated.tenant.trialEndsAt > now);
+    const hasPaidPeriod = Boolean(updated.tenant?.proximoPago && updated.tenant.proximoPago > now);
     const payload: UsuarioSesion = {
       IdUser: updated.id,
       User: updated.usuario,
@@ -221,6 +230,7 @@ async function changePassword(tenantId: string, username: string, newPassword: s
       TenantId: updated.tenantId ?? "",
       TenantSlug: updated.tenant?.slug ?? "",
       TenantNombre: updated.tenant?.nombre ?? "",
+      SuscripcionActiva: hasTrial || hasPaidPeriod,
       iss: "odontologia-saas",
       aud: "odontologia-clients",
     };

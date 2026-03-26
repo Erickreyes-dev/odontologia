@@ -5,7 +5,7 @@ import { BadgeCheck, CalendarClock, Check, Globe, ReceiptText, WalletCards } fro
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createCheckoutForLatestInvoice, createNewTenantInvoice, saveTenantBillingProfile } from "./actions";
+import { createCheckoutForPlan, saveTenantBillingProfile } from "./actions";
 import { toast } from "sonner";
 
 type BillingClientProps = {
@@ -52,7 +52,7 @@ export function BillingClient(props: BillingClientProps) {
     anual: props.precioAnual,
   };
 
-  const onNewInvoice = (periodo: "mensual" | "trimestral" | "semestral" | "anual") => {
+  const onPaypalCheckout = (periodo: "mensual" | "trimestral" | "semestral" | "anual") => {
     startTransition(async () => {
       const saved = await saveTenantBillingProfile(billing);
       if (!saved.success) {
@@ -60,18 +60,7 @@ export function BillingClient(props: BillingClientProps) {
         return;
       }
 
-      const result = await createNewTenantInvoice(periodo);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Factura generada correctamente");
-    });
-  };
-
-  const onPaypalCheckout = () => {
-    startTransition(async () => {
-      const result = await createCheckoutForLatestInvoice();
+      const result = await createCheckoutForPlan(periodo);
       if (!result.success) {
         toast.error(result.error);
         return;
@@ -120,19 +109,19 @@ export function BillingClient(props: BillingClientProps) {
             type="button"
             className="rounded-xl border bg-card p-4 text-left transition hover:border-cyan-400/60 hover:shadow-sm"
             disabled={isPending}
-            onClick={() => onNewInvoice(plan.period)}
+            onClick={() => onPaypalCheckout(plan.period)}
           >
             <p className="text-sm font-semibold">{plan.label}</p>
             <p className="text-xs text-muted-foreground">{plan.description}</p>
             <p className="mt-2 text-xl font-bold">USD {pricingByPeriod[plan.period].toFixed(2)}</p>
-            <p className="mt-2 inline-flex items-center gap-1 text-xs text-cyan-600"><Check className="h-3.5 w-3.5" /> Generar factura</p>
+            <p className="mt-2 inline-flex items-center gap-1 text-xs text-cyan-600"><Check className="h-3.5 w-3.5" /> Pagar con PayPal</p>
           </button>
         ))}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={isPending} onClick={onPaypalCheckout}>
-          <WalletCards className="mr-2 h-4 w-4" /> Pagar con PayPal
+        <Button type="button" variant="outline" disabled>
+          <WalletCards className="mr-2 h-4 w-4" /> La factura se crea automáticamente al confirmar el pago
         </Button>
         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><CalendarClock className="h-3.5 w-3.5" /> Upgrade prorrateado sin penalización</span>
       </div>

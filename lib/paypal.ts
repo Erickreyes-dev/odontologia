@@ -27,6 +27,15 @@ async function getAccessToken() {
 }
 
 export async function createPaypalOrder(amount: number, description: string) {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Monto inválido para crear la orden");
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl) {
+    throw new Error("Falta NEXT_PUBLIC_APP_URL para el retorno de PayPal");
+  }
+
   const token = await getAccessToken();
 
   const response = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders`, {
@@ -48,10 +57,32 @@ export async function createPaypalOrder(amount: number, description: string) {
       ],
       application_context: {
         user_action: "PAY_NOW",
+        return_url: `${appUrl}/billing?paypal=success`,
+        cancel_url: `${appUrl}/billing?paypal=cancelled`,
       },
     }),
   });
 
   if (!response.ok) throw new Error("No se pudo crear la orden de PayPal");
+  return response.json();
+}
+
+export async function capturePaypalOrder(orderId: string) {
+  if (!orderId) throw new Error("OrderId de PayPal inválido");
+  const token = await getAccessToken();
+
+  const response = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${orderId}/capture`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`No se pudo capturar la orden de PayPal: ${body}`);
+  }
+
   return response.json();
 }

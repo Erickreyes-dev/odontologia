@@ -1,5 +1,6 @@
 import { getSession } from "@/auth";
 import { getTenantLogoBase64 } from "@/lib/tenant-branding";
+import { prisma } from "@/lib/prisma";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sidebar,
@@ -60,6 +61,12 @@ const mantenimientoItems = [
     url: "/profesiones",
     icon: IdCardIcon,
     permiso: "ver_profesiones",
+  },
+  {
+    title: "Facturación",
+    url: "/billing",
+    icon: CreditCard,
+    permiso: "ver_pagos",
   },
 
 
@@ -157,13 +164,6 @@ const items = [
     permiso: "ver_planes_tratamiento",
   },
   {
-    title: "Facturación SaaS",
-    url: "/billing",
-    icon: CreditCard,
-    permiso: "ver_pagos",
-  },
-
-  {
     title: "Pagos",
     url: "/pagos",
     icon: DollarSign,
@@ -189,6 +189,20 @@ export async function AppSidebar() {
   const tenantLogoBase64 = await getTenantLogoBase64();
   const tenantDisplayName = usuario?.TenantNombre || usuario?.TenantSlug || "la clínica";
   const permisosUsuario = usuario?.Permiso || [];
+  const tenantSubscription = usuario?.TenantId
+    ? await prisma.tenant.findUnique({
+      where: { id: usuario.TenantId },
+      select: {
+        trialEndsAt: true,
+        paquete: { select: { nombre: true } },
+      },
+    })
+    : null;
+
+  const now = new Date();
+  const trialDaysLeft = tenantSubscription?.trialEndsAt
+    ? Math.max(0, Math.ceil((tenantSubscription.trialEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
 
   // Filtrar los ítems basados en los permisos del usuario
   const filteredItems = items.filter(item =>
@@ -222,6 +236,11 @@ export async function AppSidebar() {
             </div>
             <ModeToggle></ModeToggle>
           </SidebarGroupLabel>
+
+          <div className="px-2 pb-2 text-xs text-muted-foreground">
+            <p className="truncate">Paquete: <span className="font-semibold text-foreground">{tenantSubscription?.paquete?.nombre ?? "Sin paquete"}</span></p>
+            {tenantSubscription?.trialEndsAt ? <p>Prueba gratuita: {trialDaysLeft} día(s) restantes</p> : null}
+          </div>
 
           <SidebarGroupContent>
             <SidebarMenu data-tour="main-menu">

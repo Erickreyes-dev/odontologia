@@ -92,6 +92,13 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
     };
   }, []);
 
+  useEffect(() => {
+    const storedCredential = window.localStorage.getItem("google_onboarding_credential");
+    if (storedCredential) {
+      setCredential(storedCredential);
+    }
+  }, []);
+
   const onGoogleClick = () => {
     setError(null);
     if (!window.google || !process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
@@ -144,6 +151,7 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
       setAlreadyExists(Boolean(response.alreadyExists));
       setTenantUrl(response.tenantUrl);
       window.localStorage.setItem("tenant_url", response.tenantUrl);
+      window.localStorage.removeItem("google_onboarding_credential");
       setTimeout(() => router.replace("/dashboard"), 1200);
     });
   };
@@ -218,13 +226,15 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
 
           <section className="space-y-3 rounded-2xl border border-slate-700 bg-slate-950/40 p-4">
             <p className="flex items-center gap-2 text-sm font-semibold text-cyan-300"><ShieldCheck className="h-4 w-4" /> 3) Confirma con Google</p>
-            <Button type="button" variant="outline" onClick={onGoogleClick} className="w-full border-slate-600 bg-slate-900 text-slate-100 hover:bg-slate-800">
-              Iniciar sesión con Google
-            </Button>
+            {!credential ? (
+              <Button type="button" variant="outline" onClick={onGoogleClick} className="w-full border-slate-600 bg-slate-900 text-slate-100 hover:bg-slate-800">
+                Iniciar sesión con Google
+              </Button>
+            ) : null}
             <Button type="button" onClick={onSubmit} disabled={isPending || !credential} className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400">
               {isPending ? "Procesando..." : "Crear clínica / iniciar sesión"}
             </Button>
-            {!credential ? <p className="text-xs text-slate-400">Primero conecta tu cuenta Google para finalizar.</p> : <p className="text-xs text-emerald-300">Google conectado correctamente.</p>}
+            {!credential ? <p className="text-xs text-slate-400">Primero conecta tu cuenta Google para finalizar.</p> : <p className="text-xs text-emerald-300">Cuenta Google ya seleccionada.</p>}
             {error ? <p className="text-sm text-rose-300">{error}</p> : null}
             {tenantUrl ? (
               <p className="rounded-lg border border-emerald-400/40 bg-emerald-500/10 p-2 text-sm text-emerald-200">

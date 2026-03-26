@@ -54,6 +54,7 @@ export default function GoogleOnboardingButton() {
             return;
           }
 
+          window.localStorage.setItem("google_onboarding_credential", response.credential);
           router.push("/registro-clinica");
         });
       },
@@ -73,7 +74,7 @@ export default function GoogleOnboardingButton() {
         <Rocket className="mr-2 h-4 w-4" /> {isPending ? "Validando cuenta..." : "Iniciar sesión con Google"}
       </Button>
       <p className="flex items-center justify-center gap-1 text-center text-xs text-slate-400">
-        <Sparkles className="h-3.5 w-3.5" /> Si tu cuenta existe vas al dashboard, si no te llevamos al onboarding
+        <Sparkles className="h-3.5 w-3.5" /> Si tu cuenta existe vas al dashboard; si no, continuas onboarding sin volver a elegir Google
       </p>
       {error ? <p className="text-center text-xs text-rose-300">{error}</p> : null}
     </div>
