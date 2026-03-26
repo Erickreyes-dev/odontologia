@@ -37,6 +37,7 @@ export default function Login() {
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false); // controla el Dialog
   const [tenantSlugFromHost, setTenantSlugFromHost] = useState("");
+  const [savedTenantUrl, setSavedTenantUrl] = useState("");
 
   const redirectTo = searchParams.get("redirect") ?? "/profile";
 
@@ -56,6 +57,8 @@ export default function Login() {
       setTenantSlugFromHost(slug);
       form.setValue("tenantSlug", slug, { shouldValidate: true });
     }
+    const storedUrl = window.localStorage.getItem("tenant_url");
+    if (storedUrl) setSavedTenantUrl(storedUrl);
   }, [form]);
 
   const onSubmit = (values: TSchemaSignIn) => {
@@ -172,6 +175,11 @@ export default function Login() {
         </Button>
 
         <GoogleOnboardingButton />
+        {savedTenantUrl ? (
+          <p className="rounded-md border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
+            Última URL registrada: <strong>{savedTenantUrl}</strong>
+          </p>
+        ) : null}
 
         <Button variant="link" type="button" onClick={() => setOpen(true)} className="mx-auto block text-slate-300">
           ¿Olvidaste tu contraseña?

@@ -13,6 +13,42 @@ interface GoogleOnboardingInput {
   consultorioNombre: string;
   teamSize: "1" | "2" | "3-5" | ">5";
   paisCodigo: string;
+  packageCode: "start" | "growth" | "pro" | "enterprise";
+  periodoPlan: "mensual" | "trimestral" | "anual";
+}
+
+const packageConfig = {
+  start: { keywords: ["start", "starter"], label: "Start Clinic" },
+  growth: { keywords: ["growth"], label: "Growth Clinic" },
+  pro: { keywords: ["pro"], label: "Pro Revenue" },
+  enterprise: { keywords: ["enterprise", "multi"], label: "Multi-Clinic / Enterprise" },
+} as const;
+
+function resolveMontoByPeriod(paquete: { precio: any; precioTrimestral: any; precioAnual: any }, periodoPlan: GoogleOnboardingInput["periodoPlan"]) {
+  if (periodoPlan === "trimestral") return Number(paquete.precioTrimestral ?? Number(paquete.precio) * 3);
+  if (periodoPlan === "anual") return Number(paquete.precioAnual ?? Number(paquete.precio) * 12);
+  return Number(paquete.precio);
+}
+
+async function resolvePackageForRegistration(packageCode: GoogleOnboardingInput["packageCode"]) {
+  const activePackages = await prisma.paquete.findMany({
+    where: { activo: true },
+    orderBy: [{ maxUsuarios: "asc" }, { precio: "asc" }],
+  });
+
+  if (!activePackages.length) return null;
+
+  const config = packageConfig[packageCode];
+  const byName = activePackages.find((pkg) =>
+    config.keywords.some((keyword) => pkg.nombre.toLowerCase().includes(keyword)),
+  );
+
+  if (byName) return byName;
+
+  if (packageCode === "enterprise") return activePackages[activePackages.length - 1];
+  if (packageCode === "pro") return activePackages.find((pkg) => pkg.maxUsuarios >= 40) ?? activePackages[activePackages.length - 1];
+  if (packageCode === "growth") return activePackages.find((pkg) => pkg.maxUsuarios >= 20) ?? activePackages[Math.min(1, activePackages.length - 1)];
+  return activePackages[0];
 }
 
 async function verifyGoogleCredential(credential: string) {
@@ -46,7 +82,7 @@ function normalizeSlug(input: string) {
     .slice(0, 50);
 }
 
-export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Promise<{ success: true } | { success: false; error: string }> {
+export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Promise<{ success: true; tenantUrl: string } | { success: false; error: string }> {
   try {
     const identity = await verifyGoogleCredential(input.credential);
     const consultorioNombre = input.consultorioNombre.trim();
@@ -55,8 +91,8 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
       return { success: false, error: "El nombre del consultorio es obligatorio" };
     }
 
-    const starterPackage = await prisma.paquete.findFirst({ where: { activo: true }, orderBy: { createAt: "asc" } });
-    if (!starterPackage) {
+    const selectedPackage = await resolvePackageForRegistration(input.packageCode);
+    if (!selectedPackage) {
       return { success: false, error: "No hay paquetes activos para crear la prueba" };
     }
 
@@ -80,10 +116,10 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
           id: randomUUID(),
           nombre: consultorioNombre,
           slug,
-          plan: starterPackage.nombre,
-          paqueteId: starterPackage.id,
-          maxUsuarios: starterPackage.maxUsuarios,
-          periodoPlan: "trimestral",
+          plan: selectedPackage.nombre,
+          paqueteId: selectedPackage.id,
+          maxUsuarios: selectedPackage.maxUsuarios,
+          periodoPlan: input.periodoPlan,
           proximoPago: trialEndsAt,
           contactoNombre: identity.name,
           contactoCorreo: identity.email,
@@ -141,9 +177,9 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
         data: {
           id: randomUUID(),
           tenantId: tenant.id,
-          paqueteId: starterPackage.id,
-          periodoPlan: "trimestral",
-          monto: starterPackage.precioTrimestral ?? Number(starterPackage.precio) * 3,
+          paqueteId: selectedPackage.id,
+          periodoPlan: input.periodoPlan,
+          monto: resolveMontoByPeriod(selectedPackage, input.periodoPlan),
           moneda: "USD",
           estado: "pendiente",
         },
@@ -172,7 +208,7 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
     const token = await encrypt(payload);
     cookies().set("session", token, { expires: new Date(Date.now() + 6 * 60 * 60 * 1000), httpOnly: true, path: "/" });
 
-    return { success: true };
+    return { success: true, tenantUrl: `https://${result.tenant.slug}.medisoftcore.com` };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "No se pudo completar el registro" };
   }

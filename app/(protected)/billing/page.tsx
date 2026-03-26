@@ -19,7 +19,13 @@ export default async function BillingPage() {
           <CardTitle>Pagos y período</CardTitle>
         </CardHeader>
         <CardContent>
-          <BillingClient />
+          <BillingClient
+            tenantSlug={data.slug}
+            paqueteNombre={data.paquete?.nombre ?? "Sin paquete"}
+            precioMensual={Number(data.paquete?.precio ?? 0)}
+            precioTrimestral={Number(data.paquete?.precioTrimestral ?? Number(data.paquete?.precio ?? 0) * 3)}
+            precioAnual={Number(data.paquete?.precioAnual ?? Number(data.paquete?.precio ?? 0) * 12)}
+          />
         </CardContent>
       </Card>
 

@@ -54,7 +54,7 @@ export async function markInvoiceAsPaid(invoiceId: string, captureId: string) {
   return { success: true as const };
 }
 
-export async function createNewTenantInvoice(periodoPlan: "trimestral" | "semestral" | "anual") {
+export async function createNewTenantInvoice(periodoPlan: "mensual" | "trimestral" | "semestral" | "anual") {
   const session = await getSession();
   if (!session?.TenantId) return { success: false as const, error: "Sesión inválida" };
 
@@ -62,11 +62,13 @@ export async function createNewTenantInvoice(periodoPlan: "trimestral" | "semest
   if (!tenant?.paquete) return { success: false as const, error: "No hay paquete activo" };
 
   const paquete = tenant.paquete;
-  const monto = periodoPlan === "trimestral"
-    ? Number(paquete.precioTrimestral ?? paquete.precio)
-    : periodoPlan === "semestral"
-      ? Number(paquete.precioSemestral ?? paquete.precio)
-      : Number(paquete.precioAnual ?? paquete.precio);
+  const monto = periodoPlan === "mensual"
+    ? Number(paquete.precio)
+    : periodoPlan === "trimestral"
+      ? Number(paquete.precioTrimestral ?? Number(paquete.precio) * 3)
+      : periodoPlan === "semestral"
+        ? Number(paquete.precioSemestral ?? Number(paquete.precio) * 6)
+        : Number(paquete.precioAnual ?? Number(paquete.precio) * 12);
 
   await prisma.$transaction(async (tx) => {
     await tx.tenant.update({ where: { id: tenant.id }, data: { periodoPlan } });
