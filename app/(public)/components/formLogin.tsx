@@ -15,6 +15,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { getSession, login } from "../../../auth";
 import ForgotPasswordForm from "./forworgot"; // revisa el nombre real
 import { schemaSignIn, TSchemaSignIn } from "@/lib/shemas";
+import GoogleOnboardingButton from "./google-onboarding-button";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
@@ -169,6 +170,8 @@ export default function Login() {
         >
           {isPending ? "Iniciando..." : "Iniciar sesión"}
         </Button>
+
+        <GoogleOnboardingButton />
 
         <Button variant="link" type="button" onClick={() => setOpen(true)} className="mx-auto block text-slate-300">
           ¿Olvidaste tu contraseña?

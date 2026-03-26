@@ -26,10 +26,16 @@ model Tenant {
   plan           String    @default("starter") @db.VarChar(30)
   maxUsuarios    Int       @default(20)
   paqueteId      String?   @db.VarChar(36)
-  periodoPlan    String    @default("mensual") @db.VarChar(20)
-  proximoPago    DateTime? @db.DateTime(3)
-  createAt       DateTime  @default(now())
-  updateAt       DateTime  @updatedAt
+  periodoPlan     String    @default("mensual") @db.VarChar(20)
+  proximoPago     DateTime? @db.DateTime(3)
+  paisCodigo      String    @default("HN") @db.VarChar(5)
+  monedaCodigo    String    @default("HNL") @db.VarChar(10)
+  teamSize        String?   @db.VarChar(20)
+  authProvider    String    @default("password") @db.VarChar(20)
+  trialEndsAt     DateTime? @db.DateTime(3)
+  paypalCustomerId String?  @db.VarChar(120)
+  createAt        DateTime  @default(now())
+  updateAt        DateTime  @updatedAt
 
   permisos               Permiso[]
   roles                  Rol[]
@@ -63,22 +69,49 @@ model Tenant {
   recibos                Recibo[]
   reciboDetalles         ReciboDetalle[]
   solicitudesCitaPublica SolicitudCitaPublica[]
+  tenantInvoices         TenantInvoice[]
   paquete                Paquete?               @relation(fields: [paqueteId], references: [id])
 
   @@index([paqueteId])
 }
 
 model Paquete {
-  id          String   @id @default(uuid()) @db.VarChar(36)
-  nombre      String   @unique @db.VarChar(80)
-  descripcion String?  @db.VarChar(255)
-  precio      Decimal  @default(0) @db.Decimal(10, 2)
-  maxUsuarios Int      @default(20)
-  activo      Boolean  @default(true) @db.Bit(1)
-  createAt    DateTime @default(now())
-  updateAt    DateTime @updatedAt
+  id               String   @id @default(uuid()) @db.VarChar(36)
+  nombre           String   @unique @db.VarChar(80)
+  descripcion      String?  @db.VarChar(255)
+  precio           Decimal  @default(0) @db.Decimal(10, 2)
+  precioTrimestral Decimal? @db.Decimal(10, 2)
+  precioSemestral  Decimal? @db.Decimal(10, 2)
+  precioAnual      Decimal? @db.Decimal(10, 2)
+  maxUsuarios      Int      @default(20)
+  activo           Boolean  @default(true) @db.Bit(1)
+  createAt         DateTime @default(now())
+  updateAt         DateTime @updatedAt
 
-  tenants Tenant[]
+  tenants        Tenant[]
+  tenantInvoices TenantInvoice[]
+}
+
+model TenantInvoice {
+  id               String   @id @default(uuid()) @db.VarChar(36)
+  tenantId         String   @db.VarChar(36)
+  paqueteId        String   @db.VarChar(36)
+  periodoPlan      String   @db.VarChar(20)
+  monto            Decimal  @db.Decimal(10, 2)
+  moneda           String   @default("USD") @db.VarChar(10)
+  estado           String   @default("pendiente") @db.VarChar(20)
+  paypalOrderId    String?  @db.VarChar(120)
+  paypalCaptureId  String?  @db.VarChar(120)
+  fechaFacturacion DateTime @default(now())
+  fechaPago        DateTime?
+  createAt         DateTime @default(now())
+  updateAt         DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  paquete Paquete @relation(fields: [paqueteId], references: [id])
+
+  @@index([tenantId, estado])
+  @@index([paypalOrderId])
 }
 
 model Permiso {

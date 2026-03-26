@@ -8,6 +8,7 @@ import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TenantAppointmentForm } from "@/components/tenant-appointment-form";
 import { CalendarClock, HeartHandshake, Mail, PhoneCall, Sparkles, Stethoscope } from "lucide-react";
+import { resolveCurrencyByCountry } from "@/lib/country-currency";
 
 const services = [
   {
@@ -98,6 +99,8 @@ export default async function LandingPage() {
           contactoCorreo: true,
           telefono: true,
           activo: true,
+          paisCodigo: true,
+          monedaCodigo: true,
           servicios: {
             where: { activo: true, mostrarEnLanding: true },
             select: {
@@ -129,6 +132,8 @@ export default async function LandingPage() {
 
   if (tenantLanding?.activo) {
     const logo = normalizeLogo(tenantLanding.logoBase64);
+    const tenantCurrency = resolveCurrencyByCountry(tenantLanding.paisCodigo);
+    const moneyFormatter = new Intl.NumberFormat("es-ES", { style: "currency", currency: tenantLanding.monedaCodigo || tenantCurrency.currency, maximumFractionDigits: 2 });
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-background via-background to-cyan-50/20 dark:to-slate-950">
@@ -257,7 +262,7 @@ export default async function LandingPage() {
                     </p>
                     <div className="flex items-center justify-between rounded-xl border border-border/70 bg-muted/40 px-3 py-2">
                       <p className="text-xs text-muted-foreground">Precio desde</p>
-                      <p className="text-base font-bold text-foreground">L {Number(servicio.precioBase).toFixed(2)}</p>
+                      <p className="text-base font-bold text-foreground">{moneyFormatter.format(Number(servicio.precioBase))}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -296,7 +301,7 @@ export default async function LandingPage() {
                           </span>
                           {ahorro > 0 ? (
                             <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
-                              Ahorra L {ahorro.toFixed(2)}
+                              Ahorra {moneyFormatter.format(ahorro)}
                             </span>
                           ) : null}
                         </div>
@@ -310,10 +315,10 @@ export default async function LandingPage() {
                           <p className="text-xs text-muted-foreground">Precio promocional</p>
                           <div className="mt-1 flex items-baseline gap-2">
                             <span className="text-xl font-extrabold text-cyan-700 dark:text-cyan-300">
-                              L {Number(promo.precioPromocional).toFixed(2)}
+                              {moneyFormatter.format(Number(promo.precioPromocional))}
                             </span>
                             <span className="text-sm text-muted-foreground line-through">
-                              L {Number(promo.precioReferencial).toFixed(2)}
+                              {moneyFormatter.format(Number(promo.precioReferencial))}
                             </span>
                           </div>
                         </div>
