@@ -19,7 +19,8 @@ async function getAccessToken() {
   });
 
   if (!response.ok) {
-    throw new Error("No se pudo autenticar con PayPal");
+    const body = await response.text();
+    throw new Error(`No se pudo autenticar con PayPal: ${body || response.statusText}`);
   }
 
   const data = await response.json();
@@ -63,7 +64,10 @@ export async function createPaypalOrder(amount: number, description: string) {
     }),
   });
 
-  if (!response.ok) throw new Error("No se pudo crear la orden de PayPal");
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`No se pudo crear la orden de PayPal: ${body || response.statusText}`);
+  }
   return response.json();
 }
 

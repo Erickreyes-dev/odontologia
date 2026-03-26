@@ -61,18 +61,29 @@ export async function createCheckoutForPlan(periodoPlan: "mensual" | "trimestral
 
   if (!tenant?.paquete) return { success: false as const, error: "No hay paquete activo" };
 
-  const monto = calculateAmountByPeriod(tenant.paquete, periodoPlan);
-  const order = await createPaypalOrder(monto, `Plan ${tenant.paquete.nombre} (${periodoPlan})`);
-  const approveLink = order.links?.find((link: any) => link.rel === "approve")?.href;
+  try {
+    const monto = calculateAmountByPeriod(tenant.paquete, periodoPlan);
+    const order = await createPaypalOrder(monto, `Plan ${tenant.paquete.nombre} (${periodoPlan})`);
+    const approveLink = order.links?.find((link: any) => link.rel === "approve")?.href;
 
-  await prisma.tenant.update({
-    where: { id: tenant.id },
-    data: { periodoPlan, paypalCustomerId: order.id },
-  });
+    if (!approveLink) {
+      return { success: false as const, error: "PayPal no devolvió el enlace de aprobación. Intenta de nuevo." };
+    }
 
-  revalidatePath("/billing");
+    await prisma.tenant.update({
+      where: { id: tenant.id },
+      data: { periodoPlan, paypalCustomerId: order.id },
+    });
 
-  return { success: true as const, approveLink };
+    revalidatePath("/billing");
+
+    return { success: true as const, approveLink };
+  } catch (error) {
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : "No se pudo iniciar el pago con PayPal",
+    };
+  }
 }
 
 export async function capturePaypalAndCreateInvoice(orderId: string) {
