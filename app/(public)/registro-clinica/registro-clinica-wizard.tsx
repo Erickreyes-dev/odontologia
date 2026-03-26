@@ -109,7 +109,7 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
           setAlreadyExists(true);
           setTenantUrl(existing.tenantUrl);
           window.localStorage.setItem("tenant_url", existing.tenantUrl);
-          setTimeout(() => router.replace("/profile"), 900);
+          setTimeout(() => router.replace("/dashboard"), 900);
         }
       },
     });
@@ -141,7 +141,7 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
       setAlreadyExists(Boolean(response.alreadyExists));
       setTenantUrl(response.tenantUrl);
       window.localStorage.setItem("tenant_url", response.tenantUrl);
-      setTimeout(() => router.replace("/profile"), 1200);
+      setTimeout(() => router.replace("/dashboard"), 1200);
     });
   };
 
