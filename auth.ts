@@ -9,6 +9,7 @@ import { TSchemaResetPassword, schemaResetPassword } from "./app/(public)/reset-
 import { schemaSignIn, TSchemaSignIn } from './lib/shemas';
 import { prisma } from './lib/prisma';
 import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
+import { getSessionCookieDomain } from "@/lib/session-cookie";
 
 const key = new TextEncoder().encode(process.env.AUTH_SECRET!);
 
@@ -70,7 +71,15 @@ export interface LoginResult {
 
 const setSessionCookie = (token: string) => {
   const expires = new Date(Date.now() + 6 * 60 * 60 * 1000);
-  cookies().set("session", token, { expires, httpOnly: true, path: "/" });
+  const domain = getSessionCookieDomain();
+  cookies().set("session", token, {
+    expires,
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    ...(domain ? { domain } : {}),
+  });
 };
 
 export const getSession = async (): Promise<UsuarioSesion | null> => {
@@ -84,7 +93,15 @@ export const getSessionPermisos = async (): Promise<string[] | null> => {
 };
 
 export const signOut = async () => {
-  cookies().delete("session");
+  const domain = getSessionCookieDomain();
+  cookies().set("session", "", {
+    expires: new Date(0),
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    ...(domain ? { domain } : {}),
+  });
 };
 
 async function resolveTenantSlugForAuth(explicitTenantSlug: string): Promise<string | null> {

@@ -53,13 +53,18 @@ export default function Login() {
   useEffect(() => {
     setMounted(true);
     const slug = getTenantSlugFromBrowserHost();
+    const tenantSlugFromQuery = (searchParams.get("tenantSlug") || "").trim().toLowerCase();
+
     if (slug) {
       setTenantSlugFromHost(slug);
       form.setValue("tenantSlug", slug, { shouldValidate: true });
+    } else if (tenantSlugFromQuery) {
+      form.setValue("tenantSlug", tenantSlugFromQuery, { shouldValidate: true });
     }
+
     const storedUrl = window.localStorage.getItem("tenant_url");
     if (storedUrl) setSavedTenantUrl(storedUrl);
-  }, [form]);
+  }, [form, searchParams]);
 
   const onSubmit = (values: TSchemaSignIn) => {
     startTransition(async () => {
