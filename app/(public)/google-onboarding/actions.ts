@@ -14,7 +14,7 @@ interface GoogleOnboardingInput {
   teamSize: "1" | "2" | "3-5" | ">5";
   paisCodigo: string;
   packageId: string;
-  periodoPlan: "mensual" | "trimestral" | "anual";
+  periodoPlan: "mensual" | "trimestral" | "semestral" | "anual";
 }
 
 async function verifyGoogleCredential(credential: string) {

@@ -25,6 +25,7 @@ export default async function BillingPage() {
             paqueteNombre={data.paquete?.nombre ?? "Sin paquete"}
             precioMensual={Number(data.paquete?.precio ?? 0)}
             precioTrimestral={Number(data.paquete?.precioTrimestral ?? Number(data.paquete?.precio ?? 0) * 3)}
+            precioSemestral={Number(data.paquete?.precioSemestral ?? Number(data.paquete?.precio ?? 0) * 6)}
             precioAnual={Number(data.paquete?.precioAnual ?? Number(data.paquete?.precio ?? 0) * 12)}
             facturarNombre={latestInvoice?.facturarNombre ?? data.contactoNombre ?? ""}
             facturarCorreo={latestInvoice?.facturarCorreo ?? data.contactoCorreo ?? ""}

@@ -13,6 +13,7 @@ type BillingClientProps = {
   paqueteNombre: string;
   precioMensual: number;
   precioTrimestral: number;
+  precioSemestral: number;
   precioAnual: number;
   facturarNombre: string;
   facturarCorreo: string;
@@ -27,6 +28,7 @@ type BillingClientProps = {
 const plans = [
   { period: "mensual" as const, label: "Mensual", description: "Flexibilidad total" },
   { period: "trimestral" as const, label: "Trimestral", description: "Ahorro aproximado 8%" },
+  { period: "semestral" as const, label: "Semestral", description: "Ahorro aproximado 13%" },
   { period: "anual" as const, label: "Anual", description: "Mejor precio · ahorro aproximado 20%" },
 ];
 
@@ -46,10 +48,11 @@ export function BillingClient(props: BillingClientProps) {
   const pricingByPeriod = {
     mensual: props.precioMensual,
     trimestral: props.precioTrimestral,
+    semestral: props.precioSemestral,
     anual: props.precioAnual,
   };
 
-  const onNewInvoice = (periodo: "mensual" | "trimestral" | "anual") => {
+  const onNewInvoice = (periodo: "mensual" | "trimestral" | "semestral" | "anual") => {
     startTransition(async () => {
       const saved = await saveTenantBillingProfile(billing);
       if (!saved.success) {
@@ -110,7 +113,7 @@ export function BillingClient(props: BillingClientProps) {
         <Button type="button" variant="outline" onClick={onBillingSave} className="mt-3" disabled={isPending}>Guardar datos de facturación</Button>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-4">
         {plans.map((plan) => (
           <button
             key={plan.period}
