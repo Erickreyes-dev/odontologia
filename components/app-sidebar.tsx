@@ -194,7 +194,6 @@ export async function AppSidebar() {
       where: { id: usuario.TenantId },
       select: {
         trialEndsAt: true,
-        paquete: { select: { nombre: true } },
       },
     })
     : null;
@@ -238,7 +237,6 @@ export async function AppSidebar() {
           </SidebarGroupLabel>
 
           <div className="px-2 pb-2 text-xs text-muted-foreground">
-            <p className="truncate">Paquete: <span className="font-semibold text-foreground">{tenantSubscription?.paquete?.nombre ?? "Sin paquete"}</span></p>
             {tenantSubscription?.trialEndsAt ? <p>Prueba gratuita: {trialDaysLeft} día(s) restantes</p> : null}
           </div>
 
