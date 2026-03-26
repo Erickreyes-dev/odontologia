@@ -10,6 +10,8 @@ type RateLimitConfig = { limit: number; windowMs: number };
 interface SessionPayload extends JWTPayload {
   Permiso?: string[];
   SuscripcionActiva?: boolean;
+  TrialEndsAt?: string | null;
+  ProximoPago?: string | null;
 }
 
 const authSecret = process.env.AUTH_SECRET
@@ -44,7 +46,13 @@ async function getSessionSubscriptionStatus(req: NextRequest): Promise<boolean |
 
   try {
     const { payload } = await jwtVerify<SessionPayload>(token, authSecret, { algorithms: ["HS256"] });
-    return payload.SuscripcionActiva === true;
+    const now = Date.now();
+    const trialEndsAtMs = payload.TrialEndsAt ? Date.parse(payload.TrialEndsAt) : NaN;
+    const proximoPagoMs = payload.ProximoPago ? Date.parse(payload.ProximoPago) : NaN;
+    const hasTrial = Number.isFinite(trialEndsAtMs) && trialEndsAtMs > now;
+    const hasPaidPeriod = Number.isFinite(proximoPagoMs) && proximoPagoMs > now;
+
+    return hasTrial || hasPaidPeriod;
   } catch {
     return null;
   }
@@ -224,7 +232,6 @@ export async function middleware(req: NextRequest) {
 
   const subscriptionExemptPrefixes = [
     "/billing",
-    "/mi-clinica",
     "/dashboard-admin",
     "/tenants",
     "/paquetes",

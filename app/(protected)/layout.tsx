@@ -49,13 +49,13 @@ export default async function Layout({ children }: { children: React.ReactNode }
               <span className="text-muted-foreground">Paquete actual:</span>
               <span className="font-semibold text-foreground">{packageName}</span>
             </div>
-            <div className="hidden rounded-xl border bg-card px-3 py-1.5 text-xs sm:flex sm:items-center sm:gap-2">
-              <Timer className="h-3.5 w-3.5 text-amber-500" />
-              <span className="text-muted-foreground">Tiempo de prueba:</span>
-              <span className="font-semibold text-foreground">
-                {trialDaysLeft > 0 ? `${trialDaysLeft} día(s) restantes` : "Finalizado"}
-              </span>
-            </div>
+            {trialDaysLeft > 0 ? (
+              <div className="hidden rounded-xl border bg-card px-3 py-1.5 text-xs sm:flex sm:items-center sm:gap-2">
+                <Timer className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-muted-foreground">Tiempo de prueba:</span>
+                <span className="font-semibold text-foreground">{`${trialDaysLeft} día(s) restantes`}</span>
+              </div>
+            ) : null}
             <AppHelpGuide />
           </div>
         </div>
