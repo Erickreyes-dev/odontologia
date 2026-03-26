@@ -534,6 +534,8 @@ model Producto {
   tenantId    String?  @db.VarChar(36)
   nombre      String   @db.VarChar(150)
   descripcion String?  @db.VarChar(255)
+  tipo        TipoProducto @default(CONSUMIBLE)
+  precioVenta Decimal? @db.Decimal(10, 2)
   unidad      String?  @db.VarChar(50)
   stock       Int      @default(0)
   stockMinimo Int      @default(0)
@@ -555,6 +557,7 @@ model ConsultaProducto {
   consultaId String   @db.VarChar(36)
   productoId String   @db.VarChar(36)
   cantidad   Int      @default(1)
+  precioUnitarioAplicado Decimal @default(0) @db.Decimal(10, 2)
   createAt   DateTime @default(now())
 
   tenant   Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -564,6 +567,11 @@ model ConsultaProducto {
   @@index([tenantId])
   @@index([consultaId])
   @@index([productoId])
+}
+
+enum TipoProducto {
+  CONSUMIBLE
+  VENTA
 }
 
 model Cotizacion {

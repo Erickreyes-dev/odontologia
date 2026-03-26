@@ -28,6 +28,19 @@ export const columns: ColumnDef<Producto>[] = [
     header: "Unidad",
   },
   {
+    accessorKey: "tipo",
+    header: "Tipo",
+    cell: ({ row }) => (row.original.tipo === "VENTA" ? "Venta" : "Consumible"),
+  },
+  {
+    accessorKey: "precioVenta",
+    header: "Precio venta",
+    cell: ({ row }) =>
+      row.original.tipo === "VENTA"
+        ? `L ${Number(row.original.precioVenta ?? 0).toFixed(2)}`
+        : "—",
+  },
+  {
     accessorKey: "stock",
     header: "Stock",
   },

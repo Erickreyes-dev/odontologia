@@ -63,7 +63,7 @@ export async function createCheckoutForPlan(periodoPlan: "mensual" | "trimestral
 
   try {
     const monto = calculateAmountByPeriod(tenant.paquete, periodoPlan);
-    const order = await createPaypalOrder(monto, `Plan ${tenant.paquete.nombre} (${periodoPlan})`);
+    const order = await createPaypalOrder(monto, `Plan ${tenant.paquete.nombre} (${periodoPlan})`, tenant.slug);
     const approveLink = order.links?.find((link: any) => link.rel === "approve")?.href;
 
     if (!approveLink) {

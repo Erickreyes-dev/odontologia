@@ -1,6 +1,5 @@
 import { getSession } from "@/auth";
 import { getTenantLogoBase64 } from "@/lib/tenant-branding";
-import { prisma } from "@/lib/prisma";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sidebar,
@@ -189,20 +188,6 @@ export async function AppSidebar() {
   const tenantLogoBase64 = await getTenantLogoBase64();
   const tenantDisplayName = usuario?.TenantNombre || usuario?.TenantSlug || "la clínica";
   const permisosUsuario = usuario?.Permiso || [];
-  const tenantSubscription = usuario?.TenantId
-    ? await prisma.tenant.findUnique({
-      where: { id: usuario.TenantId },
-      select: {
-        trialEndsAt: true,
-      },
-    })
-    : null;
-
-  const now = new Date();
-  const trialDaysLeft = tenantSubscription?.trialEndsAt
-    ? Math.max(0, Math.ceil((tenantSubscription.trialEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
-    : 0;
-
   // Filtrar los ítems basados en los permisos del usuario
   const filteredItems = items.filter(item =>
     permisosUsuario.includes(item.permiso)
@@ -235,10 +220,6 @@ export async function AppSidebar() {
             </div>
             <ModeToggle></ModeToggle>
           </SidebarGroupLabel>
-
-          <div className="px-2 pb-2 text-xs text-muted-foreground">
-            {tenantSubscription?.trialEndsAt ? <p>Prueba gratuita: {trialDaysLeft} día(s) restantes</p> : null}
-          </div>
 
           <SidebarGroupContent>
             <SidebarMenu data-tour="main-menu">

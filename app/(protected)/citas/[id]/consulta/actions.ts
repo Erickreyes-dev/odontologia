@@ -8,6 +8,24 @@ import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { getTenantContext } from "@/lib/tenant";
 import { Prisma } from "@/lib/generated/prisma";
 
+async function calcularTotalProductosVenta(
+  tx: Prisma.TransactionClient | typeof prisma,
+  productos: { productoId: string; cantidad: number }[]
+) {
+  if (!productos.length) return 0;
+
+  const productosDB = await tx.producto.findMany({
+    where: { id: { in: productos.map((p) => p.productoId) } },
+    select: { id: true, tipo: true, precioVenta: true },
+  });
+
+  const map = new Map(productosDB.map((p) => [p.id, p]));
+  return productos.reduce((acc, item) => {
+    const producto = map.get(item.productoId);
+    if (!producto || producto.tipo !== "VENTA") return acc;
+    return acc + Number(producto.precioVenta ?? 0) * item.cantidad;
+  }, 0);
+}
 
 async function validarStockDisponible(
   tx: Prisma.TransactionClient,
@@ -104,6 +122,7 @@ export async function getConsultaByCitaId(citaId: string): Promise<Consulta | nu
         id: producto.id,
         productoId: producto.productoId,
         cantidad: producto.cantidad,
+        precioUnitarioAplicado: Number(producto.precioUnitarioAplicado ?? 0),
         productoNombre: producto.producto.nombre,
       })),
       cita: {
@@ -181,6 +200,7 @@ export async function getConsultaById(id: string): Promise<Consulta | null> {
         id: producto.id,
         productoId: producto.productoId,
         cantidad: producto.cantidad,
+        precioUnitarioAplicado: Number(producto.precioUnitarioAplicado ?? 0),
         productoNombre: producto.producto.nombre,
       })),
       cita: {
@@ -222,7 +242,7 @@ export async function upsertConsulta(
       ) ?? 0;
 
     const descuentoPorcentaje = Math.min(Math.max(Number(validatedData.descuento ?? 0), 0), 100);
-    let totalConsulta = totalServicios;
+    let totalConsulta = totalServicios + await calcularTotalProductosVenta(prisma, validatedData.productos ?? []);
     if (validatedData.promocionId) {
       const promocion = await prisma.promocion.findFirst({
         where: await tenantWhere<Prisma.PromocionWhereInput>({
@@ -281,6 +301,11 @@ export async function upsertConsulta(
           });
         }
         if (validatedData.productos?.length) {
+          const productosDB = await tx.producto.findMany({
+            where: { id: { in: validatedData.productos.map((p) => p.productoId) } },
+            select: { id: true, tipo: true, precioVenta: true },
+          });
+          const precioProductoMap = new Map(productosDB.map((p) => [p.id, p]));
           await tx.consultaProducto.createMany({
             data: validatedData.productos.map((producto) => ({
               id: randomUUID(),
@@ -288,6 +313,10 @@ export async function upsertConsulta(
               consultaId: existingConsulta.id,
               productoId: producto.productoId,
               cantidad: producto.cantidad,
+              precioUnitarioAplicado:
+                precioProductoMap.get(producto.productoId)?.tipo === "VENTA"
+                  ? Number(precioProductoMap.get(producto.productoId)?.precioVenta ?? 0)
+                  : 0,
             })),
           });
         }
@@ -348,6 +377,7 @@ export async function upsertConsulta(
                     tenantId,
                     productoId: producto.productoId,
                     cantidad: producto.cantidad,
+                    precioUnitarioAplicado: producto.precioUnitarioAplicado ?? 0,
                   })),
                 }
               : undefined,
@@ -440,7 +470,8 @@ export async function finalizarConsulta(
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const baseTotal = totalPromocion ?? serviciosTotal;
+      const totalProductosVenta = await calcularTotalProductosVenta(tx, validatedData.productos ?? []);
+      const baseTotal = (totalPromocion ?? serviciosTotal) + totalProductosVenta;
       const descuentoMonto = baseTotal * (descuentoPorcentaje / 100);
       const totalCalculado = Math.max(baseTotal - descuentoMonto, 0);
 
@@ -500,6 +531,11 @@ export async function finalizarConsulta(
         });
       }
       if (validatedData.productos?.length) {
+        const productosDB = await tx.producto.findMany({
+          where: { id: { in: validatedData.productos.map((p) => p.productoId) } },
+          select: { id: true, tipo: true, precioVenta: true },
+        });
+        const precioProductoMap = new Map(productosDB.map((p) => [p.id, p]));
         await tx.consultaProducto.createMany({
           data: validatedData.productos.map((producto) => ({
             id: randomUUID(),
@@ -507,6 +543,10 @@ export async function finalizarConsulta(
             consultaId: consultaId!,
             productoId: producto.productoId,
             cantidad: producto.cantidad,
+            precioUnitarioAplicado:
+              precioProductoMap.get(producto.productoId)?.tipo === "VENTA"
+                ? Number(precioProductoMap.get(producto.productoId)?.precioVenta ?? 0)
+                : 0,
           })),
         });
       }
@@ -731,12 +771,12 @@ export async function getPromocionesActivas(): Promise<
 }
 
 export async function getProductosActivos(): Promise<
-  { id: string; nombre: string; unidad: string | null; stock: number }[]
+  { id: string; nombre: string; unidad: string | null; stock: number; tipo: "CONSUMIBLE" | "VENTA"; precioVenta: number | null }[]
 > {
   try {
     const productos = await prisma.producto.findMany({
       where: await tenantWhere<Prisma.ProductoWhereInput>({ activo: true }),
-      select: { id: true, nombre: true, unidad: true, stock: true },
+      select: { id: true, nombre: true, unidad: true, stock: true, tipo: true, precioVenta: true },
       orderBy: { nombre: "asc" },
     });
 
@@ -745,6 +785,8 @@ export async function getProductosActivos(): Promise<
       nombre: p.nombre,
       unidad: p.unidad ?? null,
       stock: p.stock,
+      tipo: p.tipo,
+      precioVenta: p.precioVenta !== null ? Number(p.precioVenta) : null,
     }));
   } catch (error) {
     console.error("Error al obtener productos activos:", error);
