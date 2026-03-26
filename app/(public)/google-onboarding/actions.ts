@@ -9,7 +9,7 @@ import { encrypt, type UsuarioSesion } from "@/auth";
 import { cookies, headers } from "next/headers";
 import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
 import { getSessionCookieDomain } from "@/lib/session-cookie";
-import { isSubscriptionActive, resolveSubscriptionStatus } from "@/lib/subscription-status";
+import { calculateExpirationDateByPlan, isSubscriptionActive, resolveSubscriptionStatus } from "@/lib/subscription-status";
 
 interface GoogleOnboardingInput {
   credential: string;
@@ -119,6 +119,7 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
       const subscriptionStatus = resolveSubscriptionStatus({
         tenantActivo: existingGoogleUser.tenant.activo,
         trialEndsAt: existingGoogleUser.tenant.trialEndsAt,
+        fechaExpiracion: existingGoogleUser.tenant.fechaExpiracion,
         proximoPago: existingGoogleUser.tenant.proximoPago,
       });
       const payload: UsuarioSesion = {
@@ -184,7 +185,7 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
           paqueteId: selectedPackage.id,
           maxUsuarios: selectedPackage.maxUsuarios,
           periodoPlan: input.periodoPlan,
-          proximoPago: trialEndsAt,
+          proximoPago: trialEndsAt ?? calculateExpirationDateByPlan(input.periodoPlan),
           contactoNombre: identity.name,
           contactoCorreo: identity.email,
           authProvider: "google",
@@ -192,6 +193,8 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
           paisCodigo: input.paisCodigo,
           monedaCodigo: currency.currency,
           trialEndsAt,
+          fechaExpiracion: trialEndsAt ?? calculateExpirationDateByPlan(input.periodoPlan),
+          estado: "vigente",
           activo: true,
         },
       });
@@ -293,6 +296,7 @@ export async function loginGoogleExistingTenant(credential: string): Promise<{ s
     const subscriptionStatus = resolveSubscriptionStatus({
       tenantActivo: existingGoogleUser.tenant.activo,
       trialEndsAt: existingGoogleUser.tenant.trialEndsAt,
+      fechaExpiracion: existingGoogleUser.tenant.fechaExpiracion,
       proximoPago: existingGoogleUser.tenant.proximoPago,
     });
     const payload: UsuarioSesion = {

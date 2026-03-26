@@ -32,8 +32,10 @@ model Tenant {
   monedaCodigo    String    @default("HNL") @db.VarChar(10)
   teamSize        String?   @db.VarChar(20)
   authProvider    String    @default("password") @db.VarChar(20)
-  trialEndsAt     DateTime? @db.DateTime(3)
-  paypalCustomerId String?  @db.VarChar(120)
+  trialEndsAt      DateTime? @db.DateTime(3)
+  fechaExpiracion  DateTime? @db.DateTime(3)
+  estado           String    @default("vigente") @db.VarChar(20)
+  paypalCustomerId String?   @db.VarChar(120)
   createAt        DateTime  @default(now())
   updateAt        DateTime  @updatedAt
 

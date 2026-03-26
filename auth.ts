@@ -198,8 +198,16 @@ async function authenticateDB(
     const subscriptionStatus = resolveSubscriptionStatus({
       tenantActivo: user.tenant?.activo,
       trialEndsAt: user.tenant?.trialEndsAt,
+      fechaExpiracion: user.tenant?.fechaExpiracion,
       proximoPago: user.tenant?.proximoPago,
     });
+
+    if (user.tenant && user.tenant.estado !== subscriptionStatus) {
+      await prisma.tenant.update({
+        where: { id: user.tenant.id },
+        data: { estado: subscriptionStatus },
+      });
+    }
 
     const payload: UsuarioSesion = {
       IdUser: user.id,
@@ -249,8 +257,17 @@ async function changePassword(tenantId: string, username: string, newPassword: s
     const subscriptionStatus = resolveSubscriptionStatus({
       tenantActivo: updated.tenant?.activo,
       trialEndsAt: updated.tenant?.trialEndsAt,
+      fechaExpiracion: updated.tenant?.fechaExpiracion,
       proximoPago: updated.tenant?.proximoPago,
     });
+
+    if (updated.tenant && updated.tenant.estado !== subscriptionStatus) {
+      await prisma.tenant.update({
+        where: { id: updated.tenant.id },
+        data: { estado: subscriptionStatus },
+      });
+    }
+
     const payload: UsuarioSesion = {
       IdUser: updated.id,
       User: updated.usuario,
