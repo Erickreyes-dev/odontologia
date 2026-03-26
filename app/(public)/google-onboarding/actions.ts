@@ -9,6 +9,7 @@ import { encrypt, type UsuarioSesion } from "@/auth";
 import { cookies, headers } from "next/headers";
 import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
 import { getSessionCookieDomain } from "@/lib/session-cookie";
+import { isSubscriptionActive, resolveSubscriptionStatus } from "@/lib/subscription-status";
 
 interface GoogleOnboardingInput {
   credential: string;
@@ -115,6 +116,11 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
     const identity = await verifyGoogleCredential(input.credential);
     const existingGoogleUser = await findGoogleUserByEmail(identity.email);
     if (existingGoogleUser?.tenant && existingGoogleUser.tenantId) {
+      const subscriptionStatus = resolveSubscriptionStatus({
+        tenantActivo: existingGoogleUser.tenant.activo,
+        trialEndsAt: existingGoogleUser.tenant.trialEndsAt,
+        proximoPago: existingGoogleUser.tenant.proximoPago,
+      });
       const payload: UsuarioSesion = {
         IdUser: existingGoogleUser.id,
         User: existingGoogleUser.usuario,
@@ -128,10 +134,11 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
         TenantId: existingGoogleUser.tenantId,
         TenantSlug: existingGoogleUser.tenant.slug,
         TenantNombre: existingGoogleUser.tenant.nombre,
-        SuscripcionActiva: Boolean(
-          (existingGoogleUser.tenant.trialEndsAt && existingGoogleUser.tenant.trialEndsAt > new Date()) ||
-          (existingGoogleUser.tenant.proximoPago && existingGoogleUser.tenant.proximoPago > new Date()),
-        ),
+        SuscripcionActiva: isSubscriptionActive(subscriptionStatus),
+        SubscriptionStatus: subscriptionStatus,
+        TenantActivo: Boolean(existingGoogleUser.tenant.activo),
+        TrialEndsAt: existingGoogleUser.tenant.trialEndsAt?.toISOString() ?? null,
+        ProximoPago: existingGoogleUser.tenant.proximoPago?.toISOString() ?? null,
         iss: "odontologia-saas",
         aud: "odontologia-clients",
       };
@@ -256,6 +263,10 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
       TenantSlug: result.tenant.slug,
       TenantNombre: result.tenant.nombre,
       SuscripcionActiva: true,
+      SubscriptionStatus: "vigente",
+      TenantActivo: Boolean(result.tenant.activo),
+      TrialEndsAt: result.tenant.trialEndsAt?.toISOString() ?? null,
+      ProximoPago: result.tenant.proximoPago?.toISOString() ?? null,
       iss: "odontologia-saas",
       aud: "odontologia-clients",
     };
@@ -279,6 +290,11 @@ export async function loginGoogleExistingTenant(credential: string): Promise<{ s
       return { success: true, exists: false };
     }
 
+    const subscriptionStatus = resolveSubscriptionStatus({
+      tenantActivo: existingGoogleUser.tenant.activo,
+      trialEndsAt: existingGoogleUser.tenant.trialEndsAt,
+      proximoPago: existingGoogleUser.tenant.proximoPago,
+    });
     const payload: UsuarioSesion = {
       IdUser: existingGoogleUser.id,
       User: existingGoogleUser.usuario,
@@ -292,10 +308,11 @@ export async function loginGoogleExistingTenant(credential: string): Promise<{ s
       TenantId: existingGoogleUser.tenantId,
       TenantSlug: existingGoogleUser.tenant.slug,
       TenantNombre: existingGoogleUser.tenant.nombre,
-      SuscripcionActiva: Boolean(
-        (existingGoogleUser.tenant.trialEndsAt && existingGoogleUser.tenant.trialEndsAt > new Date()) ||
-        (existingGoogleUser.tenant.proximoPago && existingGoogleUser.tenant.proximoPago > new Date()),
-      ),
+      SuscripcionActiva: isSubscriptionActive(subscriptionStatus),
+      SubscriptionStatus: subscriptionStatus,
+      TenantActivo: Boolean(existingGoogleUser.tenant.activo),
+      TrialEndsAt: existingGoogleUser.tenant.trialEndsAt?.toISOString() ?? null,
+      ProximoPago: existingGoogleUser.tenant.proximoPago?.toISOString() ?? null,
       iss: "odontologia-saas",
       aud: "odontologia-clients",
     };
