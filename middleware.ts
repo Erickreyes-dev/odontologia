@@ -3,6 +3,7 @@ import { jwtVerify, type JWTPayload } from "jose";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
+import { isSubscriptionActive, resolveSubscriptionStatus, type SubscriptionStatus } from "@/lib/subscription-status";
 
 type Bucket = { count: number; reset: number };
 type RateLimitConfig = { limit: number; windowMs: number };
@@ -10,6 +11,8 @@ type RateLimitConfig = { limit: number; windowMs: number };
 interface SessionPayload extends JWTPayload {
   Permiso?: string[];
   SuscripcionActiva?: boolean;
+  SubscriptionStatus?: SubscriptionStatus;
+  TenantActivo?: boolean;
   TrialEndsAt?: string | null;
   ProximoPago?: string | null;
 }
@@ -46,13 +49,13 @@ async function getSessionSubscriptionStatus(req: NextRequest): Promise<boolean |
 
   try {
     const { payload } = await jwtVerify<SessionPayload>(token, authSecret, { algorithms: ["HS256"] });
-    const now = Date.now();
-    const trialEndsAtMs = payload.TrialEndsAt ? Date.parse(payload.TrialEndsAt) : NaN;
-    const proximoPagoMs = payload.ProximoPago ? Date.parse(payload.ProximoPago) : NaN;
-    const hasTrial = Number.isFinite(trialEndsAtMs) && trialEndsAtMs > now;
-    const hasPaidPeriod = Number.isFinite(proximoPagoMs) && proximoPagoMs > now;
+    const status = payload.SubscriptionStatus ?? resolveSubscriptionStatus({
+      tenantActivo: payload.TenantActivo !== false,
+      trialEndsAt: payload.TrialEndsAt,
+      proximoPago: payload.ProximoPago,
+    });
 
-    return hasTrial || hasPaidPeriod;
+    return isSubscriptionActive(status);
   } catch {
     return null;
   }
