@@ -15,6 +15,7 @@ export default async function RegistroClinicaPage() {
       trialDias: true,
       precio: true,
       precioTrimestral: true,
+      precioSemestral: true,
       precioAnual: true,
     },
     orderBy: [{ maxUsuarios: "asc" }, { createAt: "asc" }],

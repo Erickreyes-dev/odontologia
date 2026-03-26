@@ -5,7 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Box } from "lucide-react";
 import { getPaquetes } from "./actions";
 import CreatePaqueteForm from "./components/create-paquete-form";
+import EditPaqueteForm from "./components/edit-paquete-form";
 import PaqueteStatusToggle from "./components/paquete-status-toggle";
+import SeedPaquetesButton from "./components/seed-paquetes-button";
 
 export default async function PaquetesPage() {
   const permisos = await getSessionPermisos();
@@ -30,6 +32,9 @@ export default async function PaquetesPage() {
             <CardTitle>Crear paquete</CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-3">
+              <SeedPaquetesButton />
+            </div>
             <CreatePaqueteForm />
           </CardContent>
         </Card>
@@ -54,7 +59,27 @@ export default async function PaquetesPage() {
                   Trial: {p.trialActivo ? `${p.trialDias} días` : "Sin trial"}
                 </div>
                 <div className="text-muted-foreground">{p.descripcion ?? "Sin descripción"}</div>
-                {permisos.includes("gestionar_paquetes") && <PaqueteStatusToggle paqueteId={p.id} activo={p.activo} />}
+                {permisos.includes("gestionar_paquetes") && (
+                  <>
+                    <div className="mt-3 flex gap-2">
+                      <PaqueteStatusToggle paqueteId={p.id} activo={p.activo} />
+                      <EditPaqueteForm
+                        paquete={{
+                          id: p.id,
+                          nombre: p.nombre,
+                          descripcion: p.descripcion,
+                          precio: Number(p.precio),
+                          precioTrimestral: p.precioTrimestral ? Number(p.precioTrimestral) : null,
+                          precioSemestral: p.precioSemestral ? Number(p.precioSemestral) : null,
+                          precioAnual: p.precioAnual ? Number(p.precioAnual) : null,
+                          maxUsuarios: p.maxUsuarios,
+                          trialActivo: p.trialActivo,
+                          trialDias: p.trialDias,
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>

@@ -19,7 +19,7 @@ const countries = [
   { code: "ES", label: "España" },
 ];
 
-type Period = "mensual" | "trimestral" | "anual";
+type Period = "mensual" | "trimestral" | "semestral" | "anual";
 
 type PackageOption = {
   id: string;
@@ -30,12 +30,14 @@ type PackageOption = {
   trialDias: number;
   precio: any;
   precioTrimestral: any;
+  precioSemestral: any;
   precioAnual: any;
 };
 
 const periodLabels: Record<Period, string> = {
   mensual: "Mensual",
   trimestral: "Trimestral (ahorra ~8%)",
+  semestral: "Semestral (ahorra ~13%)",
   anual: "Anual (ahorra ~20%)",
 };
 
@@ -53,6 +55,7 @@ function normalizeSlug(input: string) {
 function getPrice(pkg: PackageOption, period: Period) {
   const monthly = Number(pkg.precio ?? 0);
   if (period === "trimestral") return Number(pkg.precioTrimestral ?? monthly * 3);
+  if (period === "semestral") return Number(pkg.precioSemestral ?? monthly * 6);
   if (period === "anual") return Number(pkg.precioAnual ?? monthly * 12);
   return monthly;
 }
@@ -199,7 +202,7 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
 
             <div className="space-y-2">
               <Label className="text-slate-200">Frecuencia de pago</Label>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-4">
                 {(Object.keys(periodLabels) as Period[]).map((period) => (
                   <button key={period} type="button" onClick={() => setPeriodoPlan(period)} className={`rounded-lg border px-3 py-2 text-sm ${periodoPlan === period ? "border-cyan-400 bg-cyan-500/10 text-cyan-100" : "border-slate-700 text-slate-300"}`}>
                     {periodLabels[period]}
