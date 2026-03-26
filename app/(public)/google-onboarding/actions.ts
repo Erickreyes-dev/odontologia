@@ -8,6 +8,7 @@ import { resolveCurrencyByCountry } from "@/lib/country-currency";
 import { encrypt, type UsuarioSesion } from "@/auth";
 import { cookies, headers } from "next/headers";
 import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
+import { getSessionCookieDomain } from "@/lib/session-cookie";
 
 interface GoogleOnboardingInput {
   credential: string;
@@ -51,7 +52,15 @@ function normalizeSlug(input: string) {
 
 async function createSession(payload: UsuarioSesion) {
   const token = await encrypt(payload);
-  cookies().set("session", token, { expires: new Date(Date.now() + 6 * 60 * 60 * 1000), httpOnly: true, path: "/" });
+  const domain = getSessionCookieDomain();
+  cookies().set("session", token, {
+    expires: new Date(Date.now() + 6 * 60 * 60 * 1000),
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    ...(domain ? { domain } : {}),
+  });
 }
 
 function usernameFromEmail(email: string) {
