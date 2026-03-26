@@ -6,6 +6,17 @@ import { createPaypalOrder } from "@/lib/paypal";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 
+export interface BillingProfileInput {
+  facturarNombre: string;
+  facturarCorreo: string;
+  facturarTelefono?: string;
+  facturarTaxId?: string;
+  facturarDireccion?: string;
+  facturarCiudad?: string;
+  facturarPais?: string;
+  facturarPostal?: string;
+}
+
 export async function getTenantBilling() {
   const session = await getSession();
   if (!session?.TenantId) return null;
@@ -44,6 +55,31 @@ export async function createCheckoutForLatestInvoice() {
   return { success: true as const, approveLink };
 }
 
+export async function saveTenantBillingProfile(input: BillingProfileInput) {
+  const session = await getSession();
+  if (!session?.TenantId) return { success: false as const, error: "Sesión inválida" };
+
+  if (!input.facturarNombre.trim() || !input.facturarCorreo.includes("@")) {
+    return { success: false as const, error: "Nombre y correo de facturación son obligatorios" };
+  }
+
+  const tenant = await prisma.tenant.findUnique({ where: { id: session.TenantId } });
+  if (!tenant) return { success: false as const, error: "Tenant no encontrado" };
+
+  await prisma.tenant.update({
+    where: { id: session.TenantId },
+    data: {
+      contactoNombre: input.facturarNombre.trim(),
+      contactoCorreo: input.facturarCorreo.trim(),
+      telefono: input.facturarTelefono?.trim() || tenant.telefono,
+      paisCodigo: input.facturarPais?.trim() || tenant.paisCodigo,
+    },
+  });
+
+  revalidatePath("/billing");
+  return { success: true as const };
+}
+
 export async function markInvoiceAsPaid(invoiceId: string, captureId: string) {
   await prisma.tenantInvoice.update({
     where: { id: invoiceId },
@@ -54,7 +90,7 @@ export async function markInvoiceAsPaid(invoiceId: string, captureId: string) {
   return { success: true as const };
 }
 
-export async function createNewTenantInvoice(periodoPlan: "trimestral" | "semestral" | "anual") {
+export async function createNewTenantInvoice(periodoPlan: "mensual" | "trimestral" | "semestral" | "anual") {
   const session = await getSession();
   if (!session?.TenantId) return { success: false as const, error: "Sesión inválida" };
 
@@ -62,11 +98,13 @@ export async function createNewTenantInvoice(periodoPlan: "trimestral" | "semest
   if (!tenant?.paquete) return { success: false as const, error: "No hay paquete activo" };
 
   const paquete = tenant.paquete;
-  const monto = periodoPlan === "trimestral"
-    ? Number(paquete.precioTrimestral ?? paquete.precio)
-    : periodoPlan === "semestral"
-      ? Number(paquete.precioSemestral ?? paquete.precio)
-      : Number(paquete.precioAnual ?? paquete.precio);
+  const monto = periodoPlan === "mensual"
+    ? Number(paquete.precio)
+    : periodoPlan === "trimestral"
+      ? Number(paquete.precioTrimestral ?? Number(paquete.precio) * 3)
+      : periodoPlan === "semestral"
+        ? Number(paquete.precioSemestral ?? Number(paquete.precio) * 6)
+        : Number(paquete.precioAnual ?? Number(paquete.precio) * 12);
 
   await prisma.$transaction(async (tx) => {
     await tx.tenant.update({ where: { id: tenant.id }, data: { periodoPlan } });
@@ -77,8 +115,17 @@ export async function createNewTenantInvoice(periodoPlan: "trimestral" | "semest
         paqueteId: paquete.id,
         periodoPlan,
         monto,
+        subtotal: monto,
+        impuesto: 0,
+        total: monto,
         moneda: "USD",
         estado: "pendiente",
+        numeroFactura: `INV-${Date.now()}`,
+        facturarNombre: tenant.contactoNombre,
+        facturarCorreo: tenant.contactoCorreo,
+        facturarTelefono: tenant.telefono,
+        facturarPais: tenant.paisCodigo,
+        descripcion: `Suscripción ${paquete.nombre} (${periodoPlan})`,
       },
     });
   });
