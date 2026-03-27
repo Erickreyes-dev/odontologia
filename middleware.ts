@@ -56,7 +56,9 @@ async function getSessionSubscriptionStatus(req: NextRequest): Promise<boolean |
       fechaExpiracion: payload.FechaExpiracion,
       proximoPago: payload.ProximoPago,
     });
-    const status = payload.SubscriptionStatus === "cancelado" ? "cancelado" : derivedStatus;
+    const status = payload.SubscriptionStatus === "cancelado" || payload.SubscriptionStatus === "expirado"
+      ? payload.SubscriptionStatus
+      : derivedStatus;
 
     return isSubscriptionActive(status);
   } catch {
@@ -163,6 +165,7 @@ export async function middleware(req: NextRequest) {
   if (tenantSlugFromHost) {
     requestHeaders.set("x-tenant-slug", tenantSlugFromHost);
   }
+  requestHeaders.set("x-pathname", path);
 
   const response = NextResponse.next({
     request: {

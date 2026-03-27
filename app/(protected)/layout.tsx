@@ -7,6 +7,8 @@ import { redirect } from "next/navigation";
 import { getQuickActionCatalogs } from "./quick-actions/actions";
 import { QuickActionsPopover } from "@/components/quick-actions-popover";
 import { prisma } from "@/lib/prisma";
+import { headers } from "next/headers";
+import { resolveSubscriptionStatus } from "@/lib/subscription-status";
 
 function calculateTrialDaysLeft(trialEndsAt?: Date | null): number {
   if (!trialEndsAt) return 0;
@@ -22,17 +24,50 @@ export default async function Layout({ children }: { children: React.ReactNode }
     redirect("/");
   }
 
-  const quickData = await getQuickActionCatalogs();
+  const pathname = headers().get("x-pathname") ?? "";
+  const subscriptionExemptPrefixes = ["/billing", "/dashboard-admin", "/tenants", "/paquetes"];
+  const requiresActiveSubscription = !subscriptionExemptPrefixes.some((prefix) => pathname.startsWith(prefix));
+
   const tenantPlan = sesion.TenantId
     ? await prisma.tenant.findUnique({
       where: { id: sesion.TenantId },
       select: {
         plan: true,
+        estado: true,
+        activo: true,
         trialEndsAt: true,
+        fechaExpiracion: true,
+        proximoPago: true,
         paquete: { select: { nombre: true } },
       },
     })
     : null;
+
+  if (tenantPlan) {
+    const calculatedStatus = resolveSubscriptionStatus({
+      tenantActivo: tenantPlan.activo,
+      trialEndsAt: tenantPlan.trialEndsAt,
+      fechaExpiracion: tenantPlan.fechaExpiracion,
+      proximoPago: tenantPlan.proximoPago,
+    });
+    const effectiveStatus = tenantPlan.estado === "cancelado" || tenantPlan.estado === "expirado"
+      ? tenantPlan.estado
+      : calculatedStatus;
+
+    if (tenantPlan.estado !== effectiveStatus) {
+      await prisma.tenant.update({
+        where: { id: sesion.TenantId },
+        data: { estado: effectiveStatus },
+      });
+      tenantPlan.estado = effectiveStatus;
+    }
+
+    if (requiresActiveSubscription && effectiveStatus !== "vigente") {
+      redirect("/billing?subscription=required");
+    }
+  }
+
+  const quickData = await getQuickActionCatalogs();
   const packageName = tenantPlan?.paquete?.nombre ?? tenantPlan?.plan ?? "Sin paquete";
   const trialDaysLeft = calculateTrialDaysLeft(tenantPlan?.trialEndsAt);
 

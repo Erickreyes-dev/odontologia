@@ -67,30 +67,46 @@ export function BillingClient(props: BillingClientProps) {
       : "bg-amber-500/10 text-amber-700 border-amber-500/40";
 
   const onPaypalCheckout = (periodo: "mensual" | "trimestral" | "semestral" | "anual") => {
-    startTransition(async () => {
-      const saved = await saveTenantBillingProfile(billing);
-      if (!saved.success) {
-        toast.error(saved.error);
-        return;
-      }
+    startTransition(() => {
+      void (async () => {
+        try {
+          const saved = await saveTenantBillingProfile(billing);
+          if (!saved.success) {
+            toast.error(saved.error);
+            return;
+          }
 
-      const result = await createCheckoutForPlan(periodo);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      if (result.approveLink) window.location.href = result.approveLink;
+          const result = await createCheckoutForPlan(periodo);
+          if (!result.success) {
+            toast.error(result.error);
+            return;
+          }
+          if (result.approveLink) {
+            window.location.assign(result.approveLink);
+            return;
+          }
+          toast.error("No se recibió URL de PayPal para continuar el pago");
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "Error inesperado al iniciar pago con PayPal");
+        }
+      })();
     });
   };
 
   const onBillingSave = () => {
-    startTransition(async () => {
-      const result = await saveTenantBillingProfile(billing);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Datos de facturación guardados");
+    startTransition(() => {
+      void (async () => {
+        try {
+          const result = await saveTenantBillingProfile(billing);
+          if (!result.success) {
+            toast.error(result.error);
+            return;
+          }
+          toast.success("Datos de facturación guardados");
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "No se pudo guardar la información de facturación");
+        }
+      })();
     });
   };
 
