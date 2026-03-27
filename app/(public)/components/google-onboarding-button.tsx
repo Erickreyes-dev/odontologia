@@ -122,7 +122,7 @@ export default function GoogleOnboardingButton() {
         <Sparkles className="h-3.5 w-3.5" />
         {tenantSlugFromHost
           ? "Te redirigimos al dominio principal para autenticar con Google sin depender de wildcard en subdominios."
-          : "Si tu cuenta existe vas al dashboard; si no, continuas onboarding sin volver a elegir Google"}
+          : "Continuarás automáticamente con login u onboarding según el estado de tu cuenta."}
       </p>
       {error ? <p className="text-center text-xs text-rose-300">{error}</p> : null}
     </div>
