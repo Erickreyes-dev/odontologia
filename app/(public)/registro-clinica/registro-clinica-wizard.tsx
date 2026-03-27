@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { loginGoogleExistingTenant, registerTenantWithGoogle } from "../google-onboarding/actions";
+import { useRouter, useSearchParams } from "next/navigation";
+import { finalizeGoogleOnboardingPayment, loginGoogleExistingTenant, registerTenantWithGoogle } from "../google-onboarding/actions";
 import { BadgeCheck, Building2, Check, Globe, ShieldCheck, Sparkles, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,11 +72,13 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
   const [alreadyExists, setAlreadyExists] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const selectedPackage = useMemo(
     () => activePackages.find((pkg) => pkg.id === packageId) ?? activePackages[0],
     [activePackages, packageId],
   );
+  const canProvisionWithoutPayment = Boolean(selectedPackage?.trialActivo) && Number(selectedPackage?.trialDias ?? 0) > 0;
 
   const slugPreview = normalizeSlug(consultorioNombre || "tu-clinica");
 
@@ -99,6 +101,30 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
     }
   }, []);
 
+  useEffect(() => {
+    const paypalStatus = searchParams.get("paypal");
+    const orderId = searchParams.get("token");
+    if (paypalStatus !== "success" || !orderId || !credential) return;
+
+    let isCancelled = false;
+    startTransition(async () => {
+      const result = await finalizeGoogleOnboardingPayment(orderId, credential);
+      if (!result.success) {
+        if (!isCancelled) setError(result.error);
+        return;
+      }
+      if (isCancelled) return;
+      setTenantUrl(result.tenantUrl);
+      window.localStorage.setItem("tenant_url", result.tenantUrl);
+      window.localStorage.removeItem("google_onboarding_credential");
+      setTimeout(() => router.replace("/dashboard"), 1200);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [credential, router, searchParams, startTransition]);
+
   const onGoogleClick = () => {
     setError(null);
     if (!window.google || !process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
@@ -110,6 +136,7 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
       client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
       callback: async (response: { credential: string }) => {
         setCredential(response.credential);
+        window.localStorage.setItem("google_onboarding_credential", response.credential);
         const existing = await loginGoogleExistingTenant(response.credential);
         if (!existing.success) {
           setError(existing.error);
@@ -145,6 +172,14 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
 
       if (!response.success) {
         setError(response.error);
+        return;
+      }
+
+      if (response.requiresPayment) {
+        if (response.reusedPending) {
+          setError("Ya tienes un proceso de creación pendiente de pago. Te redirigiremos para completarlo.");
+        }
+        window.location.href = response.approveLink;
         return;
       }
 
@@ -222,6 +257,11 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
             <div className="rounded-xl border border-slate-700 p-3 text-xs text-slate-300">
               Prueba gratis: {selectedPackage?.trialActivo ? `${selectedPackage.trialDias} días (configurado desde root)` : "No incluida en este paquete"}
             </div>
+            {!canProvisionWithoutPayment ? (
+              <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-100">
+                Este paquete requiere pago previo. Te enviaremos a PayPal y la clínica se activará automáticamente al confirmar el pago.
+              </div>
+            ) : null}
           </section>
 
           <section className="space-y-3 rounded-2xl border border-slate-700 bg-slate-950/40 p-4">
@@ -232,7 +272,7 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
               </Button>
             ) : null}
             <Button type="button" onClick={onSubmit} disabled={isPending || !credential} className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400">
-              {isPending ? "Procesando..." : "Crear clínica / iniciar sesión"}
+              {isPending ? "Procesando..." : canProvisionWithoutPayment ? "Crear clínica / iniciar sesión" : "Continuar a pago seguro"}
             </Button>
             {!credential ? <p className="text-xs text-slate-400">Primero conecta tu cuenta Google para finalizar.</p> : <p className="text-xs text-emerald-300">Cuenta Google ya seleccionada.</p>}
             {error ? <p className="text-sm text-rose-300">{error}</p> : null}

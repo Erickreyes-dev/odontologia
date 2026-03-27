@@ -10,6 +10,8 @@ import { cookies, headers } from "next/headers";
 import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
 import { getSessionCookieDomain } from "@/lib/session-cookie";
 import { calculateExpirationDateByPlan, isSubscriptionActive, resolveSubscriptionStatus } from "@/lib/subscription-status";
+import { createPaypalOrderWithContext } from "@/lib/paypal";
+import { finalizeOnboardingProvision } from "@/lib/onboarding-payment";
 
 interface GoogleOnboardingInput {
   credential: string;
@@ -19,6 +21,11 @@ interface GoogleOnboardingInput {
   packageId: string;
   periodoPlan: "mensual" | "trimestral" | "semestral" | "anual";
 }
+
+type OnboardingRegisterResult =
+  | { success: true; tenantUrl: string; alreadyExists?: boolean; requiresPayment?: false }
+  | { success: true; requiresPayment: true; approveLink: string; reusedPending?: boolean }
+  | { success: false; error: string };
 
 async function verifyGoogleCredential(credential: string) {
   const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`, { cache: "no-store" });
@@ -49,6 +56,87 @@ function normalizeSlug(input: string) {
     .trim()
     .replace(/\s+/g, "-")
     .slice(0, 50);
+}
+
+function getPublicOnboardingReturnBaseUrl() {
+  const appUrl =
+    process.env.PLATFORM_PUBLIC_URL?.trim()
+    || process.env.NEXT_PUBLIC_APP_URL?.trim()
+    || process.env.NEXT_PUBLIC_PLATFORM_URL?.trim()
+    || "http://localhost:3000";
+
+  return appUrl.replace(/\/$/, "");
+}
+
+function calculateAmountByPeriod(paquete: {
+  precio: unknown;
+  precioTrimestral: unknown;
+  precioSemestral: unknown;
+  precioAnual: unknown;
+}, periodoPlan: "mensual" | "trimestral" | "semestral" | "anual") {
+  const mensual = Number(paquete.precio ?? 0);
+  if (periodoPlan === "trimestral") return Number(paquete.precioTrimestral ?? mensual * 3);
+  if (periodoPlan === "semestral") return Number(paquete.precioSemestral ?? mensual * 6);
+  if (periodoPlan === "anual") return Number(paquete.precioAnual ?? mensual * 12);
+  return mensual;
+}
+
+async function preparePendingCheckout(params: {
+  tenantId: string;
+  paqueteId: string;
+  periodoPlan: "mensual" | "trimestral" | "semestral" | "anual";
+  packageName: string;
+  amount: number;
+  payerName: string;
+  payerEmail: string;
+  paisCodigo: string;
+}) {
+  await prisma.tenantInvoice.updateMany({
+    where: { tenantId: params.tenantId, estado: "pendiente" },
+    data: { estado: "cancelada" },
+  });
+
+  const pendingInvoice = await prisma.tenantInvoice.create({
+    data: {
+      id: randomUUID(),
+      tenantId: params.tenantId,
+      paqueteId: params.paqueteId,
+      periodoPlan: params.periodoPlan,
+      monto: params.amount,
+      subtotal: params.amount,
+      impuesto: 0,
+      total: params.amount,
+      moneda: "USD",
+      estado: "pendiente",
+      numeroFactura: `PRE-${Date.now()}`,
+      facturarNombre: params.payerName,
+      facturarCorreo: params.payerEmail,
+      facturarPais: params.paisCodigo,
+      descripcion: `Pre-suscripción ${params.packageName} (${params.periodoPlan})`,
+    },
+  });
+
+  const returnBaseUrl = getPublicOnboardingReturnBaseUrl();
+  const order = await createPaypalOrderWithContext(
+    params.amount,
+    `Plan ${params.packageName} (${params.periodoPlan})`,
+    {
+      customId: params.tenantId,
+      invoiceId: pendingInvoice.id.slice(0, 32),
+      returnUrl: `${returnBaseUrl}/registro-clinica?paypal=success`,
+      cancelUrl: `${returnBaseUrl}/registro-clinica?paypal=cancelled`,
+    },
+  );
+
+  const approveLink = order.links?.find((link: { rel?: string; href?: string }) => link.rel === "approve")?.href;
+  if (!approveLink) throw new Error("PayPal no devolvió enlace de aprobación");
+
+  await prisma.tenantInvoice.update({
+    where: { id: pendingInvoice.id },
+    data: { paypalOrderId: order.id },
+  });
+
+  return approveLink;
 }
 
 async function createSession(payload: UsuarioSesion) {
@@ -109,7 +197,7 @@ async function findUserForTenantGoogleLogin(email: string, tenantSlug?: string |
   });
 }
 
-export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Promise<{ success: true; tenantUrl: string; alreadyExists?: boolean } | { success: false; error: string }> {
+export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Promise<OnboardingRegisterResult> {
   try {
     if (!input.credential) return { success: false, error: "Debes autenticar con Google para continuar" };
 
@@ -153,25 +241,109 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
     if (!selectedPackage) {
       return { success: false, error: "El paquete seleccionado ya no está disponible" };
     }
+    const trialConfigActivo = Boolean(selectedPackage.trialActivo);
+    const trialConfigDias = Math.max(0, Number(selectedPackage.trialDias ?? 0));
+    const canProvisionWithoutPayment = trialConfigActivo && trialConfigDias > 0;
+    const existingPendingTenant = await prisma.tenant.findFirst({
+      where: {
+        contactoCorreo: identity.email,
+        authProvider: "google",
+        activo: false,
+        estado: "pendiente_pago",
+      },
+      include: {
+        usuarios: { select: { id: true }, take: 1 },
+      },
+      orderBy: { createAt: "desc" },
+    });
+
     const consultorioNombre = input.consultorioNombre.trim();
     if (consultorioNombre.length < 3) {
       return { success: false, error: "El nombre del consultorio es obligatorio" };
     }
 
-    const slugBase = normalizeSlug(consultorioNombre);
-    let slug = slugBase;
-    let attempt = 1;
-    while (await prisma.tenant.findUnique({ where: { slug } })) {
-      slug = `${slugBase}-${attempt}`;
-      attempt += 1;
+    let slug = existingPendingTenant?.slug ?? "";
+    if (!slug) {
+      const slugBase = normalizeSlug(consultorioNombre);
+      slug = slugBase;
+      let attempt = 1;
+      while (await prisma.tenant.findUnique({ where: { slug } })) {
+        slug = `${slugBase}-${attempt}`;
+        attempt += 1;
+      }
     }
 
     const currency = resolveCurrencyByCountry(input.paisCodigo);
     const tempPassword = await bcrypt.hash(`${identity.sub}-${Date.now()}`, 10);
 
+    if (!canProvisionWithoutPayment) {
+      const monto = calculateAmountByPeriod(selectedPackage, input.periodoPlan);
+      const reusedPending = Boolean(existingPendingTenant && existingPendingTenant.usuarios.length === 0);
+      const tenantPendingId = reusedPending
+        ? existingPendingTenant!.id
+        : randomUUID();
+
+      if (reusedPending) {
+        await prisma.tenant.update({
+          where: { id: tenantPendingId },
+          data: {
+            nombre: consultorioNombre,
+            plan: selectedPackage.nombre,
+            paqueteId: selectedPackage.id,
+            maxUsuarios: selectedPackage.maxUsuarios,
+            periodoPlan: input.periodoPlan,
+            contactoNombre: identity.name,
+            contactoCorreo: identity.email,
+            teamSize: input.teamSize,
+            paisCodigo: input.paisCodigo,
+            monedaCodigo: currency.currency,
+            proximoPago: null,
+            trialEndsAt: null,
+            fechaExpiracion: null,
+            estado: "pendiente_pago",
+            activo: false,
+          },
+        });
+      } else {
+        await prisma.tenant.create({
+          data: {
+            id: tenantPendingId,
+            nombre: consultorioNombre,
+            slug,
+            plan: selectedPackage.nombre,
+            paqueteId: selectedPackage.id,
+            maxUsuarios: selectedPackage.maxUsuarios,
+            periodoPlan: input.periodoPlan,
+            proximoPago: null,
+            contactoNombre: identity.name,
+            contactoCorreo: identity.email,
+            authProvider: "google",
+            teamSize: input.teamSize,
+            paisCodigo: input.paisCodigo,
+            monedaCodigo: currency.currency,
+            trialEndsAt: null,
+            fechaExpiracion: null,
+            estado: "pendiente_pago",
+            activo: false,
+          },
+        });
+      }
+
+      const approveLink = await preparePendingCheckout({
+        tenantId: tenantPendingId,
+        paqueteId: selectedPackage.id,
+        periodoPlan: input.periodoPlan,
+        packageName: selectedPackage.nombre,
+        amount: monto,
+        payerName: identity.name,
+        payerEmail: identity.email,
+        paisCodigo: input.paisCodigo,
+      });
+
+      return { success: true, requiresPayment: true, approveLink, reusedPending };
+    }
+
     const result = await prisma.$transaction(async (tx) => {
-      const trialConfigActivo = Boolean(selectedPackage.trialActivo);
-      const trialConfigDias = Math.max(0, Number(selectedPackage.trialDias ?? 0));
       const trialEndsAt = trialConfigActivo && trialConfigDias > 0
         ? new Date(Date.now() + trialConfigDias * 24 * 60 * 60 * 1000)
         : null;
@@ -325,5 +497,65 @@ export async function loginGoogleExistingTenant(credential: string): Promise<{ s
     return { success: true, exists: true, tenantUrl: `https://${existingGoogleUser.tenant.slug}.medisoftcore.com` };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "No se pudo validar tu cuenta" };
+  }
+}
+
+export async function finalizeGoogleOnboardingPayment(orderId: string, credential: string): Promise<{ success: true; tenantUrl: string } | { success: false; error: string }> {
+  try {
+    if (!orderId) return { success: false, error: "Orden de PayPal inválida" };
+    if (!credential) return { success: false, error: "Debes confirmar tu cuenta Google para finalizar la activación" };
+
+    const identity = await verifyGoogleCredential(credential);
+    const provisioning = await finalizeOnboardingProvision(orderId);
+    if (!provisioning.success || !provisioning.tenantId || !provisioning.userId || !provisioning.tenantSlug) {
+      return { success: false, error: provisioning.error ?? "No se pudo provisionar la suscripción" };
+    }
+
+    const user = await prisma.usuarios.findUnique({
+      where: { id: provisioning.userId },
+      include: {
+        rol: true,
+        tenant: { include: { permisos: true } },
+      },
+    });
+
+    if (!user?.tenant || !user.tenantId) return { success: false, error: "No se encontró el usuario administrador del tenant" };
+    const correoUsuario = user.correo?.toLowerCase();
+    if (!correoUsuario || correoUsuario !== identity.email.toLowerCase()) {
+      return { success: false, error: "La cuenta de Google no coincide con la pre-suscripción pagada" };
+    }
+
+    const subscriptionStatus = resolveSubscriptionStatus({
+      tenantActivo: user.tenant.activo,
+      trialEndsAt: user.tenant.trialEndsAt,
+      fechaExpiracion: user.tenant.fechaExpiracion,
+      proximoPago: user.tenant.proximoPago,
+    });
+    const payload: UsuarioSesion = {
+      IdUser: user.id,
+      User: user.usuario,
+      Rol: user.rol.nombre,
+      IdRol: user.rol_id,
+      IdEmpleado: user.empleado_id,
+      Permiso: user.tenant.permisos.map((p) => p.nombre),
+      DebeCambiar: Boolean(user.DebeCambiarPassword),
+      Puesto: "",
+      PuestoId: "",
+      TenantId: user.tenantId,
+      TenantSlug: user.tenant.slug,
+      TenantNombre: user.tenant.nombre,
+      SuscripcionActiva: isSubscriptionActive(subscriptionStatus),
+      SubscriptionStatus: subscriptionStatus,
+      TenantActivo: Boolean(user.tenant.activo),
+      TrialEndsAt: user.tenant.trialEndsAt?.toISOString() ?? null,
+      ProximoPago: user.tenant.proximoPago?.toISOString() ?? null,
+      iss: "odontologia-saas",
+      aud: "odontologia-clients",
+    };
+
+    await createSession(payload);
+    return { success: true, tenantUrl: `https://${user.tenant.slug}.medisoftcore.com` };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "No se pudo finalizar la activación de la clínica" };
   }
 }
