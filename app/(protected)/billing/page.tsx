@@ -22,15 +22,11 @@ export default async function BillingPage({
   let paymentStatusMessage: { type: "ok" | "error"; message: string } | null = null;
 
   if (paypalState === "success" && paypalToken) {
-    try {
-      const result = await capturePaypalAndCreateInvoice(paypalToken);
-      if (result.success) {
-        redirect("/billing?payment=success");
-      }
-      redirect(`/billing?payment=error&reason=${encodeURIComponent(result.error)}`);
-    } catch {
-      redirect("/billing?payment=error");
+    const result = await capturePaypalAndCreateInvoice(paypalToken);
+    if (result.success) {
+      redirect("/billing?payment=success");
     }
+    redirect(`/billing?payment=error&reason=${encodeURIComponent(result.error)}`);
   }
 
   if (paypalState === "cancelled") {
