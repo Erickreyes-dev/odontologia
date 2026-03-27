@@ -417,32 +417,32 @@ export default async function LandingPage() {
 
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="fixed right-4 top-4 z-50 flex items-center gap-2 rounded-full border border-slate-600 bg-slate-900/80 px-3 py-1.5 text-xs text-slate-100 backdrop-blur">
+    <div className="min-h-screen bg-background text-foreground transition-colors">
+      <div className="fixed right-4 top-4 z-50 flex items-center gap-2 rounded-full border border-border bg-background/80 px-3 py-1.5 text-xs text-foreground backdrop-blur">
         <span>Theme light/dark</span>
         <ThemeToggle />
       </div>
-      <section className="relative overflow-hidden border-b border-slate-800">
+      <section className="relative overflow-hidden border-b border-border/60">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.2),_transparent_45%)]" />
         <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-14 sm:px-6 lg:py-20">
           <div className="space-y-6 text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Plataforma odontológica todo en uno</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-300">Plataforma odontológica todo en uno</p>
             <h1 className="mx-auto max-w-4xl text-3xl font-bold leading-tight sm:text-5xl">
               Convierte tu clínica en una operación moderna, rentable y centrada en el paciente
             </h1>
-            <p className="mx-auto max-w-3xl text-base text-slate-300 sm:text-lg">
+            <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
               Desde la primera cita hasta el cierre de pagos: organiza equipos, mejora la atención y toma el control total
               de tu crecimiento con una experiencia profesional de alto nivel.
             </p>
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button asChild size="lg" className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400 sm:w-auto">
+              <Button asChild size="lg" className="w-full bg-cyan-600 text-white hover:bg-cyan-500 sm:w-auto">
                 <Link href="/login">Iniciar sesión / usar prueba gratuita</Link>
               </Button>
               <Button
                 asChild
                 size="lg"
                 variant="outline"
-                className="w-full border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 sm:w-auto"
+                className="w-full border-border bg-transparent text-foreground hover:bg-muted sm:w-auto"
               >
                 <Link href="#servicios">Ver servicios</Link>
               </Button>
@@ -450,7 +450,7 @@ export default async function LandingPage() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="w-full border-cyan-500 bg-transparent text-cyan-300 hover:bg-slate-800 sm:w-auto"
+                className="w-full border-cyan-500 bg-transparent text-cyan-600 hover:bg-cyan-500/10 dark:text-cyan-300 dark:hover:bg-cyan-500/15 sm:w-auto"
               >
                 <Link href="#impacto">Ver impacto en tu clínica</Link>
               </Button>
@@ -458,22 +458,22 @@ export default async function LandingPage() {
           </div>
 
           <div className="grid gap-4 text-center sm:grid-cols-3">
-            <Card className="border-slate-700 bg-slate-900/70">
+            <Card className="border-border bg-card/80">
               <CardContent className="pt-6">
-                <p className="text-3xl font-bold text-cyan-300">+30%</p>
-                <p className="text-sm text-slate-300">Más orden operativo en clínicas con alta demanda</p>
+                <p className="text-3xl font-bold text-cyan-600 dark:text-cyan-300">+30%</p>
+                <p className="text-sm text-muted-foreground">Más orden operativo en clínicas con alta demanda</p>
               </CardContent>
             </Card>
-            <Card className="border-slate-700 bg-slate-900/70">
+            <Card className="border-border bg-card/80">
               <CardContent className="pt-6">
-                <p className="text-3xl font-bold text-cyan-300">360°</p>
-                <p className="text-sm text-slate-300">Visión completa de pacientes, finanzas y equipo</p>
+                <p className="text-3xl font-bold text-cyan-600 dark:text-cyan-300">360°</p>
+                <p className="text-sm text-muted-foreground">Visión completa de pacientes, finanzas y equipo</p>
               </CardContent>
             </Card>
-            <Card className="border-slate-700 bg-slate-900/70">
+            <Card className="border-border bg-card/80">
               <CardContent className="pt-6">
-                <p className="text-3xl font-bold text-cyan-300">24/7</p>
-                <p className="text-sm text-slate-300">Información disponible para decisiones estratégicas</p>
+                <p className="text-3xl font-bold text-cyan-600 dark:text-cyan-300">24/7</p>
+                <p className="text-sm text-muted-foreground">Información disponible para decisiones estratégicas</p>
               </CardContent>
             </Card>
           </div>
@@ -482,36 +482,36 @@ export default async function LandingPage() {
 
       <section id="servicios" className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:py-16">
         <div className="mb-8 space-y-2 text-center">
-          <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">Servicios clave</p>
+          <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Servicios clave</p>
           <h2 className="text-2xl font-bold sm:text-3xl">Todo lo que tu clínica necesita para escalar</h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {services.map((service) => (
-            <Card key={service.title} className="border-slate-700 bg-slate-900/60">
+            <Card key={service.title} className="border-border bg-card/80">
               <CardHeader>
-                <CardTitle className="text-lg text-slate-100">{service.title}</CardTitle>
+                <CardTitle className="text-lg text-foreground">{service.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-slate-300">{service.description}</p>
+                <p className="text-sm text-muted-foreground">{service.description}</p>
               </CardContent>
             </Card>
           ))}
         </div>
       </section>
 
-      <section id="impacto" className="border-y border-slate-800 bg-slate-900/40">
+      <section id="impacto" className="border-y border-border/60 bg-muted/30">
         <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-2 lg:py-16">
           <div className="space-y-3">
-            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">Ventajas competitivas</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Ventajas competitivas</p>
             <h3 className="text-2xl font-bold">¿Por qué elegir esta solución?</h3>
-            <p className="text-sm text-slate-300">
+            <p className="text-sm text-muted-foreground">
               Diseñada con enfoque UX/UI para que tu equipo trabaje mejor desde el día uno y tu negocio tenga una base
               tecnológica sólida para crecer.
             </p>
           </div>
           <div className="grid gap-3">
             {advantages.map((advantage) => (
-              <div key={advantage} className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-200">
+              <div key={advantage} className="rounded-xl border border-border bg-card/70 p-4 text-sm text-foreground">
                 ✓ {advantage}
               </div>
             ))}
@@ -521,20 +521,20 @@ export default async function LandingPage() {
 
       <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:py-16">
         <div className="mb-8 space-y-2 text-center">
-          <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">Resultados de negocio</p>
+          <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Resultados de negocio</p>
           <h3 className="text-2xl font-bold sm:text-3xl">Un sistema clínico que también impulsa ventas</h3>
-          <p className="mx-auto max-w-3xl text-sm text-slate-300">
+          <p className="mx-auto max-w-3xl text-sm text-muted-foreground">
             No es solo software administrativo: es una plataforma para vender mejor, atender mejor y retener más pacientes.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           {businessPillars.map((pillar) => (
-            <Card key={pillar.title} className="border-slate-700 bg-slate-900/60">
+            <Card key={pillar.title} className="border-border bg-card/80">
               <CardHeader>
-                <CardTitle className="text-lg text-slate-100">{pillar.title}</CardTitle>
+                <CardTitle className="text-lg text-foreground">{pillar.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-slate-300">{pillar.detail}</p>
+                <p className="text-sm text-muted-foreground">{pillar.detail}</p>
               </CardContent>
             </Card>
           ))}
@@ -543,41 +543,41 @@ export default async function LandingPage() {
 
       <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:py-16">
         <div className="mb-8 space-y-2 text-center">
-          <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">FAQ</p>
+          <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">FAQ</p>
           <h3 className="text-2xl font-bold sm:text-3xl">Preguntas frecuentes</h3>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           {faqs.map((faq) => (
-            <Card key={faq.question} className="border-slate-700 bg-slate-900/60">
+            <Card key={faq.question} className="border-border bg-card/80">
               <CardHeader>
-                <CardTitle className="text-base text-slate-100">{faq.question}</CardTitle>
+                <CardTitle className="text-base text-foreground">{faq.question}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-slate-300">{faq.answer}</p>
+                <p className="text-sm text-muted-foreground">{faq.answer}</p>
               </CardContent>
             </Card>
           ))}
         </div>
       </section>
 
-      <section className="border-t border-slate-800 bg-slate-900/30">
+      <section className="border-t border-border/60 bg-muted/20">
         <div className="mx-auto w-full max-w-6xl px-4 py-14 text-center sm:px-6 lg:py-16">
           <div className="mb-8 space-y-2">
-            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">Siguiente paso</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Siguiente paso</p>
             <h3 className="text-2xl font-bold sm:text-3xl">Conoce cómo escalar tu clínica con un plan claro</h3>
-            <p className="mx-auto max-w-2xl text-sm text-slate-300">
+            <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
               Te mostramos cómo implementar la plataforma por fases para aumentar productividad, cierres y satisfacción del paciente.
             </p>
           </div>
           <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg" className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400 sm:w-auto">
+            <Button asChild size="lg" className="w-full bg-cyan-600 text-white hover:bg-cyan-500 sm:w-auto">
               <Link href="/login">Entrar al sistema</Link>
             </Button>
             <Button
               asChild
               size="lg"
               variant="outline"
-              className="w-full border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 sm:w-auto"
+              className="w-full border-border bg-transparent text-foreground hover:bg-muted sm:w-auto"
             >
               <Link href="#servicios">Explorar módulos</Link>
             </Button>
@@ -585,14 +585,14 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <section className="border-t border-slate-800 bg-slate-900/60">
+      <section className="border-t border-border/60 bg-muted/30">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-4 py-12 text-center sm:px-6">
           <h3 className="text-2xl font-bold">Tu clínica puede vender más, atender mejor y operar con menos estrés</h3>
-          <p className="max-w-2xl text-sm text-slate-300">
+          <p className="max-w-2xl text-sm text-muted-foreground">
             Da el siguiente paso con una plataforma creada para líderes del sector odontológico que quieren resultados
             medibles y una experiencia premium para sus pacientes.
           </p>
-          <Button asChild size="lg" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+          <Button asChild size="lg" className="bg-cyan-600 text-white hover:bg-cyan-500">
             <Link href="/login">Quiero impulsar mi clínica ahora</Link>
           </Button>
         </div>
