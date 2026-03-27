@@ -2,7 +2,7 @@ import { getSession } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHelpGuide } from "@/components/tour/app-help-guide";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { BadgeCheck, Timer } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Timer } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getQuickActionCatalogs } from "./quick-actions/actions";
 import { QuickActionsPopover } from "@/components/quick-actions-popover";
@@ -25,7 +25,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
   }
 
   const pathname = headers().get("x-pathname");
-  const subscriptionExemptPrefixes = ["/billing"];
+  const subscriptionExemptPrefixes = ["/billing", "/suscripcion"];
   const requiresActiveSubscription = pathname
     ? !subscriptionExemptPrefixes.some((prefix) => pathname.startsWith(prefix))
     : false;
@@ -45,6 +45,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
     })
     : null;
 
+  let effectiveStatus = "expirado";
   if (tenantPlan) {
     const calculatedStatus = resolveSubscriptionStatus({
       tenantActivo: tenantPlan.activo,
@@ -52,7 +53,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
       fechaExpiracion: tenantPlan.fechaExpiracion,
       proximoPago: tenantPlan.proximoPago,
     });
-    const effectiveStatus = tenantPlan.estado === "cancelado" || tenantPlan.estado === "expirado"
+    effectiveStatus = tenantPlan.estado === "cancelado" || tenantPlan.estado === "expirado"
       ? tenantPlan.estado
       : calculatedStatus;
 
@@ -64,10 +65,9 @@ export default async function Layout({ children }: { children: React.ReactNode }
       tenantPlan.estado = effectiveStatus;
     }
 
-    // Only redirect when we can confidently identify the current route.
-    // This avoids accidental self-redirect loops during navigations where custom headers might be absent.
+    // Redirige a una página controlada de bloqueo para evitar ciclos de navegación.
     if (requiresActiveSubscription && effectiveStatus !== "vigente") {
-      redirect("/billing?subscription=required");
+      redirect(`/suscripcion?status=${effectiveStatus}`);
     }
   }
 
@@ -88,6 +88,12 @@ export default async function Layout({ children }: { children: React.ReactNode }
               <span className="text-muted-foreground">Paquete actual:</span>
               <span className="font-semibold text-foreground">{packageName}</span>
             </div>
+            {tenantPlan && effectiveStatus !== "vigente" ? (
+              <div className="hidden rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700 sm:flex sm:items-center sm:gap-2 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span className="font-semibold">Suscripción {effectiveStatus}</span>
+              </div>
+            ) : null}
             {trialDaysLeft > 0 ? (
               <div className="hidden rounded-xl border bg-card px-3 py-1.5 text-xs sm:flex sm:items-center sm:gap-2">
                 <Timer className="h-3.5 w-3.5 text-amber-500" />

@@ -228,6 +228,7 @@ export async function middleware(req: NextRequest) {
     "/profile",
     "/mi-clinica",
     "/billing",
+    "/suscripcion",
     "/protected",
   ];
 
@@ -239,7 +240,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const subscriptionExemptPrefixes = ["/billing"];
+  const subscriptionExemptPrefixes = ["/billing", "/suscripcion"];
 
   const requiresActiveSubscription =
     isProtectedRoute && !subscriptionExemptPrefixes.some((prefix) => path.startsWith(prefix));
@@ -247,9 +248,9 @@ export async function middleware(req: NextRequest) {
   if (requiresActiveSubscription) {
     const isSubscriptionActive = await getSessionSubscriptionStatus(req);
     if (isSubscriptionActive === false) {
-      const billingUrl = new URL("/billing", req.url);
-      billingUrl.searchParams.set("subscription", "required");
-      return NextResponse.redirect(billingUrl);
+      const subscriptionUrl = new URL("/suscripcion", req.url);
+      subscriptionUrl.searchParams.set("status", "expired");
+      return NextResponse.redirect(subscriptionUrl);
     }
   }
 
