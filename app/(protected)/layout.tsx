@@ -1,6 +1,7 @@
 import { getSession } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHelpGuide } from "@/components/tour/app-help-guide";
+import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AlertTriangle, BadgeCheck, Timer } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -9,6 +10,7 @@ import { QuickActionsPopover } from "@/components/quick-actions-popover";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { resolveSubscriptionStatus } from "@/lib/subscription-status";
+import Link from "next/link";
 
 function calculateTrialDaysLeft(trialEndsAt?: Date | null): number {
   if (!trialEndsAt) return 0;
@@ -65,13 +67,10 @@ export default async function Layout({ children }: { children: React.ReactNode }
       tenantPlan.estado = effectiveStatus;
     }
 
-    // Redirige a una página controlada de bloqueo para evitar ciclos de navegación.
-    if (requiresActiveSubscription && effectiveStatus !== "vigente") {
-      redirect(`/suscripcion?status=${effectiveStatus}`);
-    }
   }
 
-  const quickData = await getQuickActionCatalogs();
+  const shouldBlockModules = Boolean(tenantPlan && requiresActiveSubscription && effectiveStatus !== "vigente");
+  const quickData = shouldBlockModules ? null : await getQuickActionCatalogs();
   const packageName = tenantPlan?.paquete?.nombre ?? tenantPlan?.plan ?? "Sin paquete";
   const trialDaysLeft = calculateTrialDaysLeft(tenantPlan?.trialEndsAt);
 
@@ -104,7 +103,29 @@ export default async function Layout({ children }: { children: React.ReactNode }
             <AppHelpGuide />
           </div>
         </div>
-        {children}
+        {shouldBlockModules ? (
+          <div className="mx-auto mt-12 max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight">Suscripción requerida</h1>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Tu paquete está {effectiveStatus}. Para usar este módulo debes activar o renovar la suscripción.
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Módulo actual: <span className="font-medium text-foreground">{pathname ?? "desconocido"}</span>
+            </p>
+
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+              <Button asChild>
+                <Link href="/billing">Ir a facturación</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/dashboard">Intentar otro módulo</Link>
+              </Button>
+            </div>
+          </div>
+        ) : children}
       </main>
     </SidebarProvider>
   );
