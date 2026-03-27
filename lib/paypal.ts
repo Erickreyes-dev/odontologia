@@ -1,6 +1,10 @@
 const PAYPAL_BASE_URL = process.env.PAYPAL_MODE === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
+function normalizeRootHost(host: string): string {
+  return host.trim().toLowerCase().replace(/^\./, "").replace(/^www\./, "");
+}
+
 async function getAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID;
   const secret = process.env.PAYPAL_SECRET;
@@ -29,24 +33,25 @@ async function getAccessToken() {
 }
 
 function buildTenantBillingReturnUrl(tenantSlug: string) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (!appUrl) {
-    throw new Error("Falta NEXT_PUBLIC_APP_URL para el retorno de PayPal");
-  }
+  const appUrl =
+    process.env.PLATFORM_PUBLIC_URL?.trim()
+    || process.env.NEXT_PUBLIC_APP_URL?.trim()
+    || process.env.NEXT_PUBLIC_PLATFORM_URL?.trim();
+  const rootDomain = normalizeRootHost(process.env.ROOT_DOMAIN?.trim() || "medisoftcore.com");
 
-  const root = new URL(appUrl);
-  const rootDomain = process.env.ROOT_DOMAIN?.trim();
+  const root = appUrl ? new URL(appUrl) : new URL(`https://${tenantSlug}.${rootDomain}`);
 
   let host = root.hostname;
   if (LOCAL_HOSTS.has(root.hostname)) {
     host = root.hostname;
   } else if (rootDomain) {
-    const alreadyTenantHost = root.hostname === `${tenantSlug}.${rootDomain}`;
-    const isRootDomainHost = root.hostname === rootDomain || root.hostname.endsWith(`.${rootDomain}`);
+    const normalizedHost = normalizeRootHost(root.hostname);
+    const alreadyTenantHost = normalizedHost === `${tenantSlug}.${rootDomain}`;
+    const isRootDomainHost = normalizedHost === rootDomain || normalizedHost.endsWith(`.${rootDomain}`);
     host = alreadyTenantHost || !isRootDomainHost ? root.hostname : `${tenantSlug}.${rootDomain}`;
   }
 
-  const protocol = LOCAL_HOSTS.has(root.hostname) ? "http:" : "https:";
+  const protocol = LOCAL_HOSTS.has(root.hostname) ? "http:" : root.protocol;
   const port = root.port ? `:${root.port}` : "";
   return `${protocol}//${host}${port}/billing`;
 }

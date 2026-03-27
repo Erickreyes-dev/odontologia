@@ -418,6 +418,10 @@ export default async function LandingPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="fixed right-4 top-4 z-50 flex items-center gap-2 rounded-full border border-slate-600 bg-slate-900/80 px-3 py-1.5 text-xs text-slate-100 backdrop-blur">
+        <span>Theme light/dark</span>
+        <ThemeToggle />
+      </div>
       <section className="relative overflow-hidden border-b border-slate-800">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.2),_transparent_45%)]" />
         <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-14 sm:px-6 lg:py-20">
@@ -432,7 +436,7 @@ export default async function LandingPage() {
             </p>
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Button asChild size="lg" className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400 sm:w-auto">
-                <Link href="/login">Agendar demo estratégica</Link>
+                <Link href="/login">Iniciar sesión / usar prueba gratuita</Link>
               </Button>
               <Button
                 asChild
