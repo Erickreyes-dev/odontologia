@@ -2,7 +2,7 @@
 
 import { getSession } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { capturePaypalOrder, createPaypalOrder } from "@/lib/paypal";
+import { capturePaypalOrder, createPaypalOrder, getPaypalOrder } from "@/lib/paypal";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { calculateExpirationDateByPlan, resolveSubscriptionStatus } from "@/lib/subscription-status";
@@ -116,11 +116,33 @@ export async function capturePaypalAndCreateInvoice(orderId: string) {
   }
 
   try {
-    const captured = await capturePaypalOrder(orderId);
-    const captureId = captured?.purchase_units?.[0]?.payments?.captures?.[0]?.id as string | undefined;
-    const status = String(captured?.status ?? "");
+    let captured: unknown;
+    try {
+      captured = await capturePaypalOrder(orderId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("ORDER_ALREADY_CAPTURED")) {
+        captured = await getPaypalOrder(orderId);
+      } else {
+        throw error;
+      }
+    }
 
-    if (!captureId || status !== "COMPLETED") {
+    const paypalPayload = captured as {
+      status?: string;
+      purchase_units?: Array<{
+        payments?: {
+          captures?: Array<{ id?: string }>;
+          authorizations?: Array<{ id?: string }>;
+        };
+      }>;
+    };
+
+    const captureId = paypalPayload.purchase_units?.[0]?.payments?.captures?.[0]?.id
+      ?? paypalPayload.purchase_units?.[0]?.payments?.authorizations?.[0]?.id;
+    const status = String(paypalPayload.status ?? "");
+
+    if (!captureId || !["COMPLETED", "APPROVED"].includes(status)) {
       return { success: false as const, error: "PayPal no confirmó la captura del pago" };
     }
 
