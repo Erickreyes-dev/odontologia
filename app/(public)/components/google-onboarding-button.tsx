@@ -118,12 +118,6 @@ export default function GoogleOnboardingButton() {
       >
         <Rocket className="mr-2 h-4 w-4" /> {isPending ? "Validando cuenta..." : "Iniciar sesión con Google"}
       </Button>
-      <p className="flex items-center justify-center gap-1 text-center text-xs text-slate-400">
-        <Sparkles className="h-3.5 w-3.5" />
-        {tenantSlugFromHost
-          ? "Te redirigimos al dominio principal para autenticar con Google sin depender de wildcard en subdominios."
-          : "Continuarás automáticamente con login u onboarding según el estado de tu cuenta."}
-      </p>
       {error ? <p className="text-center text-xs text-rose-300">{error}</p> : null}
     </div>
   );
