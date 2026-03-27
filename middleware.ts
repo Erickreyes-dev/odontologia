@@ -239,12 +239,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const subscriptionExemptPrefixes = [
-    "/billing",
-    "/dashboard-admin",
-    "/tenants",
-    "/paquetes",
-  ];
+  const subscriptionExemptPrefixes = ["/billing"];
 
   const requiresActiveSubscription =
     isProtectedRoute && !subscriptionExemptPrefixes.some((prefix) => path.startsWith(prefix));

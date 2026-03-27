@@ -24,9 +24,11 @@ export default async function Layout({ children }: { children: React.ReactNode }
     redirect("/");
   }
 
-  const pathname = headers().get("x-pathname") ?? "";
-  const subscriptionExemptPrefixes = ["/billing", "/dashboard-admin", "/tenants", "/paquetes"];
-  const requiresActiveSubscription = !subscriptionExemptPrefixes.some((prefix) => pathname.startsWith(prefix));
+  const pathname = headers().get("x-pathname");
+  const subscriptionExemptPrefixes = ["/billing"];
+  const requiresActiveSubscription = pathname
+    ? !subscriptionExemptPrefixes.some((prefix) => pathname.startsWith(prefix))
+    : false;
 
   const tenantPlan = sesion.TenantId
     ? await prisma.tenant.findUnique({
@@ -62,6 +64,8 @@ export default async function Layout({ children }: { children: React.ReactNode }
       tenantPlan.estado = effectiveStatus;
     }
 
+    // Only redirect when we can confidently identify the current route.
+    // This avoids accidental self-redirect loops during navigations where custom headers might be absent.
     if (requiresActiveSubscription && effectiveStatus !== "vigente") {
       redirect("/billing?subscription=required");
     }
