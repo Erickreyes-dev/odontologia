@@ -29,7 +29,7 @@ async function getAccessToken() {
 }
 
 function buildTenantBillingReturnUrl(tenantSlug: string) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (!appUrl) {
     throw new Error("Falta NEXT_PUBLIC_APP_URL para el retorno de PayPal");
   }
@@ -37,13 +37,18 @@ function buildTenantBillingReturnUrl(tenantSlug: string) {
   const root = new URL(appUrl);
   const rootDomain = process.env.ROOT_DOMAIN?.trim();
 
-  const host = LOCAL_HOSTS.has(root.hostname)
-    ? `${tenantSlug}.${root.hostname}`
-    : root.hostname === `${tenantSlug}.${rootDomain}` || root.hostname === `${tenantSlug}.${root.hostname}`
-      ? root.hostname
-      : `${tenantSlug}.${rootDomain ?? root.hostname}`;
+  let host = root.hostname;
+  if (LOCAL_HOSTS.has(root.hostname)) {
+    host = root.hostname;
+  } else if (rootDomain) {
+    const alreadyTenantHost = root.hostname === `${tenantSlug}.${rootDomain}`;
+    const isRootDomainHost = root.hostname === rootDomain || root.hostname.endsWith(`.${rootDomain}`);
+    host = alreadyTenantHost || !isRootDomainHost ? root.hostname : `${tenantSlug}.${rootDomain}`;
+  }
+
+  const protocol = LOCAL_HOSTS.has(root.hostname) ? "http:" : "https:";
   const port = root.port ? `:${root.port}` : "";
-  return `${root.protocol}//${host}${port}/billing`;
+  return `${protocol}//${host}${port}/billing`;
 }
 
 export async function createPaypalOrder(amount: number, description: string, tenantSlug: string) {

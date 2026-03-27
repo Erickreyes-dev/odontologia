@@ -27,9 +27,8 @@ export default async function Layout({ children }: { children: React.ReactNode }
   }
 
   const pathname = headers().get("x-pathname");
-  const isBillingRoute = pathname?.startsWith("/billing") ?? false;
-  const isSubscriptionInfoRoute = pathname?.startsWith("/suscripcion") ?? false;
-  const requiresActiveSubscription = !isBillingRoute && !isSubscriptionInfoRoute;
+  const subscriptionExemptPrefixes = ["/billing", "/suscripcion", "/dashboard", "/tenants", "/paquetes"];
+  const requiresActiveSubscription = !subscriptionExemptPrefixes.some((prefix) => pathname?.startsWith(prefix));
 
   const tenantPlan = sesion.TenantId
     ? await prisma.tenant.findUnique({

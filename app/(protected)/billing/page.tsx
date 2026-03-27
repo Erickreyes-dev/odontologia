@@ -77,13 +77,20 @@ export default async function BillingPage({
       <BillingClient
         tenantSlug={data.slug}
         paqueteNombre={data.paquete?.nombre ?? "Sin paquete"}
+        paqueteActualId={data.paqueteId ?? null}
         subscriptionStatus={subscriptionStatus}
         trialEndsAt={data.trialEndsAt ? data.trialEndsAt.toISOString() : null}
         proximoPago={data.proximoPago ? data.proximoPago.toISOString() : null}
-        precioMensual={Number(data.paquete?.precio ?? 0)}
-        precioTrimestral={Number(data.paquete?.precioTrimestral ?? Number(data.paquete?.precio ?? 0) * 3)}
-        precioSemestral={Number(data.paquete?.precioSemestral ?? Number(data.paquete?.precio ?? 0) * 6)}
-        precioAnual={Number(data.paquete?.precioAnual ?? Number(data.paquete?.precio ?? 0) * 12)}
+        paquetesDisponibles={data.paquetesDisponibles.map((pkg) => ({
+          id: pkg.id,
+          nombre: pkg.nombre,
+          descripcion: pkg.descripcion,
+          maxUsuarios: pkg.maxUsuarios,
+          precioMensual: Number(pkg.precio ?? 0),
+          precioTrimestral: Number(pkg.precioTrimestral ?? Number(pkg.precio ?? 0) * 3),
+          precioSemestral: Number(pkg.precioSemestral ?? Number(pkg.precio ?? 0) * 6),
+          precioAnual: Number(pkg.precioAnual ?? Number(pkg.precio ?? 0) * 12),
+        }))}
         facturarNombre={latestInvoice?.facturarNombre ?? data.contactoNombre ?? ""}
         facturarCorreo={latestInvoice?.facturarCorreo ?? data.contactoCorreo ?? ""}
         facturarTelefono={latestInvoice?.facturarTelefono ?? data.telefono ?? ""}
