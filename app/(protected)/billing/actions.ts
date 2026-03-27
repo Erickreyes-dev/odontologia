@@ -121,7 +121,11 @@ export async function capturePaypalAndCreateInvoice(orderId: string) {
       captured = await capturePaypalOrder(orderId);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (message.includes("ORDER_ALREADY_CAPTURED")) {
+      if (
+        message.includes("ORDER_ALREADY_CAPTURED")
+        || message.includes("UNPROCESSABLE_ENTITY")
+        || message.includes("RESOURCE_CONFLICT")
+      ) {
         captured = await getPaypalOrder(orderId);
       } else {
         throw error;
@@ -132,17 +136,28 @@ export async function capturePaypalAndCreateInvoice(orderId: string) {
       status?: string;
       purchase_units?: Array<{
         payments?: {
-          captures?: Array<{ id?: string }>;
-          authorizations?: Array<{ id?: string }>;
+          captures?: Array<{ id?: string; status?: string }>;
+          authorizations?: Array<{ id?: string; status?: string }>;
         };
       }>;
     };
 
-    const captureId = paypalPayload.purchase_units?.[0]?.payments?.captures?.[0]?.id
-      ?? paypalPayload.purchase_units?.[0]?.payments?.authorizations?.[0]?.id;
+    const capture = paypalPayload.purchase_units?.[0]?.payments?.captures?.[0];
+    const authorization = paypalPayload.purchase_units?.[0]?.payments?.authorizations?.[0];
+    const captureId = capture?.id ?? authorization?.id;
     const status = String(paypalPayload.status ?? "");
+    const captureStatus = String(capture?.status ?? authorization?.status ?? "");
+    const isPaid = ["COMPLETED", "APPROVED"].includes(status) || ["COMPLETED", "APPROVED"].includes(captureStatus);
 
-    if (!captureId || !["COMPLETED", "APPROVED"].includes(status)) {
+    if (!captureId || !isPaid) {
+      const paidInvoice = await prisma.tenantInvoice.findFirst({
+        where: { tenantId: session.TenantId, paypalOrderId: orderId, estado: "pagada" },
+      });
+
+      if (paidInvoice) {
+        return { success: true as const };
+      }
+
       return { success: false as const, error: "PayPal no confirmó la captura del pago" };
     }
 

@@ -50,6 +50,10 @@ async function getSessionSubscriptionStatus(req: NextRequest): Promise<boolean |
 
   try {
     const { payload } = await jwtVerify<SessionPayload>(token, authSecret, { algorithms: ["HS256"] });
+    if (payload.SubscriptionStatus) {
+      return isSubscriptionActive(payload.SubscriptionStatus);
+    }
+
     const derivedStatus = resolveSubscriptionStatus({
       tenantActivo: payload.TenantActivo !== false,
       trialEndsAt: payload.TrialEndsAt,

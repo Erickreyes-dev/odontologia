@@ -33,10 +33,15 @@ function buildTenantBillingReturnUrl(tenantSlug: string) {
   if (!appUrl) {
     throw new Error("Falta NEXT_PUBLIC_APP_URL para el retorno de PayPal");
   }
+
   const root = new URL(appUrl);
+  const rootDomain = process.env.ROOT_DOMAIN?.trim();
+
   const host = LOCAL_HOSTS.has(root.hostname)
     ? `${tenantSlug}.${root.hostname}`
-    : `${tenantSlug}.${process.env.ROOT_DOMAIN ?? root.hostname}`;
+    : root.hostname === `${tenantSlug}.${rootDomain}` || root.hostname === `${tenantSlug}.${root.hostname}`
+      ? root.hostname
+      : `${tenantSlug}.${rootDomain ?? root.hostname}`;
   const port = root.port ? `:${root.port}` : "";
   return `${root.protocol}//${host}${port}/billing`;
 }

@@ -10,12 +10,15 @@ import { BillingClient } from "./billing-client";
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams?: { [key: string]: string | string[] | undefined };
+  searchParams?:
+    | { [key: string]: string | string[] | undefined }
+    | Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const paypalState = typeof searchParams?.paypal === "string" ? searchParams.paypal : undefined;
-  const paypalToken = typeof searchParams?.token === "string" ? searchParams.token : undefined;
-  const subscriptionRequired = searchParams?.subscription === "required";
-  const paymentState = typeof searchParams?.payment === "string" ? searchParams.payment : undefined;
+  const params = searchParams ? await Promise.resolve(searchParams) : undefined;
+  const paypalState = typeof params?.paypal === "string" ? params.paypal : undefined;
+  const paypalToken = typeof params?.token === "string" ? params.token : undefined;
+  const subscriptionRequired = params?.subscription === "required";
+  const paymentState = typeof params?.payment === "string" ? params.payment : undefined;
   let paymentStatusMessage: { type: "ok" | "error"; message: string } | null = null;
 
   if (paypalState === "success" && paypalToken) {
@@ -43,7 +46,7 @@ export default async function BillingPage({
   }
 
   if (paymentState === "error") {
-    const reason = typeof searchParams?.reason === "string" ? searchParams.reason : "";
+    const reason = typeof params?.reason === "string" ? params.reason : "";
     paymentStatusMessage = { type: "error", message: reason || "No se pudo confirmar el pago en PayPal. Intenta nuevamente." };
   }
 
