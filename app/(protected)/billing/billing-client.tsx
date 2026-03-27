@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { BadgeCheck, CalendarClock, Check, Globe, ReceiptText, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,16 +9,25 @@ import { createCheckoutForPlan, saveTenantBillingProfile } from "./actions";
 import { toast } from "sonner";
 import type { SubscriptionStatus } from "@/lib/subscription-status";
 
-type BillingClientProps = {
-  tenantSlug: string;
-  paqueteNombre: string;
-  subscriptionStatus: SubscriptionStatus;
-  trialEndsAt: string | null;
-  proximoPago: string | null;
+type BillingPackage = {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  maxUsuarios: number;
   precioMensual: number;
   precioTrimestral: number;
   precioSemestral: number;
   precioAnual: number;
+};
+
+type BillingClientProps = {
+  tenantSlug: string;
+  paqueteNombre: string;
+  paqueteActualId: string | null;
+  subscriptionStatus: SubscriptionStatus;
+  trialEndsAt: string | null;
+  proximoPago: string | null;
+  paquetesDisponibles: BillingPackage[];
   facturarNombre: string;
   facturarCorreo: string;
   facturarTelefono: string;
@@ -29,7 +38,7 @@ type BillingClientProps = {
   facturarPostal: string;
 };
 
-const plans = [
+const periods = [
   { period: "mensual" as const, label: "Mensual", description: "Flexibilidad total" },
   { period: "trimestral" as const, label: "Trimestral", description: "Ahorro aproximado 8%" },
   { period: "semestral" as const, label: "Semestral", description: "Ahorro aproximado 13%" },
@@ -39,6 +48,7 @@ const plans = [
 export function BillingClient(props: BillingClientProps) {
   const [isPending, startTransition] = useTransition();
   const [selectedPlan, setSelectedPlan] = useState<"mensual" | "trimestral" | "semestral" | "anual">("mensual");
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(props.paqueteActualId ?? props.paquetesDisponibles[0]?.id ?? null);
   const [billing, setBilling] = useState({
     facturarNombre: props.facturarNombre,
     facturarCorreo: props.facturarCorreo,
@@ -50,12 +60,20 @@ export function BillingClient(props: BillingClientProps) {
     facturarPostal: props.facturarPostal,
   });
 
-  const pricingByPeriod = {
-    mensual: props.precioMensual,
-    trimestral: props.precioTrimestral,
-    semestral: props.precioSemestral,
-    anual: props.precioAnual,
-  };
+  const selectedPackage = useMemo(
+    () => props.paquetesDisponibles.find((item) => item.id === selectedPackageId) ?? props.paquetesDisponibles[0],
+    [props.paquetesDisponibles, selectedPackageId],
+  );
+
+  const pricingByPeriod = selectedPackage
+    ? {
+      mensual: selectedPackage.precioMensual,
+      trimestral: selectedPackage.precioTrimestral,
+      semestral: selectedPackage.precioSemestral,
+      anual: selectedPackage.precioAnual,
+    }
+    : { mensual: 0, trimestral: 0, semestral: 0, anual: 0 };
+
   const selectedAmount = pricingByPeriod[selectedPlan];
   const trialDaysLeft = props.trialEndsAt
     ? Math.max(0, Math.ceil((new Date(props.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
@@ -70,13 +88,18 @@ export function BillingClient(props: BillingClientProps) {
     startTransition(() => {
       void (async () => {
         try {
+          if (!selectedPackage?.id) {
+            toast.error("No hay paquete seleccionado para procesar el pago");
+            return;
+          }
+
           const saved = await saveTenantBillingProfile(billing);
           if (!saved.success) {
             toast.error(saved.error);
             return;
           }
 
-          const result = await createCheckoutForPlan(periodo);
+          const result = await createCheckoutForPlan(periodo, selectedPackage.id);
           if (!result.success) {
             toast.error(result.error);
             return;
@@ -128,31 +151,59 @@ export function BillingClient(props: BillingClientProps) {
             <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground"><Globe className="h-3.5 w-3.5" /> {props.tenantSlug}.medisoftcore.com</p>
           </div>
           <div className="rounded-xl border bg-background/80 px-3 py-2 text-right">
-            <p className="text-xs text-muted-foreground">Plan seleccionado</p>
+            <p className="text-xs text-muted-foreground">Selección actual</p>
+            <p className="text-sm font-semibold">{selectedPackage?.nombre ?? "Sin paquete"} · {selectedPlan}</p>
             <p className="text-lg font-bold">USD {selectedAmount.toFixed(2)}</p>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        {plans.map((plan) => (
-          <button
-            key={plan.period}
-            type="button"
-            className={`rounded-2xl border bg-card p-4 text-left transition hover:border-cyan-400/60 hover:shadow-sm ${selectedPlan === plan.period ? "border-cyan-500 ring-1 ring-cyan-500/40" : ""}`}
-            disabled={isPending}
-            onClick={() => setSelectedPlan(plan.period)}
-          >
-            <p className="text-sm font-semibold">{plan.label}</p>
-            <p className="text-xs text-muted-foreground">{plan.description}</p>
-            <p className="mt-2 text-xl font-bold">USD {pricingByPeriod[plan.period].toFixed(2)}</p>
-            <p className="mt-2 inline-flex items-center gap-1 text-xs text-cyan-600"><Check className="h-3.5 w-3.5" /> Seleccionar plan</p>
-          </button>
-        ))}
+      <div className="rounded-2xl border bg-card p-4">
+        <p className="mb-3 text-sm font-medium">1) Elige tu paquete</p>
+        <div className="grid gap-3 md:grid-cols-3">
+          {props.paquetesDisponibles.map((pkg) => {
+            const isSelected = selectedPackage?.id === pkg.id;
+            return (
+              <button
+                key={pkg.id}
+                type="button"
+                disabled={isPending}
+                onClick={() => setSelectedPackageId(pkg.id)}
+                className={`rounded-xl border p-3 text-left transition ${isSelected ? "border-cyan-500 ring-1 ring-cyan-500/40" : "hover:border-cyan-400/60"}`}
+              >
+                <p className="text-sm font-semibold">{pkg.nombre}</p>
+                <p className="text-xs text-muted-foreground">{pkg.descripcion ?? "Sin descripción"}</p>
+                <p className="mt-2 text-xs text-muted-foreground">Incluye hasta {pkg.maxUsuarios} usuarios</p>
+                <p className="mt-2 text-sm font-semibold">Desde USD {pkg.precioMensual.toFixed(2)}/mes</p>
+                {isSelected ? <p className="mt-1 inline-flex items-center gap-1 text-xs text-cyan-600"><Check className="h-3.5 w-3.5" /> Paquete seleccionado</p> : null}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="rounded-2xl border bg-card p-4">
-        <p className="mb-3 flex items-center gap-2 text-sm font-medium"><ReceiptText className="h-4 w-4 text-cyan-500" /> Datos de facturación</p>
+        <p className="mb-3 text-sm font-medium">2) Elige el período de facturación</p>
+        <div className="grid gap-4 md:grid-cols-4">
+          {periods.map((plan) => (
+            <button
+              key={plan.period}
+              type="button"
+              className={`rounded-2xl border bg-card p-4 text-left transition hover:border-cyan-400/60 hover:shadow-sm ${selectedPlan === plan.period ? "border-cyan-500 ring-1 ring-cyan-500/40" : ""}`}
+              disabled={isPending}
+              onClick={() => setSelectedPlan(plan.period)}
+            >
+              <p className="text-sm font-semibold">{plan.label}</p>
+              <p className="text-xs text-muted-foreground">{plan.description}</p>
+              <p className="mt-2 text-xl font-bold">USD {pricingByPeriod[plan.period].toFixed(2)}</p>
+              <p className="mt-2 inline-flex items-center gap-1 text-xs text-cyan-600"><Check className="h-3.5 w-3.5" /> Seleccionar período</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-card p-4">
+        <p className="mb-3 flex items-center gap-2 text-sm font-medium"><ReceiptText className="h-4 w-4 text-cyan-500" /> 3) Datos de facturación</p>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1"><Label>Razón social / Nombre</Label><Input value={billing.facturarNombre} onChange={(e) => setBilling((p) => ({ ...p, facturarNombre: e.target.value }))} /></div>
           <div className="space-y-1"><Label>Correo facturación</Label><Input value={billing.facturarCorreo} onChange={(e) => setBilling((p) => ({ ...p, facturarCorreo: e.target.value }))} /></div>
@@ -165,7 +216,7 @@ export function BillingClient(props: BillingClientProps) {
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={onBillingSave} disabled={isPending}>Guardar datos</Button>
-          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending}>
+          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || !selectedPackage}>
             Continuar pago con PayPal
           </Button>
         </div>
@@ -173,7 +224,7 @@ export function BillingClient(props: BillingClientProps) {
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1"><WalletCards className="h-3.5 w-3.5" /> Factura automática al confirmar pago</span>
-        <span className="inline-flex items-center gap-1"><CalendarClock className="h-3.5 w-3.5" /> Cambio de plan sin penalización</span>
+        <span className="inline-flex items-center gap-1"><CalendarClock className="h-3.5 w-3.5" /> Cambio de plan/período sin penalización</span>
       </div>
     </div>
   );

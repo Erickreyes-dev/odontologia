@@ -32,6 +32,21 @@ export async function getTenantBilling() {
 
   if (!tenant) return null;
 
+  const paquetesDisponibles = await prisma.paquete.findMany({
+    where: { activo: true },
+    orderBy: [{ precio: "asc" }, { nombre: "asc" }],
+    select: {
+      id: true,
+      nombre: true,
+      descripcion: true,
+      precio: true,
+      precioTrimestral: true,
+      precioSemestral: true,
+      precioAnual: true,
+      maxUsuarios: true,
+    },
+  });
+
   const status = resolveSubscriptionStatus({
     tenantActivo: tenant.activo,
     trialEndsAt: tenant.trialEndsAt,
@@ -44,7 +59,10 @@ export async function getTenantBilling() {
     tenant.estado = status;
   }
 
-  return tenant;
+  return {
+    ...tenant,
+    paquetesDisponibles,
+  };
 }
 
 function calculateAmountByPeriod(paquete: {
@@ -60,7 +78,10 @@ function calculateAmountByPeriod(paquete: {
   return mensual;
 }
 
-export async function createCheckoutForPlan(periodoPlan: "mensual" | "trimestral" | "semestral" | "anual") {
+export async function createCheckoutForPlan(
+  periodoPlan: "mensual" | "trimestral" | "semestral" | "anual",
+  selectedPaqueteId?: string,
+) {
   const session = await getSession();
   if (!session?.TenantId) return { success: false as const, error: "Sesión inválida" };
 
@@ -69,11 +90,17 @@ export async function createCheckoutForPlan(periodoPlan: "mensual" | "trimestral
     include: { paquete: true },
   });
 
-  if (!tenant?.paquete) return { success: false as const, error: "No hay paquete activo" };
+  if (!tenant) return { success: false as const, error: "Tenant no encontrado" };
+
+  const paqueteToCharge = selectedPaqueteId
+    ? await prisma.paquete.findFirst({ where: { id: selectedPaqueteId, activo: true } })
+    : tenant.paquete;
+
+  if (!paqueteToCharge) return { success: false as const, error: "No hay paquete activo para cobrar" };
 
   try {
-    const monto = calculateAmountByPeriod(tenant.paquete, periodoPlan);
-    const order = await createPaypalOrder(monto, `Plan ${tenant.paquete.nombre} (${periodoPlan})`, tenant.slug);
+    const monto = calculateAmountByPeriod(paqueteToCharge, periodoPlan);
+    const order = await createPaypalOrder(monto, `Plan ${paqueteToCharge.nombre} (${periodoPlan})`, tenant.slug);
     const approveLink = order.links?.find((link: any) => link.rel === "approve")?.href;
 
     if (!approveLink) {
@@ -82,7 +109,13 @@ export async function createCheckoutForPlan(periodoPlan: "mensual" | "trimestral
 
     await prisma.tenant.update({
       where: { id: tenant.id },
-      data: { periodoPlan, paypalCustomerId: order.id },
+      data: {
+        periodoPlan,
+        paypalCustomerId: order.id,
+        paqueteId: paqueteToCharge.id,
+        plan: paqueteToCharge.nombre,
+        maxUsuarios: paqueteToCharge.maxUsuarios,
+      },
     });
 
     revalidatePath("/billing");
