@@ -176,6 +176,9 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
       }
 
       if (response.requiresPayment) {
+        if (response.reusedPending) {
+          setError("Ya tienes un proceso de creación pendiente de pago. Te redirigiremos para completarlo.");
+        }
         window.location.href = response.approveLink;
         return;
       }

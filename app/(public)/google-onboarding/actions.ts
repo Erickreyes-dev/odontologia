@@ -24,7 +24,7 @@ interface GoogleOnboardingInput {
 
 type OnboardingRegisterResult =
   | { success: true; tenantUrl: string; alreadyExists?: boolean; requiresPayment?: false }
-  | { success: true; requiresPayment: true; approveLink: string }
+  | { success: true; requiresPayment: true; approveLink: string; reusedPending?: boolean }
   | { success: false; error: string };
 
 async function verifyGoogleCredential(credential: string) {
@@ -79,6 +79,64 @@ function calculateAmountByPeriod(paquete: {
   if (periodoPlan === "semestral") return Number(paquete.precioSemestral ?? mensual * 6);
   if (periodoPlan === "anual") return Number(paquete.precioAnual ?? mensual * 12);
   return mensual;
+}
+
+async function preparePendingCheckout(params: {
+  tenantId: string;
+  paqueteId: string;
+  periodoPlan: "mensual" | "trimestral" | "semestral" | "anual";
+  packageName: string;
+  amount: number;
+  payerName: string;
+  payerEmail: string;
+  paisCodigo: string;
+}) {
+  await prisma.tenantInvoice.updateMany({
+    where: { tenantId: params.tenantId, estado: "pendiente" },
+    data: { estado: "cancelada" },
+  });
+
+  const pendingInvoice = await prisma.tenantInvoice.create({
+    data: {
+      id: randomUUID(),
+      tenantId: params.tenantId,
+      paqueteId: params.paqueteId,
+      periodoPlan: params.periodoPlan,
+      monto: params.amount,
+      subtotal: params.amount,
+      impuesto: 0,
+      total: params.amount,
+      moneda: "USD",
+      estado: "pendiente",
+      numeroFactura: `PRE-${Date.now()}`,
+      facturarNombre: params.payerName,
+      facturarCorreo: params.payerEmail,
+      facturarPais: params.paisCodigo,
+      descripcion: `Pre-suscripción ${params.packageName} (${params.periodoPlan})`,
+    },
+  });
+
+  const returnBaseUrl = getPublicOnboardingReturnBaseUrl();
+  const order = await createPaypalOrderWithContext(
+    params.amount,
+    `Plan ${params.packageName} (${params.periodoPlan})`,
+    {
+      customId: params.tenantId,
+      invoiceId: pendingInvoice.id.slice(0, 32),
+      returnUrl: `${returnBaseUrl}/registro-clinica?paypal=success`,
+      cancelUrl: `${returnBaseUrl}/registro-clinica?paypal=cancelled`,
+    },
+  );
+
+  const approveLink = order.links?.find((link: { rel?: string; href?: string }) => link.rel === "approve")?.href;
+  if (!approveLink) throw new Error("PayPal no devolvió enlace de aprobación");
+
+  await prisma.tenantInvoice.update({
+    where: { id: pendingInvoice.id },
+    data: { paypalOrderId: order.id },
+  });
+
+  return approveLink;
 }
 
 async function createSession(payload: UsuarioSesion) {
@@ -186,18 +244,33 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
     const trialConfigActivo = Boolean(selectedPackage.trialActivo);
     const trialConfigDias = Math.max(0, Number(selectedPackage.trialDias ?? 0));
     const canProvisionWithoutPayment = trialConfigActivo && trialConfigDias > 0;
+    const existingPendingTenant = await prisma.tenant.findFirst({
+      where: {
+        contactoCorreo: identity.email,
+        authProvider: "google",
+        activo: false,
+        estado: "pendiente_pago",
+      },
+      include: {
+        usuarios: { select: { id: true }, take: 1 },
+      },
+      orderBy: { createAt: "desc" },
+    });
 
     const consultorioNombre = input.consultorioNombre.trim();
     if (consultorioNombre.length < 3) {
       return { success: false, error: "El nombre del consultorio es obligatorio" };
     }
 
-    const slugBase = normalizeSlug(consultorioNombre);
-    let slug = slugBase;
-    let attempt = 1;
-    while (await prisma.tenant.findUnique({ where: { slug } })) {
-      slug = `${slugBase}-${attempt}`;
-      attempt += 1;
+    let slug = existingPendingTenant?.slug ?? "";
+    if (!slug) {
+      const slugBase = normalizeSlug(consultorioNombre);
+      slug = slugBase;
+      let attempt = 1;
+      while (await prisma.tenant.findUnique({ where: { slug } })) {
+        slug = `${slugBase}-${attempt}`;
+        attempt += 1;
+      }
     }
 
     const currency = resolveCurrencyByCountry(input.paisCodigo);
@@ -205,71 +278,69 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
 
     if (!canProvisionWithoutPayment) {
       const monto = calculateAmountByPeriod(selectedPackage, input.periodoPlan);
-      const returnBaseUrl = getPublicOnboardingReturnBaseUrl();
+      const reusedPending = Boolean(existingPendingTenant && existingPendingTenant.usuarios.length === 0);
+      const tenantPendingId = reusedPending
+        ? existingPendingTenant!.id
+        : randomUUID();
 
-      const preSubscription = await prisma.tenant.create({
-        data: {
-          id: randomUUID(),
-          nombre: consultorioNombre,
-          slug,
-          plan: selectedPackage.nombre,
-          paqueteId: selectedPackage.id,
-          maxUsuarios: selectedPackage.maxUsuarios,
-          periodoPlan: input.periodoPlan,
-          proximoPago: null,
-          contactoNombre: identity.name,
-          contactoCorreo: identity.email,
-          authProvider: "google",
-          teamSize: input.teamSize,
-          paisCodigo: input.paisCodigo,
-          monedaCodigo: currency.currency,
-          trialEndsAt: null,
-          fechaExpiracion: null,
-          estado: "pendiente_pago",
-          activo: false,
-        },
+      if (reusedPending) {
+        await prisma.tenant.update({
+          where: { id: tenantPendingId },
+          data: {
+            nombre: consultorioNombre,
+            plan: selectedPackage.nombre,
+            paqueteId: selectedPackage.id,
+            maxUsuarios: selectedPackage.maxUsuarios,
+            periodoPlan: input.periodoPlan,
+            contactoNombre: identity.name,
+            contactoCorreo: identity.email,
+            teamSize: input.teamSize,
+            paisCodigo: input.paisCodigo,
+            monedaCodigo: currency.currency,
+            proximoPago: null,
+            trialEndsAt: null,
+            fechaExpiracion: null,
+            estado: "pendiente_pago",
+            activo: false,
+          },
+        });
+      } else {
+        await prisma.tenant.create({
+          data: {
+            id: tenantPendingId,
+            nombre: consultorioNombre,
+            slug,
+            plan: selectedPackage.nombre,
+            paqueteId: selectedPackage.id,
+            maxUsuarios: selectedPackage.maxUsuarios,
+            periodoPlan: input.periodoPlan,
+            proximoPago: null,
+            contactoNombre: identity.name,
+            contactoCorreo: identity.email,
+            authProvider: "google",
+            teamSize: input.teamSize,
+            paisCodigo: input.paisCodigo,
+            monedaCodigo: currency.currency,
+            trialEndsAt: null,
+            fechaExpiracion: null,
+            estado: "pendiente_pago",
+            activo: false,
+          },
+        });
+      }
+
+      const approveLink = await preparePendingCheckout({
+        tenantId: tenantPendingId,
+        paqueteId: selectedPackage.id,
+        periodoPlan: input.periodoPlan,
+        packageName: selectedPackage.nombre,
+        amount: monto,
+        payerName: identity.name,
+        payerEmail: identity.email,
+        paisCodigo: input.paisCodigo,
       });
 
-      const pendingInvoice = await prisma.tenantInvoice.create({
-        data: {
-          id: randomUUID(),
-          tenantId: preSubscription.id,
-          paqueteId: selectedPackage.id,
-          periodoPlan: input.periodoPlan,
-          monto,
-          subtotal: monto,
-          impuesto: 0,
-          total: monto,
-          moneda: "USD",
-          estado: "pendiente",
-          numeroFactura: `PRE-${Date.now()}`,
-          facturarNombre: identity.name,
-          facturarCorreo: identity.email,
-          facturarPais: input.paisCodigo,
-          descripcion: `Pre-suscripción ${selectedPackage.nombre} (${input.periodoPlan})`,
-        },
-      });
-
-      const order = await createPaypalOrderWithContext(
-        monto,
-        `Plan ${selectedPackage.nombre} (${input.periodoPlan})`,
-        {
-          customId: preSubscription.id,
-          invoiceId: pendingInvoice.id.slice(0, 32),
-          returnUrl: `${returnBaseUrl}/registro-clinica?paypal=success`,
-          cancelUrl: `${returnBaseUrl}/registro-clinica?paypal=cancelled`,
-        },
-      );
-
-      const approveLink = order.links?.find((link: { rel?: string; href?: string }) => link.rel === "approve")?.href;
-      if (!approveLink) return { success: false, error: "PayPal no devolvió enlace de aprobación" };
-
-      await prisma.tenantInvoice.update({
-        where: { id: pendingInvoice.id },
-        data: { paypalOrderId: order.id },
-      });
-
-      return { success: true, requiresPayment: true, approveLink };
+      return { success: true, requiresPayment: true, approveLink, reusedPending };
     }
 
     const result = await prisma.$transaction(async (tx) => {
