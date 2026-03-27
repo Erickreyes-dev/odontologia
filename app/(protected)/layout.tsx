@@ -1,14 +1,16 @@
 import { getSession } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHelpGuide } from "@/components/tour/app-help-guide";
+import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { BadgeCheck, Timer } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Timer } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getQuickActionCatalogs } from "./quick-actions/actions";
 import { QuickActionsPopover } from "@/components/quick-actions-popover";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { resolveSubscriptionStatus } from "@/lib/subscription-status";
+import Link from "next/link";
 
 function calculateTrialDaysLeft(trialEndsAt?: Date | null): number {
   if (!trialEndsAt) return 0;
@@ -25,10 +27,9 @@ export default async function Layout({ children }: { children: React.ReactNode }
   }
 
   const pathname = headers().get("x-pathname");
-  const subscriptionExemptPrefixes = ["/billing"];
-  const requiresActiveSubscription = pathname
-    ? !subscriptionExemptPrefixes.some((prefix) => pathname.startsWith(prefix))
-    : false;
+  const isBillingRoute = pathname?.startsWith("/billing") ?? false;
+  const isSubscriptionInfoRoute = pathname?.startsWith("/suscripcion") ?? false;
+  const requiresActiveSubscription = !isBillingRoute && !isSubscriptionInfoRoute;
 
   const tenantPlan = sesion.TenantId
     ? await prisma.tenant.findUnique({
@@ -45,6 +46,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
     })
     : null;
 
+  let effectiveStatus = "expirado";
   if (tenantPlan) {
     const calculatedStatus = resolveSubscriptionStatus({
       tenantActivo: tenantPlan.activo,
@@ -52,7 +54,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
       fechaExpiracion: tenantPlan.fechaExpiracion,
       proximoPago: tenantPlan.proximoPago,
     });
-    const effectiveStatus = tenantPlan.estado === "cancelado" || tenantPlan.estado === "expirado"
+    effectiveStatus = tenantPlan.estado === "cancelado" || tenantPlan.estado === "expirado"
       ? tenantPlan.estado
       : calculatedStatus;
 
@@ -64,14 +66,10 @@ export default async function Layout({ children }: { children: React.ReactNode }
       tenantPlan.estado = effectiveStatus;
     }
 
-    // Only redirect when we can confidently identify the current route.
-    // This avoids accidental self-redirect loops during navigations where custom headers might be absent.
-    if (requiresActiveSubscription && effectiveStatus !== "vigente") {
-      redirect("/billing?subscription=required");
-    }
   }
 
-  const quickData = await getQuickActionCatalogs();
+  const shouldBlockModules = Boolean(tenantPlan && requiresActiveSubscription && effectiveStatus !== "vigente");
+  const quickData = shouldBlockModules ? null : await getQuickActionCatalogs();
   const packageName = tenantPlan?.paquete?.nombre ?? tenantPlan?.plan ?? "Sin paquete";
   const trialDaysLeft = calculateTrialDaysLeft(tenantPlan?.trialEndsAt);
 
@@ -88,6 +86,12 @@ export default async function Layout({ children }: { children: React.ReactNode }
               <span className="text-muted-foreground">Paquete actual:</span>
               <span className="font-semibold text-foreground">{packageName}</span>
             </div>
+            {tenantPlan && effectiveStatus !== "vigente" ? (
+              <div className="hidden rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700 sm:flex sm:items-center sm:gap-2 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span className="font-semibold">Suscripción {effectiveStatus}</span>
+              </div>
+            ) : null}
             {trialDaysLeft > 0 ? (
               <div className="hidden rounded-xl border bg-card px-3 py-1.5 text-xs sm:flex sm:items-center sm:gap-2">
                 <Timer className="h-3.5 w-3.5 text-amber-500" />
@@ -98,7 +102,26 @@ export default async function Layout({ children }: { children: React.ReactNode }
             <AppHelpGuide />
           </div>
         </div>
-        {children}
+        {shouldBlockModules ? (
+          <div className="mx-auto mt-12 max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight">Suscripción requerida</h1>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Tu paquete está {effectiveStatus}. Para usar este módulo debes activar o renovar la suscripción.
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Módulo actual: <span className="font-medium text-foreground">{pathname ?? "desconocido"}</span>
+            </p>
+
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+              <Button asChild>
+                <Link href="/billing">Ir a facturación</Link>
+              </Button>
+            </div>
+          </div>
+        ) : children}
       </main>
     </SidebarProvider>
   );

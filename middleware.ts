@@ -3,19 +3,12 @@ import { jwtVerify, type JWTPayload } from "jose";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
-import { isSubscriptionActive, resolveSubscriptionStatus, type SubscriptionStatus } from "@/lib/subscription-status";
 
 type Bucket = { count: number; reset: number };
 type RateLimitConfig = { limit: number; windowMs: number };
 
 interface SessionPayload extends JWTPayload {
   Permiso?: string[];
-  SuscripcionActiva?: boolean;
-  SubscriptionStatus?: SubscriptionStatus;
-  TenantActivo?: boolean;
-  TrialEndsAt?: string | null;
-  FechaExpiracion?: string | null;
-  ProximoPago?: string | null;
 }
 
 const authSecret = process.env.AUTH_SECRET
@@ -35,32 +28,6 @@ async function getSessionPermissions(req: NextRequest): Promise<string[] | null>
   try {
     const { payload } = await jwtVerify<SessionPayload>(token, authSecret, { algorithms: ["HS256"] });
     return Array.isArray(payload.Permiso) ? payload.Permiso : [];
-  } catch {
-    return null;
-  }
-}
-
-async function getSessionSubscriptionStatus(req: NextRequest): Promise<boolean | null> {
-  const token =
-    req.cookies.get("session")?.value ??
-    req.cookies.get("next-auth.session-token")?.value ??
-    req.cookies.get("__Secure-next-auth.session-token")?.value;
-
-  if (!token || !authSecret) return null;
-
-  try {
-    const { payload } = await jwtVerify<SessionPayload>(token, authSecret, { algorithms: ["HS256"] });
-    const derivedStatus = resolveSubscriptionStatus({
-      tenantActivo: payload.TenantActivo !== false,
-      trialEndsAt: payload.TrialEndsAt,
-      fechaExpiracion: payload.FechaExpiracion,
-      proximoPago: payload.ProximoPago,
-    });
-    const status = payload.SubscriptionStatus === "cancelado" || payload.SubscriptionStatus === "expirado"
-      ? payload.SubscriptionStatus
-      : derivedStatus;
-
-    return isSubscriptionActive(status);
   } catch {
     return null;
   }
@@ -225,9 +192,11 @@ export async function middleware(req: NextRequest) {
     "/empleados",
     "/puestos",
     "/profesiones",
+    "/promociones",
     "/profile",
     "/mi-clinica",
     "/billing",
+    "/suscripcion",
     "/protected",
   ];
 
@@ -237,20 +206,6 @@ export async function middleware(req: NextRequest) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", path + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
-  }
-
-  const subscriptionExemptPrefixes = ["/billing"];
-
-  const requiresActiveSubscription =
-    isProtectedRoute && !subscriptionExemptPrefixes.some((prefix) => path.startsWith(prefix));
-
-  if (requiresActiveSubscription) {
-    const isSubscriptionActive = await getSessionSubscriptionStatus(req);
-    if (isSubscriptionActive === false) {
-      const billingUrl = new URL("/billing", req.url);
-      billingUrl.searchParams.set("subscription", "required");
-      return NextResponse.redirect(billingUrl);
-    }
   }
 
   if (path.startsWith("/dashboard-admin")) {
