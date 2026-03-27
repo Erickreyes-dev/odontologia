@@ -43,7 +43,7 @@ export default async function BillingPage({
   }
 
   if (paymentState === "error") {
-    const reason = typeof searchParams?.reason === "string" ? decodeURIComponent(searchParams.reason) : "";
+    const reason = typeof searchParams?.reason === "string" ? searchParams.reason : "";
     paymentStatusMessage = { type: "error", message: reason || "No se pudo confirmar el pago en PayPal. Intenta nuevamente." };
   }
 

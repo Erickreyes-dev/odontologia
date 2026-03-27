@@ -31,6 +31,7 @@ export interface UsuarioSesion extends JWTPayload {
   SubscriptionStatus: SubscriptionStatus;
   TenantActivo: boolean;
   TrialEndsAt?: string | null;
+  FechaExpiracion?: string | null;
   ProximoPago?: string | null;
 }
 
@@ -62,6 +63,7 @@ export const decrypt = async (token: string): Promise<UsuarioSesion | null> => {
       SubscriptionStatus: (payload.SubscriptionStatus as SubscriptionStatus) ?? "expirado",
       TenantActivo: payload.TenantActivo !== false,
       TrialEndsAt: (payload.TrialEndsAt as string | null) ?? null,
+      FechaExpiracion: (payload.FechaExpiracion as string | null) ?? null,
       ProximoPago: (payload.ProximoPago as string | null) ?? null,
       iss: payload.iss as string,
       aud: payload.aud as string,
@@ -226,6 +228,7 @@ async function authenticateDB(
       SubscriptionStatus: subscriptionStatus,
       TenantActivo: Boolean(user.tenant?.activo),
       TrialEndsAt: user.tenant?.trialEndsAt?.toISOString() ?? null,
+      FechaExpiracion: user.tenant?.fechaExpiracion?.toISOString() ?? null,
       ProximoPago: user.tenant?.proximoPago?.toISOString() ?? null,
       iss: "odontologia-saas",
       aud: "odontologia-clients",
@@ -285,6 +288,7 @@ async function changePassword(tenantId: string, username: string, newPassword: s
       SubscriptionStatus: subscriptionStatus,
       TenantActivo: Boolean(updated.tenant?.activo),
       TrialEndsAt: updated.tenant?.trialEndsAt?.toISOString() ?? null,
+      FechaExpiracion: updated.tenant?.fechaExpiracion?.toISOString() ?? null,
       ProximoPago: updated.tenant?.proximoPago?.toISOString() ?? null,
       iss: "odontologia-saas",
       aud: "odontologia-clients",

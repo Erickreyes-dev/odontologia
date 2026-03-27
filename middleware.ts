@@ -14,6 +14,7 @@ interface SessionPayload extends JWTPayload {
   SubscriptionStatus?: SubscriptionStatus;
   TenantActivo?: boolean;
   TrialEndsAt?: string | null;
+  FechaExpiracion?: string | null;
   ProximoPago?: string | null;
 }
 
@@ -49,11 +50,13 @@ async function getSessionSubscriptionStatus(req: NextRequest): Promise<boolean |
 
   try {
     const { payload } = await jwtVerify<SessionPayload>(token, authSecret, { algorithms: ["HS256"] });
-    const status = payload.SubscriptionStatus ?? resolveSubscriptionStatus({
+    const derivedStatus = resolveSubscriptionStatus({
       tenantActivo: payload.TenantActivo !== false,
       trialEndsAt: payload.TrialEndsAt,
+      fechaExpiracion: payload.FechaExpiracion,
       proximoPago: payload.ProximoPago,
     });
+    const status = payload.SubscriptionStatus === "cancelado" ? "cancelado" : derivedStatus;
 
     return isSubscriptionActive(status);
   } catch {

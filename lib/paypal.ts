@@ -102,3 +102,23 @@ export async function capturePaypalOrder(orderId: string) {
 
   return response.json();
 }
+
+export async function getPaypalOrder(orderId: string) {
+  if (!orderId) throw new Error("OrderId de PayPal inválido");
+  const token = await getAccessToken();
+
+  const response = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${orderId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`No se pudo consultar la orden de PayPal: ${body}`);
+  }
+
+  return response.json();
+}
