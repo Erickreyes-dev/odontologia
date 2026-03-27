@@ -180,12 +180,6 @@ export default function Login() {
         </Button>
 
         <GoogleOnboardingButton />
-        {savedTenantUrl ? (
-          <p className="rounded-md border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
-            Última URL registrada: <strong>{savedTenantUrl}</strong>
-          </p>
-        ) : null}
-
         <Button variant="link" type="button" onClick={() => setOpen(true)} className="mx-auto block text-slate-300">
           ¿Olvidaste tu contraseña?
         </Button>
