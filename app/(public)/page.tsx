@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
-import { RequestAccessForm } from "@/components/request-access-form";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import Image from "next/image";
@@ -44,10 +43,33 @@ const services = [
 ];
 
 const advantages = [
-  "Aumenta la tasa de asistencia con una gestión de citas ordenada.",
-  "Mejora la experiencia del paciente con procesos más rápidos y claros.",
-  "Reduce errores administrativos centralizando la información.",
-  "Toma decisiones con datos clínicos y financieros en tiempo real.",
+  "Aumenta la tasa de asistencia con recordatorios y agenda inteligente.",
+  "Eleva el ticket promedio con planes de tratamiento, promociones y financiamiento.",
+  "Reduce errores administrativos centralizando pacientes, equipo y operación.",
+  "Toma decisiones con métricas clínicas y financieras en tiempo real.",
+];
+
+const businessPillars = [
+  {
+    title: "Gestión de pacientes sin fricción",
+    detail:
+      "Historial, citas, consultas y seguimiento en un solo flujo para mejorar la experiencia y la retención.",
+  },
+  {
+    title: "Control comercial y financiero",
+    detail:
+      "Cotizaciones, pagos parciales, órdenes de cobro y financiamiento para no perder oportunidades de ingreso.",
+  },
+  {
+    title: "Productividad de equipo",
+    detail:
+      "Roles, permisos, puestos y supervisión por módulo para operar con claridad en clínicas de cualquier tamaño.",
+  },
+  {
+    title: "Crecimiento escalable",
+    detail:
+      "Inventario, reportes y operación multi-sede para crecer sin perder control de calidad y rentabilidad.",
+  },
 ];
 
 const faqs = [
@@ -410,7 +432,7 @@ export default async function LandingPage() {
             </p>
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Button asChild size="lg" className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400 sm:w-auto">
-                <Link href="/login">Solicitar demostración / Ingresar</Link>
+                <Link href="/login">Agendar demo estratégica</Link>
               </Button>
               <Button
                 asChild
@@ -426,7 +448,7 @@ export default async function LandingPage() {
                 variant="outline"
                 className="w-full border-cyan-500 bg-transparent text-cyan-300 hover:bg-slate-800 sm:w-auto"
               >
-                <Link href="#pedir-acceso">Pedir acceso</Link>
+                <Link href="#impacto">Ver impacto en tu clínica</Link>
               </Button>
             </div>
           </div>
@@ -473,7 +495,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <section className="border-y border-slate-800 bg-slate-900/40">
+      <section id="impacto" className="border-y border-slate-800 bg-slate-900/40">
         <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-2 lg:py-16">
           <div className="space-y-3">
             <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">Ventajas competitivas</p>
@@ -490,6 +512,28 @@ export default async function LandingPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:py-16">
+        <div className="mb-8 space-y-2 text-center">
+          <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">Resultados de negocio</p>
+          <h3 className="text-2xl font-bold sm:text-3xl">Un sistema clínico que también impulsa ventas</h3>
+          <p className="mx-auto max-w-3xl text-sm text-slate-300">
+            No es solo software administrativo: es una plataforma para vender mejor, atender mejor y retener más pacientes.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {businessPillars.map((pillar) => (
+            <Card key={pillar.title} className="border-slate-700 bg-slate-900/60">
+              <CardHeader>
+                <CardTitle className="text-lg text-slate-100">{pillar.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-slate-300">{pillar.detail}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </section>
 
@@ -512,16 +556,28 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <section id="pedir-acceso" className="border-t border-slate-800 bg-slate-900/30">
+      <section className="border-t border-slate-800 bg-slate-900/30">
         <div className="mx-auto w-full max-w-6xl px-4 py-14 text-center sm:px-6 lg:py-16">
           <div className="mb-8 space-y-2">
-            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">Acceso anticipado</p>
-            <h3 className="text-2xl font-bold sm:text-3xl">Solicita acceso y te contactamos</h3>
+            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-300">Siguiente paso</p>
+            <h3 className="text-2xl font-bold sm:text-3xl">Conoce cómo escalar tu clínica con un plan claro</h3>
             <p className="mx-auto max-w-2xl text-sm text-slate-300">
-              Déjanos tus datos y enviaremos tu solicitud directamente a nuestro equipo comercial.
+              Te mostramos cómo implementar la plataforma por fases para aumentar productividad, cierres y satisfacción del paciente.
             </p>
           </div>
-          <RequestAccessForm />
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button asChild size="lg" className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400 sm:w-auto">
+              <Link href="/login">Entrar al sistema</Link>
+            </Button>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="w-full border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 sm:w-auto"
+            >
+              <Link href="#servicios">Explorar módulos</Link>
+            </Button>
+          </div>
         </div>
       </section>
 
