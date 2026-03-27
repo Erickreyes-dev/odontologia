@@ -57,14 +57,29 @@ function buildTenantBillingReturnUrl(tenantSlug: string) {
 }
 
 export async function createPaypalOrder(amount: number, description: string, tenantSlug: string) {
+  if (!tenantSlug?.trim()) throw new Error("No se pudo resolver el tenant para el retorno de PayPal");
+  const billingUrl = buildTenantBillingReturnUrl(tenantSlug);
+  return createPaypalOrderWithContext(amount, description, {
+    returnUrl: `${billingUrl}?paypal=success`,
+    cancelUrl: `${billingUrl}?paypal=cancelled`,
+  });
+}
+
+export async function createPaypalOrderWithContext(
+  amount: number,
+  description: string,
+  context: {
+    returnUrl: string;
+    cancelUrl: string;
+    customId?: string;
+    invoiceId?: string;
+  },
+) {
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error("Monto inválido para crear la orden");
   }
 
-  if (!tenantSlug?.trim()) throw new Error("No se pudo resolver el tenant para el retorno de PayPal");
-
   const token = await getAccessToken();
-  const billingUrl = buildTenantBillingReturnUrl(tenantSlug);
 
   const response = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders`, {
     method: "POST",
@@ -77,6 +92,8 @@ export async function createPaypalOrder(amount: number, description: string, ten
       purchase_units: [
         {
           description,
+          ...(context.customId ? { custom_id: context.customId } : {}),
+          ...(context.invoiceId ? { invoice_id: context.invoiceId } : {}),
           amount: {
             currency_code: "USD",
             value: amount.toFixed(2),
@@ -85,8 +102,8 @@ export async function createPaypalOrder(amount: number, description: string, ten
       ],
       application_context: {
         user_action: "PAY_NOW",
-        return_url: `${billingUrl}?paypal=success`,
-        cancel_url: `${billingUrl}?paypal=cancelled`,
+        return_url: context.returnUrl,
+        cancel_url: context.cancelUrl,
       },
     }),
   });
