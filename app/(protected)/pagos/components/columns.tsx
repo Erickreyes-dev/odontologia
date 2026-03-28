@@ -19,11 +19,16 @@ import { es } from "date-fns/locale";
 import { PagoWithRelations } from "../schema";
 import { METODOS_PAGO, ESTADOS_PAGO } from "../schema";
 import { sendPagoEmail } from "../actions";
+import { formatMoneyAmount, type TenantCurrencyDisplay } from "@/lib/currency-format";
 
-type GetColumnsOptions = { onRevertPago?: (id: string) => void; onDownloadRecibo?: (id: string) => void };
+type GetColumnsOptions = {
+  onRevertPago?: (id: string) => void;
+  onDownloadRecibo?: (id: string) => void;
+  currency?: TenantCurrencyDisplay;
+};
 
 export function getColumns(options?: GetColumnsOptions): ColumnDef<PagoWithRelations>[] {
-  const { onRevertPago, onDownloadRecibo } = options ?? {};
+  const { onRevertPago, onDownloadRecibo, currency = { symbol: "L", currency: "HNL", locale: "es-HN" } } = options ?? {};
 
 const getMetodoLabel = (metodo: string) =>
   METODOS_PAGO.find((m) => m.value === metodo)?.label ?? metodo;
@@ -67,9 +72,7 @@ const getEstadoBadge = (estado: string) => {
     accessorKey: "monto",
     header: "Monto",
     cell: ({ row }) => (
-      <div className="font-mono">
-        L {Number(row.getValue("monto")).toLocaleString("es-HN")}
-      </div>
+      <div className="font-mono">{formatMoneyAmount(Number(row.getValue("monto")), currency)}</div>
     ),
   },
   {

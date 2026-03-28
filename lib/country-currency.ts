@@ -5,7 +5,18 @@ export const COUNTRY_CURRENCY_MAP: Record<string, { currency: string; symbol: st
   CO: { currency: "COP", symbol: "$", name: "Colombia" },
   AR: { currency: "ARS", symbol: "$", name: "Argentina" },
   ES: { currency: "EUR", symbol: "€", name: "España" },
+  GT: { currency: "GTQ", symbol: "Q", name: "Guatemala" },
+  CR: { currency: "CRC", symbol: "₡", name: "Costa Rica" },
+  PA: { currency: "PAB", symbol: "B/.", name: "Panamá" },
+  NI: { currency: "NIO", symbol: "C$", name: "Nicaragua" },
+  DO: { currency: "DOP", symbol: "RD$", name: "República Dominicana" },
+  PE: { currency: "PEN", symbol: "S/", name: "Perú" },
+  CL: { currency: "CLP", symbol: "$", name: "Chile" },
 };
+
+export const SUPPORTED_COUNTRIES = Object.entries(COUNTRY_CURRENCY_MAP)
+  .map(([code, info]) => ({ code, label: info.name }))
+  .sort((a, b) => a.label.localeCompare(b.label));
 
 export function resolveCurrencyByCountry(countryCode: string | null | undefined) {
   if (!countryCode) return COUNTRY_CURRENCY_MAP.HN;

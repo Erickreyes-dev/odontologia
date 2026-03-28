@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { format, startOfDay, endOfDay, subMonths } from "date-fns";
+import { format, startOfDay, endOfDay, subDays, subMonths, subYears } from "date-fns";
 import { es } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 import { CalendarIcon, Download, UsersRound } from "lucide-react";
@@ -13,6 +13,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { formatMoneyAmount } from "@/lib/currency-format";
+import { useTenantCurrency } from "@/hooks/use-tenant-currency";
 import {
   ChartContainer,
   ChartTooltip,
@@ -50,8 +52,6 @@ type DashboardData = {
   }[];
 };
 
-const formatMoney = (value: number) => `L ${value.toLocaleString("es-HN")}`;
-
 const pieChartConfig = {
   cantidad: {
     label: "Cantidad",
@@ -64,6 +64,22 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     from: startOfDay(subMonths(new Date(), 1)),
     to: endOfDay(new Date()),
   });
+  const currency = useTenantCurrency();
+
+  const applyQuickRange = (type: "7d" | "1m" | "1y") => {
+    const today = new Date();
+    const from =
+      type === "7d"
+        ? subDays(today, 6)
+        : type === "1m"
+          ? subMonths(today, 1)
+          : subYears(today, 1);
+
+    setRange({
+      from: startOfDay(from),
+      to: endOfDay(today),
+    });
+  };
 
   const consultasFiltradas = useMemo(() => {
     if (!range?.from) return data.consultas;
@@ -160,7 +176,18 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         screenName="Dashboard"
       />
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="secondary" size="sm" onClick={() => applyQuickRange("7d")}>
+            Últimos 7 días
+          </Button>
+          <Button type="button" variant="secondary" size="sm" onClick={() => applyQuickRange("1m")}>
+            1 mes
+          </Button>
+          <Button type="button" variant="secondary" size="sm" onClick={() => applyQuickRange("1y")}>
+            1 año
+          </Button>
+        </div>
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -227,7 +254,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
           <CardHeader>
             <CardTitle className="text-sm">Ventas del rango</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">{formatMoney(totalPagos)}</CardContent>
+          <CardContent className="text-2xl font-bold">{formatMoneyAmount(totalPagos, currency)}</CardContent>
         </Card>
       </div>
 
@@ -292,7 +319,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                 <span>
                   {item.cliente} - {item.cuotasFaltantes} cuotas faltantes
                 </span>
-                <Badge variant="outline">{formatMoney(item.montoDebe)}</Badge>
+                <Badge variant="outline">{formatMoneyAmount(item.montoDebe, currency)}</Badge>
               </div>
             ))
           ) : (

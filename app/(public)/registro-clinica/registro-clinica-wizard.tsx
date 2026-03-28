@@ -9,15 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const countries = [
-  { code: "HN", label: "Honduras" },
-  { code: "US", label: "Estados Unidos" },
-  { code: "MX", label: "México" },
-  { code: "CO", label: "Colombia" },
-  { code: "AR", label: "Argentina" },
-  { code: "ES", label: "España" },
-];
+import { SUPPORTED_COUNTRIES } from "@/lib/country-currency";
 
 type Period = "mensual" | "trimestral" | "semestral" | "anual";
 
@@ -217,7 +209,7 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
               <div className="space-y-2">
                 <Label className="text-slate-200">País</Label>
                 <select className="h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-sm" value={paisCodigo} onChange={(e) => setPaisCodigo(e.target.value)}>
-                  {countries.map((country) => (
+                  {SUPPORTED_COUNTRIES.map((country) => (
                     <option key={country.code} value={country.code}>{country.label}</option>
                   ))}
                 </select>
