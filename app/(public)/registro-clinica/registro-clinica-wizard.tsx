@@ -71,6 +71,14 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
     [activePackages, packageId],
   );
   const canProvisionWithoutPayment = Boolean(selectedPackage?.trialActivo) && Number(selectedPackage?.trialDias ?? 0) > 0;
+  const packageIncludesTrial = canProvisionWithoutPayment;
+  const selectedTeamMinMembers = useMemo(() => {
+    if (teamSize === "1") return 1;
+    if (teamSize === "2") return 2;
+    if (teamSize === "3-5") return 3;
+    return 6;
+  }, [teamSize]);
+  const exceedsSelectedPackage = selectedTeamMinMembers > Number(selectedPackage?.maxUsuarios ?? 0);
 
   const slugPreview = normalizeSlug(consultorioNombre || "tu-clinica");
 
@@ -116,6 +124,12 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
       isCancelled = true;
     };
   }, [credential, router, searchParams, startTransition]);
+
+  useEffect(() => {
+    if (packageIncludesTrial && periodoPlan !== "mensual") {
+      setPeriodoPlan("mensual");
+    }
+  }, [packageIncludesTrial, periodoPlan]);
 
   const onGoogleClick = () => {
     setError(null);
@@ -198,11 +212,11 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
                 <Input value={consultorioNombre} onChange={(e) => setConsultorioNombre(e.target.value)} placeholder="Clínica Dental Sonrisa" className="border-slate-700 bg-slate-900" />
               </div>
               <div className="space-y-2">
-                <Label className="text-slate-200">Tamaño del equipo</Label>
+                <Label className="text-slate-200">¿Cuántos integrantes hay en tu clínica?</Label>
                 <select className="h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-sm" value={teamSize} onChange={(e) => setTeamSize(e.target.value as any)}>
-                  <option value="1">1 odontólogo</option>
-                  <option value="2">2 odontólogos</option>
-                  <option value="3-5">3 a 5 odontólogos</option>
+                  <option value="1">1 integrante</option>
+                  <option value="2">2 integrantes</option>
+                  <option value="3-5">3 a 5 integrantes</option>
                   <option value=">5">Más de 5</option>
                 </select>
               </div>
@@ -239,7 +253,13 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
               <Label className="text-slate-200">Frecuencia de pago</Label>
               <div className="grid gap-2 sm:grid-cols-4">
                 {(Object.keys(periodLabels) as Period[]).map((period) => (
-                  <button key={period} type="button" onClick={() => setPeriodoPlan(period)} className={`rounded-lg border px-3 py-2 text-sm ${periodoPlan === period ? "border-cyan-400 bg-cyan-500/10 text-cyan-100" : "border-slate-700 text-slate-300"}`}>
+                  <button
+                    key={period}
+                    type="button"
+                    onClick={() => setPeriodoPlan(period)}
+                    disabled={packageIncludesTrial && period !== "mensual"}
+                    className={`rounded-lg border px-3 py-2 text-sm ${periodoPlan === period ? "border-cyan-400 bg-cyan-500/10 text-cyan-100" : "border-slate-700 text-slate-300"} ${packageIncludesTrial && period !== "mensual" ? "cursor-not-allowed opacity-50" : ""}`}
+                  >
                     {periodLabels[period]}
                   </button>
                 ))}
@@ -249,6 +269,16 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
             <div className="rounded-xl border border-slate-700 p-3 text-xs text-slate-300">
               Prueba gratis: {selectedPackage?.trialActivo ? `${selectedPackage.trialDias} días (configurado desde root)` : "No incluida en este paquete"}
             </div>
+            {packageIncludesTrial ? (
+              <div className="rounded-xl border border-cyan-500/50 bg-cyan-500/10 p-3 text-xs text-cyan-100">
+                Este paquete incluye prueba gratuita y solo aplica en modalidad mensual. Al terminar el período gratis, continuarás con cobro mensual.
+              </div>
+            ) : null}
+            {exceedsSelectedPackage ? (
+              <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-100">
+                Tu clínica parece tener más integrantes que los incluidos en este paquete. Te sugerimos contratar un paquete superior.
+              </div>
+            ) : null}
             {!canProvisionWithoutPayment ? (
               <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-100">
                 Este paquete requiere pago previo. Te enviaremos a PayPal y la clínica se activará automáticamente al confirmar el pago.

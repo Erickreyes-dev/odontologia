@@ -244,6 +244,7 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
     const trialConfigActivo = Boolean(selectedPackage.trialActivo);
     const trialConfigDias = Math.max(0, Number(selectedPackage.trialDias ?? 0));
     const canProvisionWithoutPayment = trialConfigActivo && trialConfigDias > 0;
+    const effectivePeriodoPlan = canProvisionWithoutPayment ? "mensual" : input.periodoPlan;
     const existingPendingTenant = await prisma.tenant.findFirst({
       where: {
         contactoCorreo: identity.email,
@@ -356,8 +357,8 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
           plan: selectedPackage.nombre,
           paqueteId: selectedPackage.id,
           maxUsuarios: selectedPackage.maxUsuarios,
-          periodoPlan: input.periodoPlan,
-          proximoPago: trialEndsAt ?? calculateExpirationDateByPlan(input.periodoPlan),
+          periodoPlan: effectivePeriodoPlan,
+          proximoPago: trialEndsAt ?? calculateExpirationDateByPlan(effectivePeriodoPlan),
           contactoNombre: identity.name,
           contactoCorreo: identity.email,
           authProvider: "google",
@@ -365,7 +366,7 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
           paisCodigo: input.paisCodigo,
           monedaCodigo: currency.currency,
           trialEndsAt,
-          fechaExpiracion: trialEndsAt ?? calculateExpirationDateByPlan(input.periodoPlan),
+          fechaExpiracion: trialEndsAt ?? calculateExpirationDateByPlan(effectivePeriodoPlan),
           estado: "vigente",
           activo: true,
         },
