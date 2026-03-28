@@ -11,6 +11,9 @@ import {
   CalendarDays,
   CircleDollarSign,
   Clock3,
+  Globe2,
+  Mail,
+  Phone,
   ShieldCheck,
   Users,
 } from "lucide-react";
@@ -148,19 +151,24 @@ export default async function TenantsPage() {
           <CardTitle>Listado de tenants</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="grid gap-4 xl:grid-cols-2">
             {tenants.map((t) => {
               const isTrial = t.trialEndsAt && new Date(t.trialEndsAt) > now;
               const accessUrl = buildTenantLoginUrl(t.slug);
 
               return (
-                <div key={t.id} className="rounded-xl border p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="font-semibold text-base">{t.nombre}</div>
-                      <div className="text-sm text-muted-foreground">/{t.slug}</div>
+                <div
+                  key={t.id}
+                  className="rounded-2xl border bg-card/70 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="font-semibold text-lg leading-tight">{t.nombre}</div>
+                      <div className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs text-muted-foreground">
+                        <Globe2 className="size-3" /> /{t.slug}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {resolveSubscriptionBadge(t)}
                       <Button asChild size="sm" variant="outline">
                         <Link href={accessUrl} target="_blank" rel="noreferrer">
@@ -170,24 +178,24 @@ export default async function TenantsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-md bg-muted/50 p-3">
+                  <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                    <div className="rounded-xl border bg-muted/40 p-3">
                       <p className="text-xs text-muted-foreground">Paquete actual</p>
                       <p className="font-medium">{t.paquete?.nombre ?? "Sin paquete"}</p>
                       <p className="text-xs text-muted-foreground">Plan: {normalizePeriodo(t.periodoPlan)}</p>
                     </div>
-                    <div className="rounded-md bg-muted/50 p-3">
+                    <div className="rounded-xl border bg-muted/40 p-3">
                       <p className="text-xs text-muted-foreground">Mes de cobro</p>
                       <p className="font-medium capitalize">{formatMonthYear(t.proximoPago)}</p>
                       <p className="text-xs text-muted-foreground">Próximo pago: {formatLongDate(t.proximoPago)}</p>
                     </div>
-                    <div className="rounded-md bg-muted/50 p-3">
+                    <div className="rounded-xl border bg-muted/40 p-3">
                       <p className="text-xs text-muted-foreground">Trial y expiración</p>
                       <p className="font-medium">{isTrial ? "Sí, en período trial" : "No está en trial"}</p>
                       <p className="text-xs text-muted-foreground">Trial hasta: {formatLongDate(t.trialEndsAt)}</p>
                       <p className="text-xs text-muted-foreground">Expira: {formatLongDate(t.fechaExpiracion)}</p>
                     </div>
-                    <div className="rounded-md bg-muted/50 p-3">
+                    <div className="rounded-xl border bg-muted/40 p-3">
                       <p className="text-xs text-muted-foreground">Uso del tenant</p>
                       <p className="font-medium flex items-center gap-1"><Users className="size-4" /> {t._count.usuarios} / {t.maxUsuarios} usuarios</p>
                       <p className="text-xs text-muted-foreground">Roles: {t._count.roles} · Pacientes: {t._count.pacientes}</p>
@@ -199,12 +207,14 @@ export default async function TenantsPage() {
                     <span className="inline-flex items-center gap-1"><CalendarDays className="size-4" /> Creado: {formatLongDate(t.createAt)}</span>
                   </div>
 
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    Contacto: {t.contactoNombre ?? "N/D"} · {t.contactoCorreo ?? "N/D"} · {t.telefono ?? "Sin teléfono"}
+                  <div className="mt-3 grid gap-1 text-sm text-muted-foreground sm:grid-cols-3">
+                    <span>Contacto: {t.contactoNombre ?? "N/D"}</span>
+                    <span className="inline-flex items-center gap-1"><Mail className="size-4" /> {t.contactoCorreo ?? "N/D"}</span>
+                    <span className="inline-flex items-center gap-1"><Phone className="size-4" /> {t.telefono ?? "Sin teléfono"}</span>
                   </div>
 
                   {permisos.includes("gestionar_tenants") && (
-                    <div className="mt-4 space-y-2">
+                    <div className="mt-4 rounded-xl border bg-background p-3 space-y-2">
                       <TenantPlanEditor
                         tenantId={t.id}
                         currentPaqueteId={t.paqueteId}

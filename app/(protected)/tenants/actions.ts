@@ -218,11 +218,71 @@ export async function deleteTenant(
       return { success: false, error: "No tiene permisos para eliminar tenants" };
     }
 
-    await prisma.tenant.delete({ where: { id: tenantId } });
+    await prisma.$transaction(async (tx) => {
+      await tx.rolPermiso.deleteMany({
+        where: {
+          OR: [
+            { rol: { tenantId } },
+            { permiso: { tenantId } },
+          ],
+        },
+      });
+      await tx.medicoServicio.deleteMany({
+        where: {
+          OR: [
+            { medico: { tenantId } },
+            { servicio: { tenantId } },
+          ],
+        },
+      });
+
+      await tx.reciboDetalle.deleteMany({ where: { tenantId } });
+      await tx.recibo.deleteMany({ where: { tenantId } });
+      await tx.cuotaFinanciamiento.deleteMany({ where: { tenantId } });
+      await tx.pago.deleteMany({ where: { tenantId } });
+      await tx.ordenDeCobro.deleteMany({ where: { tenantId } });
+      await tx.consultaServicio.deleteMany({ where: { tenantId } });
+      await tx.consultaProducto.deleteMany({ where: { tenantId } });
+      await tx.planEtapaServicio.deleteMany({ where: { tenantId } });
+      await tx.seguimiento.deleteMany({ where: { tenantId } });
+      await tx.planEtapa.deleteMany({ where: { tenantId } });
+      await tx.consulta.deleteMany({ where: { tenantId } });
+      await tx.cita.deleteMany({ where: { tenantId } });
+      await tx.constanciaMedica.deleteMany({ where: { tenantId } });
+      await tx.financiamiento.deleteMany({ where: { tenantId } });
+      await tx.planTratamiento.deleteMany({ where: { tenantId } });
+      await tx.cotizacionServicio.deleteMany({ where: { tenantId } });
+      await tx.cotizacion.deleteMany({ where: { tenantId } });
+      await tx.promocionServicio.deleteMany({ where: { tenantId } });
+      await tx.promocion.deleteMany({ where: { tenantId } });
+      await tx.producto.deleteMany({ where: { tenantId } });
+      await tx.servicio.deleteMany({ where: { tenantId } });
+      await tx.consultorio.deleteMany({ where: { tenantId } });
+      await tx.medico.deleteMany({ where: { tenantId } });
+      await tx.paciente.deleteMany({ where: { tenantId } });
+      await tx.seguro.deleteMany({ where: { tenantId } });
+      await tx.profesion.deleteMany({ where: { tenantId } });
+      await tx.usuarios.deleteMany({ where: { tenantId } });
+      await tx.empleados.deleteMany({ where: { tenantId } });
+      await tx.rol.deleteMany({ where: { tenantId } });
+      await tx.permiso.deleteMany({ where: { tenantId } });
+      await tx.puesto.deleteMany({ where: { tenantId } });
+      await tx.tenantInvoice.deleteMany({ where: { tenantId } });
+      await tx.solicitudCitaPublica.deleteMany({ where: { tenantId } });
+      await tx.tenant.delete({ where: { id: tenantId } });
+    });
+
     revalidatePath("/tenants");
     revalidatePath("/dashboard-admin");
     return { success: true };
   } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "P2003") {
+      return {
+        success: false,
+        error: "No se pudo eliminar el tenant por dependencias relacionadas. Intente nuevamente.",
+      };
+    }
+
     return { success: false, error: error instanceof Error ? error.message : "No se pudo eliminar el tenant" };
   }
 }
