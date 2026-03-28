@@ -57,6 +57,10 @@ export default async function BillingPage({
 
   if (!data) return <div className="p-4">No se encontró información de facturación.</div>;
   const latestInvoice = data.tenantInvoices[0];
+  const periodoPlanActual = ["mensual", "trimestral", "semestral", "anual"].includes(data.periodoPlan)
+    ? (data.periodoPlan as "mensual" | "trimestral" | "semestral" | "anual")
+    : "mensual";
+
   const subscriptionStatus = resolveSubscriptionStatus({
     tenantActivo: data.activo,
     trialEndsAt: data.trialEndsAt,
@@ -78,6 +82,7 @@ export default async function BillingPage({
         tenantSlug={data.slug}
         paqueteNombre={data.paquete?.nombre ?? "Sin paquete"}
         paqueteActualId={data.paqueteId ?? null}
+        periodoPlanActual={periodoPlanActual}
         subscriptionStatus={subscriptionStatus}
         trialEndsAt={data.trialEndsAt ? data.trialEndsAt.toISOString() : null}
         proximoPago={data.proximoPago ? data.proximoPago.toISOString() : null}

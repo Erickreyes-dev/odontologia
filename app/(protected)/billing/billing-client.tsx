@@ -24,6 +24,7 @@ type BillingClientProps = {
   tenantSlug: string;
   paqueteNombre: string;
   paqueteActualId: string | null;
+  periodoPlanActual: "mensual" | "trimestral" | "semestral" | "anual";
   subscriptionStatus: SubscriptionStatus;
   trialEndsAt: string | null;
   proximoPago: string | null;
@@ -47,7 +48,7 @@ const periods = [
 
 export function BillingClient(props: BillingClientProps) {
   const [isPending, startTransition] = useTransition();
-  const [selectedPlan, setSelectedPlan] = useState<"mensual" | "trimestral" | "semestral" | "anual">("mensual");
+  const [selectedPlan, setSelectedPlan] = useState<"mensual" | "trimestral" | "semestral" | "anual">(props.periodoPlanActual);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(props.paqueteActualId ?? props.paquetesDisponibles[0]?.id ?? null);
   const [billing, setBilling] = useState({
     facturarNombre: props.facturarNombre,
