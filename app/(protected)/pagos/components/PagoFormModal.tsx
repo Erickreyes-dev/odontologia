@@ -31,6 +31,8 @@ import { CreatePagoSchema, METODOS_PAGO } from "../schema";
 import { createPago } from "../actions";
 import { toast } from "sonner";
 import type { CreatePagoInput } from "../schema";
+import { useTenantCurrency } from "@/hooks/use-tenant-currency";
+import { formatMoneyAmount } from "@/lib/currency-format";
 
 interface PagoFormModalProps {
   open: boolean;
@@ -61,6 +63,7 @@ export function PagoFormModal({
   financiamientos = [],
   onSuccess,
 }: PagoFormModalProps) {
+  const currency = useTenantCurrency();
   const form = useForm<CreatePagoInput>({
     resolver: zodResolver(CreatePagoSchema),
     defaultValues: {
@@ -142,7 +145,7 @@ export function PagoFormModal({
                 <SelectContent>
                   {ordenesCobro.map((orden) => (
                     <SelectItem key={orden.id} value={orden.id}>
-                      {orden.pacienteNombre} · Orden #{orden.id.slice(0, 8)} · L {orden.monto.toFixed(2)}
+                      {orden.pacienteNombre} · Orden #{orden.id.slice(0, 8)} · {formatMoneyAmount(orden.monto, currency)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -154,7 +157,7 @@ export function PagoFormModal({
           </Field>
 
           <Field data-invalid={!!form.formState.errors.monto}>
-            <FieldLabel>Monto (L)</FieldLabel>
+            <FieldLabel>Monto ({currency.symbol})</FieldLabel>
             <FieldContent>
               <Input
                 type="number"
@@ -217,7 +220,7 @@ export function PagoFormModal({
                   <SelectContent>
                     {cuotasDisponibles.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
-                        Cuota {c.numero} - L {c.monto.toLocaleString("es-HN")}
+                        Cuota {c.numero} - {formatMoneyAmount(c.monto, currency)}
                       </SelectItem>
                     ))}
                   </SelectContent>

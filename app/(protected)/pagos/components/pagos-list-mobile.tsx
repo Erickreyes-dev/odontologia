@@ -8,6 +8,8 @@ import { es } from "date-fns/locale";
 import { PagoWithRelations } from "../schema";
 import { METODOS_PAGO, ESTADOS_PAGO } from "../schema";
 import { Download } from "lucide-react";
+import { useTenantCurrency } from "@/hooks/use-tenant-currency";
+import { formatMoneyAmount } from "@/lib/currency-format";
 
 interface PagosListMobileProps {
   pagos: PagoWithRelations[];
@@ -40,6 +42,7 @@ const getEstadoBadge = (estado: string) => {
 };
 
 export function PagosListMobile({ pagos, onDownloadRecibo }: PagosListMobileProps) {
+  const currency = useTenantCurrency();
   if (pagos.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -62,9 +65,7 @@ export function PagosListMobile({ pagos, onDownloadRecibo }: PagosListMobileProp
                 </p>
               </div>
               <div className="text-right">
-                <p className="font-mono font-medium">
-                  L {pago.monto.toLocaleString("es-HN")}
-                </p>
+                <p className="font-mono font-medium">{formatMoneyAmount(pago.monto, currency)}</p>
                 {getEstadoBadge(pago.estado)}
               </div>
             </div>

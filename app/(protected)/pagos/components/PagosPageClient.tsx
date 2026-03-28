@@ -17,6 +17,8 @@ import type { PagoWithRelations } from "../schema";
 import type { FinanciamientoDetalle } from "../schema";
 import type { OrdenCobroWithRelations } from "@/app/(protected)/ordenes-cobro/schema";
 import { generateReciboPDF } from "@/lib/pdf/recibo-pdf";
+import { useTenantCurrency } from "@/hooks/use-tenant-currency";
+import { formatMoneyAmount } from "@/lib/currency-format";
 
 interface PagosPageClientProps {
   pagos: PagoWithRelations[];
@@ -66,6 +68,7 @@ export function PagosPageClient({
   const router = useRouter();
   const [pagoModalOpen, setPagoModalOpen] = useState(false);
   const [finModalOpen, setFinModalOpen] = useState(false);
+  const currency = useTenantCurrency();
 
   useEffect(() => {
     if (defaultPacienteId) {
@@ -94,7 +97,7 @@ export function PagosPageClient({
     toast.success("Recibo generado en PDF");
   };
 
-  const columns = getColumns({ onRevertPago: handleRevert, onDownloadRecibo: handleDownloadRecibo });
+  const columns = getColumns({ onRevertPago: handleRevert, onDownloadRecibo: handleDownloadRecibo, currency });
 
   const refresh = () => router.refresh();
 
@@ -146,11 +149,11 @@ export function PagosPageClient({
                   {item.cuotasPendientes.map((cuota) => (
                     <div key={cuota.id} className="text-sm flex justify-between">
                       <span className="inline-flex items-center gap-1"><CalendarClock className="h-3 w-3"/>Cuota {cuota.numero}</span>
-                      <span>L {cuota.monto.toFixed(2)}</span>
+                      <span>{formatMoneyAmount(cuota.monto, currency)}</span>
                     </div>
                   ))}
                 </div>
-                <p className="text-sm font-semibold">Total pendiente: L {item.totalPendiente.toFixed(2)}</p>
+                <p className="text-sm font-semibold">Total pendiente: {formatMoneyAmount(item.totalPendiente, currency)}</p>
               </div>
             ))}
             {cuotasPendientes.length === 0 && (
@@ -188,7 +191,7 @@ export function PagosPageClient({
             {cuotasPendientes.map((item) => (
               <div key={item.financiamientoId} className="rounded-lg border p-3">
                 <p className="font-medium">{item.pacienteNombre}</p>
-                <p className="text-xs text-muted-foreground">{item.cuotasPendientes.length} cuotas · L {item.totalPendiente.toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">{item.cuotasPendientes.length} cuotas · {formatMoneyAmount(item.totalPendiente, currency)}</p>
               </div>
             ))}
             {cuotasPendientes.length === 0 && <p className="text-muted-foreground">No hay cuotas pendientes.</p>}

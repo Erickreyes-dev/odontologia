@@ -9,6 +9,8 @@ import { es } from "date-fns/locale";
 import { DollarSign, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import type { FinanciamientoDetalle } from "../schema";
+import { useTenantCurrency } from "@/hooks/use-tenant-currency";
+import { formatMoneyAmount } from "@/lib/currency-format";
 import { ESTADOS_FINANCIAMIENTO } from "../schema";
 
 interface FinanciamientoCardProps {
@@ -49,6 +51,7 @@ const getEstadoBadge = (estado: string) => {
 };
 
 export function FinanciamientoCard({ financiamiento }: FinanciamientoCardProps) {
+  const currency = useTenantCurrency();
   const totalPagado = financiamiento.totalPagado ?? financiamiento.anticipo;
   const montoFinanciado = financiamiento.montoTotal - financiamiento.anticipo;
   const porcentaje =
@@ -79,13 +82,13 @@ export function FinanciamientoCard({ financiamiento }: FinanciamientoCardProps) 
           <div>
             <span className="text-muted-foreground">Monto total</span>
             <p className="font-mono font-medium">
-              L {financiamiento.montoTotal.toLocaleString("es-HN")}
+              {formatMoneyAmount(financiamiento.montoTotal, currency)}
             </p>
           </div>
           <div>
             <span className="text-muted-foreground">Saldo pendiente</span>
             <p className="font-mono font-medium text-amber-600">
-              L {financiamiento.saldo.toLocaleString("es-HN")}
+              {formatMoneyAmount(financiamiento.saldo, currency)}
             </p>
           </div>
         </div>

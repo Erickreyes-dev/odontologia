@@ -22,6 +22,8 @@ import type { FinanciamientoDetalle } from "../schema";
 import { ESTADOS_FINANCIAMIENTO } from "../schema";
 import type { OrdenCobroWithRelations } from "@/app/(protected)/ordenes-cobro/schema";
 import { OrdenCobroFormModal } from "@/app/(protected)/ordenes-cobro/components/OrdenCobroFormModal";
+import { useTenantCurrency } from "@/hooks/use-tenant-currency";
+import { formatMoneyAmount } from "@/lib/currency-format";
 
 interface FinanciamientoDetalleClientProps {
   financiamiento: FinanciamientoDetalle;
@@ -60,6 +62,7 @@ export function FinanciamientoDetalleClient({
   ordenesCobro,
 }: FinanciamientoDetalleClientProps) {
   const router = useRouter();
+  const currency = useTenantCurrency();
   const [pagoModalOpen, setPagoModalOpen] = useState(false);
   const [ordenModalOpen, setOrdenModalOpen] = useState(false);
 
@@ -112,25 +115,25 @@ export function FinanciamientoDetalleClient({
             <div>
               <p className="text-sm text-muted-foreground">Monto total</p>
               <p className="font-mono font-medium">
-                L {financiamiento.montoTotal.toLocaleString("es-HN")}
+                {formatMoneyAmount(financiamiento.montoTotal, currency)}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Anticipo</p>
               <p className="font-mono font-medium">
-                L {financiamiento.anticipo.toLocaleString("es-HN")}
+                {formatMoneyAmount(financiamiento.anticipo, currency)}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Saldo pendiente</p>
               <p className="font-mono font-medium text-amber-600">
-                L {financiamiento.saldo.toLocaleString("es-HN")}
+                {formatMoneyAmount(financiamiento.saldo, currency)}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total pagado</p>
               <p className="font-mono font-medium text-green-600">
-                L {totalPagado.toLocaleString("es-HN")}
+                {formatMoneyAmount(totalPagado, currency)}
               </p>
             </div>
           </div>
@@ -138,7 +141,7 @@ export function FinanciamientoDetalleClient({
             <div>
               <p className="text-sm text-muted-foreground">Monto financiado</p>
               <p className="font-mono font-medium">
-                L {montoFinanciado.toLocaleString("es-HN")}
+                {formatMoneyAmount(montoFinanciado, currency)}
               </p>
             </div>
             <div>
@@ -148,13 +151,13 @@ export function FinanciamientoDetalleClient({
             <div>
               <p className="text-sm text-muted-foreground">Interés</p>
               <p className="font-mono font-medium">
-                {financiamiento.interes}% · L {interesMonto.toLocaleString("es-HN")}
+                {financiamiento.interes}% · {formatMoneyAmount(interesMonto, currency)}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total con intereses</p>
               <p className="font-mono font-medium">
-                L {totalConInteres.toLocaleString("es-HN")}
+                {formatMoneyAmount(totalConInteres, currency)}
               </p>
             </div>
           </div>
@@ -175,7 +178,7 @@ export function FinanciamientoDetalleClient({
                   <TableRow key={c.id}>
                     <TableCell>{c.numero}</TableCell>
                     <TableCell className="font-mono">
-                      L {c.monto.toLocaleString("es-HN")}
+                      {formatMoneyAmount(c.monto, currency)}
                     </TableCell>
                     <TableCell>
                       {format(c.fechaVencimiento, "PP", { locale: es })}

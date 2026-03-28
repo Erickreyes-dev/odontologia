@@ -38,6 +38,8 @@ import { cn } from "@/lib/utils";
 import { CreateFinanciamientoSchema } from "../schema";
 import { createFinanciamiento } from "../actions";
 import { toast } from "sonner";
+import { useTenantCurrency } from "@/hooks/use-tenant-currency";
+import { formatMoneyAmount } from "@/lib/currency-format";
 import type { CreateFinanciamientoInput } from "../schema";
 
 interface FinanciamientoFormModalProps {
@@ -63,6 +65,7 @@ export function FinanciamientoFormModal({
   planes = [],
   onSuccess,
 }: FinanciamientoFormModalProps) {
+  const currency = useTenantCurrency();
   const form = useForm<CreateFinanciamientoInput>({
     resolver: zodResolver(CreateFinanciamientoSchema),
     defaultValues: {
@@ -205,7 +208,7 @@ export function FinanciamientoFormModal({
                     <SelectItem value="none">Ninguna / Manual</SelectItem>
                     {cotizacionesFiltradas.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
-                        Cotización L {c.total.toLocaleString("es-HN")}
+                        Cotización {formatMoneyAmount(c.total, currency)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -238,7 +241,7 @@ export function FinanciamientoFormModal({
                     <SelectItem value="none">Ninguno</SelectItem>
                     {planesFiltrados.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.nombre} (L {p.montoTotal.toLocaleString("es-HN")})
+                        {p.nombre} ({formatMoneyAmount(p.montoTotal, currency)})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -248,7 +251,7 @@ export function FinanciamientoFormModal({
 
             {/* Monto Total */}
             <Field data-invalid={!!form.formState.errors.montoTotal}>
-              <FieldLabel>Monto total (L)</FieldLabel>
+              <FieldLabel>Monto total ({currency.symbol})</FieldLabel>
               <FieldContent>
                 <Input
                   type="number"
@@ -260,7 +263,7 @@ export function FinanciamientoFormModal({
 
             {/* Anticipo */}
             <Field data-invalid={!!form.formState.errors.anticipo}>
-              <FieldLabel>Anticipo (L)</FieldLabel>
+              <FieldLabel>Anticipo ({currency.symbol})</FieldLabel>
               <FieldContent>
                 <Input
                   type="number"
