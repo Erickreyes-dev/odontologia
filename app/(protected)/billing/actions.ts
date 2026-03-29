@@ -2,7 +2,7 @@
 
 import { getSession } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { capturePaypalOrder, createPaypalOrder, getPaypalOrder } from "@/lib/paypal";
+import { capturePaypalOrder, createPaypalOrder, getPaypalApprovalLink, getPaypalOrder } from "@/lib/paypal";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { calculateExpirationDateByPlan, resolveSubscriptionStatus } from "@/lib/subscription-status";
@@ -101,7 +101,7 @@ export async function createCheckoutForPlan(
   try {
     const monto = calculateAmountByPeriod(paqueteToCharge, periodoPlan);
     const order = await createPaypalOrder(monto, `Plan ${paqueteToCharge.nombre} (${periodoPlan})`, tenant.slug);
-    const approveLink = order.links?.find((link: any) => link.rel === "approve")?.href;
+    const approveLink = getPaypalApprovalLink(order);
 
     if (!approveLink) {
       return { success: false as const, error: "PayPal no devolvió el enlace de aprobación. Intenta de nuevo." };
@@ -121,6 +121,52 @@ export async function createCheckoutForPlan(
     revalidatePath("/billing");
 
     return { success: true as const, approveLink };
+  } catch (error) {
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : "No se pudo iniciar el pago con PayPal",
+    };
+  }
+}
+
+export async function createPaypalSdkOrderForPlan(
+  periodoPlan: "mensual" | "trimestral" | "semestral" | "anual",
+  selectedPaqueteId?: string,
+) {
+  const session = await getSession();
+  if (!session?.TenantId) return { success: false as const, error: "Sesión inválida" };
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: session.TenantId },
+    include: { paquete: true },
+  });
+
+  if (!tenant) return { success: false as const, error: "Tenant no encontrado" };
+
+  const paqueteToCharge = selectedPaqueteId
+    ? await prisma.paquete.findFirst({ where: { id: selectedPaqueteId, activo: true } })
+    : tenant.paquete;
+
+  if (!paqueteToCharge) return { success: false as const, error: "No hay paquete activo para cobrar" };
+
+  try {
+    const monto = calculateAmountByPeriod(paqueteToCharge, periodoPlan);
+    const order = await createPaypalOrder(monto, `Plan ${paqueteToCharge.nombre} (${periodoPlan})`, tenant.slug);
+
+    await prisma.tenant.update({
+      where: { id: tenant.id },
+      data: {
+        periodoPlan,
+        paypalCustomerId: order.id,
+        paqueteId: paqueteToCharge.id,
+        plan: paqueteToCharge.nombre,
+        maxUsuarios: paqueteToCharge.maxUsuarios,
+      },
+    });
+
+    revalidatePath("/billing");
+
+    return { success: true as const, orderId: String(order.id) };
   } catch (error) {
     return {
       success: false as const,

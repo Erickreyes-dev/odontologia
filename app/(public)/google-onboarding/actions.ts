@@ -10,7 +10,7 @@ import { cookies, headers } from "next/headers";
 import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
 import { getSessionCookieDomain } from "@/lib/session-cookie";
 import { calculateExpirationDateByPlan, isSubscriptionActive, resolveSubscriptionStatus } from "@/lib/subscription-status";
-import { createPaypalOrderWithContext } from "@/lib/paypal";
+import { createPaypalOrderWithContext, getPaypalApprovalLink } from "@/lib/paypal";
 import { finalizeOnboardingProvision } from "@/lib/onboarding-payment";
 
 interface GoogleOnboardingInput {
@@ -128,7 +128,7 @@ async function preparePendingCheckout(params: {
     },
   );
 
-  const approveLink = order.links?.find((link: { rel?: string; href?: string }) => link.rel === "approve")?.href;
+  const approveLink = getPaypalApprovalLink(order);
   if (!approveLink) throw new Error("PayPal no devolvió enlace de aprobación");
 
   await prisma.tenantInvoice.update({
