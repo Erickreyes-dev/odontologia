@@ -1,6 +1,11 @@
 const PAYPAL_BASE_URL = process.env.PAYPAL_MODE === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
+type PaypalLink = {
+  rel?: string;
+  href?: string;
+};
+
 function normalizeRootHost(host: string): string {
   return host.trim().toLowerCase().replace(/^\./, "").replace(/^www\./, "");
 }
@@ -100,10 +105,16 @@ export async function createPaypalOrderWithContext(
           },
         },
       ],
-      application_context: {
-        user_action: "PAY_NOW",
-        return_url: context.returnUrl,
-        cancel_url: context.cancelUrl,
+      payment_source: {
+        paypal: {
+          experience_context: {
+            user_action: "PAY_NOW",
+            return_url: context.returnUrl,
+            cancel_url: context.cancelUrl,
+            landing_page: "BILLING",
+            payment_method_preference: "IMMEDIATE_PAYMENT_REQUIRED",
+          },
+        },
       },
     }),
   });
@@ -113,6 +124,11 @@ export async function createPaypalOrderWithContext(
     throw new Error(`No se pudo crear la orden de PayPal: ${body || response.statusText}`);
   }
   return response.json();
+}
+
+export function getPaypalApprovalLink(order: { links?: PaypalLink[] }) {
+  const candidate = order.links?.find((link) => link.rel === "approve" || link.rel === "payer-action");
+  return candidate?.href;
 }
 
 export async function capturePaypalOrder(orderId: string) {
