@@ -79,6 +79,7 @@ export default async function BillingPage({
       ) : null}
 
       <BillingClient
+        paypalClientId={process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ?? process.env.PAYPAL_CLIENT_ID ?? ""}
         tenantSlug={data.slug}
         paqueteNombre={data.paquete?.nombre ?? "Sin paquete"}
         paqueteActualId={data.paqueteId ?? null}

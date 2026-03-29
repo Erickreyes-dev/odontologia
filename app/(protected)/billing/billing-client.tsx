@@ -1,13 +1,27 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { BadgeCheck, CalendarClock, Check, Globe, ReceiptText, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createCheckoutForPlan, saveTenantBillingProfile } from "./actions";
+import { capturePaypalAndCreateInvoice, createCheckoutForPlan, createPaypalSdkOrderForPlan, saveTenantBillingProfile } from "./actions";
 import { toast } from "sonner";
 import type { SubscriptionStatus } from "@/lib/subscription-status";
+
+declare global {
+  interface Window {
+    paypal?: {
+      Buttons: (config: {
+        fundingSource?: string;
+        style?: Record<string, unknown>;
+        createOrder: () => Promise<string>;
+        onApprove: (data: { orderID?: string }) => Promise<void>;
+        onError: (error: unknown) => void;
+      }) => { render: (container: HTMLElement) => Promise<void>; close?: () => void };
+    };
+  }
+}
 
 type BillingPackage = {
   id: string;
@@ -21,6 +35,7 @@ type BillingPackage = {
 };
 
 type BillingClientProps = {
+  paypalClientId: string;
   tenantSlug: string;
   paqueteNombre: string;
   paqueteActualId: string | null;
@@ -60,6 +75,9 @@ export function BillingClient(props: BillingClientProps) {
     facturarPais: props.facturarPais,
     facturarPostal: props.facturarPostal,
   });
+  const [sdkReady, setSdkReady] = useState(false);
+  const [isCardProcessing, setIsCardProcessing] = useState(false);
+  const paypalCardContainerRef = useRef<HTMLDivElement | null>(null);
 
   const selectedPackage = useMemo(
     () => props.paquetesDisponibles.find((item) => item.id === selectedPackageId) ?? props.paquetesDisponibles[0],
@@ -133,6 +151,69 @@ export function BillingClient(props: BillingClientProps) {
       })();
     });
   };
+
+  useEffect(() => {
+    if (!props.paypalClientId) return;
+    if (window.paypal?.Buttons) {
+      setSdkReady(true);
+      return;
+    }
+
+    const existingScript = document.querySelector<HTMLScriptElement>("script[data-paypal-sdk='true']");
+    if (existingScript) {
+      const onLoad = () => setSdkReady(true);
+      existingScript.addEventListener("load", onLoad);
+      return () => existingScript.removeEventListener("load", onLoad);
+    }
+
+    const script = document.createElement("script");
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(props.paypalClientId)}&currency=USD&intent=capture&components=buttons&enable-funding=card`;
+    script.async = true;
+    script.dataset.paypalSdk = "true";
+    script.onload = () => setSdkReady(true);
+    script.onerror = () => toast.error("No se pudo cargar el SDK de PayPal. Usa el botón de redirección.");
+    document.body.appendChild(script);
+  }, [props.paypalClientId]);
+
+  useEffect(() => {
+    if (!sdkReady || !paypalCardContainerRef.current || !window.paypal?.Buttons) return;
+    if (!selectedPackage?.id) return;
+
+    paypalCardContainerRef.current.innerHTML = "";
+    const buttons = window.paypal.Buttons({
+      fundingSource: "card",
+      style: { layout: "vertical", label: "pay", shape: "rect" },
+      createOrder: async () => {
+        const saved = await saveTenantBillingProfile(billing);
+        if (!saved.success) throw new Error(saved.error);
+
+        const result = await createPaypalSdkOrderForPlan(selectedPlan, selectedPackage.id);
+        if (!result.success) throw new Error(result.error);
+        return result.orderId;
+      },
+      onApprove: async (data) => {
+        const orderId = data.orderID;
+        if (!orderId) throw new Error("PayPal no devolvió orderID");
+
+        setIsCardProcessing(true);
+        const capture = await capturePaypalAndCreateInvoice(orderId);
+        setIsCardProcessing(false);
+        if (!capture.success) throw new Error(capture.error);
+
+        toast.success("Pago confirmado con PayPal.");
+        window.location.assign("/billing?payment=success");
+      },
+      onError: (error) => {
+        setIsCardProcessing(false);
+        toast.error(error instanceof Error ? error.message : "No se pudo completar el pago con tarjeta");
+      },
+    });
+
+    void buttons.render(paypalCardContainerRef.current);
+    return () => {
+      if (buttons.close) buttons.close();
+    };
+  }, [billing, sdkReady, selectedPackage?.id, selectedPlan, selectedPackage]);
 
   return (
     <div className="space-y-5">
@@ -217,9 +298,14 @@ export function BillingClient(props: BillingClientProps) {
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={onBillingSave} disabled={isPending}>Guardar datos</Button>
-          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || !selectedPackage}>
-            Continuar pago con PayPal
+          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || isCardProcessing || !selectedPackage}>
+            Pagar con PayPal (redirección)
           </Button>
+        </div>
+        <div className="mt-4 space-y-2">
+          <p className="text-xs text-muted-foreground">Pago directo con tarjeta (sin iniciar sesión en PayPal, cuando esté disponible por país/riesgo):</p>
+          <div ref={paypalCardContainerRef} className="max-w-sm" />
+          {!props.paypalClientId ? <p className="text-xs text-amber-600">Configura NEXT_PUBLIC_PAYPAL_CLIENT_ID para habilitar este botón.</p> : null}
         </div>
       </div>
 
