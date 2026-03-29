@@ -100,10 +100,16 @@ export async function createPaypalOrderWithContext(
           },
         },
       ],
-      application_context: {
-        user_action: "PAY_NOW",
-        return_url: context.returnUrl,
-        cancel_url: context.cancelUrl,
+      payment_source: {
+        paypal: {
+          experience_context: {
+            user_action: "PAY_NOW",
+            return_url: context.returnUrl,
+            cancel_url: context.cancelUrl,
+            landing_page: "GUEST_CHECKOUT",
+            payment_method_preference: "IMMEDIATE_PAYMENT_REQUIRED",
+          },
+        },
       },
     }),
   });
