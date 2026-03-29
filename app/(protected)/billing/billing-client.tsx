@@ -167,7 +167,7 @@ export function BillingClient(props: BillingClientProps) {
     }
 
     const script = document.createElement("script");
-    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(props.paypalClientId)}&currency=USD&intent=capture&components=buttons&enable-funding=card`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(props.paypalClientId)}&currency=USD&intent=capture&components=buttons,funding-eligibility&enable-funding=card&disable-funding=paypal,venmo,paylater&commit=true`;
     script.async = true;
     script.dataset.paypalSdk = "true";
     script.onload = () => setSdkReady(true);
@@ -182,7 +182,7 @@ export function BillingClient(props: BillingClientProps) {
     paypalCardContainerRef.current.innerHTML = "";
     const buttons = window.paypal.Buttons({
       fundingSource: "card",
-      style: { layout: "vertical", label: "pay", shape: "rect" },
+      style: { layout: "vertical", label: "pay", shape: "rect", tagline: false },
       createOrder: async () => {
         const saved = await saveTenantBillingProfile(billing);
         if (!saved.success) throw new Error(saved.error);
@@ -303,7 +303,7 @@ export function BillingClient(props: BillingClientProps) {
           </Button>
         </div>
         <div className="mt-4 space-y-2">
-          <p className="text-xs text-muted-foreground">Pago directo con tarjeta (sin iniciar sesión en PayPal, cuando esté disponible por país/riesgo):</p>
+          <p className="text-xs text-muted-foreground">Pago con tarjeta como invitado (sin cuenta PayPal, sujeto a elegibilidad de PayPal por país/riesgo):</p>
           <div ref={paypalCardContainerRef} className="max-w-sm" />
           {!props.paypalClientId ? <p className="text-xs text-amber-600">Configura NEXT_PUBLIC_PAYPAL_CLIENT_ID para habilitar este botón.</p> : null}
         </div>
