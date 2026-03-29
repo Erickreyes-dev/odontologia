@@ -2,7 +2,7 @@
 
 import { getSession } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { capturePaypalOrder, createPaypalOrder, getPaypalOrder } from "@/lib/paypal";
+import { capturePaypalOrder, createPaypalOrder, getPaypalApprovalLink, getPaypalOrder } from "@/lib/paypal";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { calculateExpirationDateByPlan, resolveSubscriptionStatus } from "@/lib/subscription-status";
@@ -101,7 +101,7 @@ export async function createCheckoutForPlan(
   try {
     const monto = calculateAmountByPeriod(paqueteToCharge, periodoPlan);
     const order = await createPaypalOrder(monto, `Plan ${paqueteToCharge.nombre} (${periodoPlan})`, tenant.slug);
-    const approveLink = order.links?.find((link: any) => link.rel === "approve")?.href;
+    const approveLink = getPaypalApprovalLink(order);
 
     if (!approveLink) {
       return { success: false as const, error: "PayPal no devolvió el enlace de aprobación. Intenta de nuevo." };
