@@ -111,7 +111,7 @@ export async function createPaypalOrderWithContext(
             user_action: "PAY_NOW",
             return_url: context.returnUrl,
             cancel_url: context.cancelUrl,
-            landing_page: "GUEST_CHECKOUT",
+            landing_page: "BILLING",
             payment_method_preference: "IMMEDIATE_PAYMENT_REQUIRED",
           },
         },

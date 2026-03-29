@@ -153,7 +153,10 @@ export function BillingClient(props: BillingClientProps) {
   };
 
   useEffect(() => {
-    if (!props.paypalClientId) return;
+    if (!props.paypalClientId) {
+      setSdkReady(false);
+      return;
+    }
     if (window.paypal?.Buttons) {
       setSdkReady(true);
       return;
@@ -167,11 +170,14 @@ export function BillingClient(props: BillingClientProps) {
     }
 
     const script = document.createElement("script");
-    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(props.paypalClientId)}&currency=USD&intent=capture&components=buttons,funding-eligibility&enable-funding=card&disable-funding=paypal,venmo,paylater&commit=true`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(props.paypalClientId)}&currency=USD&intent=capture&components=buttons&enable-funding=card&disable-funding=venmo,paylater&commit=true`;
     script.async = true;
     script.dataset.paypalSdk = "true";
     script.onload = () => setSdkReady(true);
-    script.onerror = () => toast.error("No se pudo cargar el SDK de PayPal. Usa el botón de redirección.");
+    script.onerror = () => {
+      setSdkReady(false);
+      toast.error("No se pudo cargar el SDK de PayPal. Verifica NEXT_PUBLIC_PAYPAL_CLIENT_ID y que paypal.com no esté bloqueado.");
+    };
     document.body.appendChild(script);
   }, [props.paypalClientId]);
 
