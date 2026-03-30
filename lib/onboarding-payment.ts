@@ -85,12 +85,11 @@ export async function finalizeOnboardingProvision(orderId: string): Promise<{
 
     let tenantAdmin = tenant.usuarios[0] ?? null;
     if (!tenant.activo || !tenantAdmin) {
-      const existingPermisos = await tx.permiso.findMany({ where: { tenantId: tenant.id } });
+      const existingPermisos = await tx.permiso.findMany();
       const permisos = existingPermisos.length > 0 ? existingPermisos : await Promise.all(
         TENANT_PERMISSIONS.map((permission) => tx.permiso.create({
           data: {
             id: randomUUID(),
-            tenantId: tenant.id,
             nombre: permission.nombre,
             descripcion: permission.descripcion,
             activo: true,
