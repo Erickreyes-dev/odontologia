@@ -1,13 +1,39 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { BadgeCheck, CalendarClock, Check, Globe, ReceiptText, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createCheckoutForPlan, saveTenantBillingProfile } from "./actions";
+import { capturePaypalAndCreateInvoice, createCheckoutForPlan, createPaypalSdkOrderForPlan, saveTenantBillingProfile } from "./actions";
 import { toast } from "sonner";
 import type { SubscriptionStatus } from "@/lib/subscription-status";
+
+declare global {
+  interface Window {
+    paypal?: {
+      CardFields: (config: {
+        createOrder: () => Promise<string>;
+        onApprove: (data: { orderID?: string }) => Promise<void>;
+        onError: (error: unknown) => void;
+      }) => {
+        isEligible: () => boolean;
+        NameField: () => { render: (container: string) => Promise<void> };
+        NumberField: () => { render: (container: string) => Promise<void> };
+        CVVField: () => { render: (container: string) => Promise<void> };
+        ExpiryField: () => { render: (container: string) => Promise<void> };
+        submit: () => Promise<void>;
+        close?: () => void;
+      };
+      Buttons: (config: {
+        style?: Record<string, unknown>;
+        createOrder: () => Promise<string>;
+        onApprove: (data: { orderID?: string }) => Promise<void>;
+        onError: (error: unknown) => void;
+      }) => { render: (container: string | HTMLElement) => Promise<void>; close?: () => void };
+    };
+  }
+}
 
 type BillingPackage = {
   id: string;
@@ -21,6 +47,7 @@ type BillingPackage = {
 };
 
 type BillingClientProps = {
+  paypalClientId: string;
   tenantSlug: string;
   paqueteNombre: string;
   paqueteActualId: string | null;
@@ -60,6 +87,14 @@ export function BillingClient(props: BillingClientProps) {
     facturarPais: props.facturarPais,
     facturarPostal: props.facturarPostal,
   });
+  const [sdkReady, setSdkReady] = useState(false);
+  const [isCardProcessing, setIsCardProcessing] = useState(false);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [cardEligible, setCardEligible] = useState(false);
+  const [paypalOrderReady, setPaypalOrderReady] = useState(false);
+  const paypalCardContainerRef = useRef<HTMLDivElement | null>(null);
+  const paypalButtonsContainerRef = useRef<HTMLDivElement | null>(null);
+  const cardFieldsRef = useRef<ReturnType<NonNullable<Window["paypal"]>["CardFields"]> | null>(null);
 
   const selectedPackage = useMemo(
     () => props.paquetesDisponibles.find((item) => item.id === selectedPackageId) ?? props.paquetesDisponibles[0],
@@ -134,6 +169,123 @@ export function BillingClient(props: BillingClientProps) {
     });
   };
 
+  useEffect(() => {
+    if (!props.paypalClientId) {
+      setSdkReady(false);
+      return;
+    }
+    if (window.paypal?.Buttons) {
+      setSdkReady(true);
+      return;
+    }
+
+    const existingScript = document.querySelector<HTMLScriptElement>("script[data-paypal-sdk='true']");
+    if (existingScript) {
+      const onLoad = () => setSdkReady(true);
+      existingScript.addEventListener("load", onLoad);
+      return () => existingScript.removeEventListener("load", onLoad);
+    }
+
+    const script = document.createElement("script");
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(props.paypalClientId)}&currency=USD&intent=capture&components=buttons,card-fields&disable-funding=venmo,paylater&commit=true`;
+    script.async = true;
+    script.dataset.paypalSdk = "true";
+    script.onload = () => setSdkReady(true);
+    script.onerror = () => {
+      setSdkReady(false);
+      toast.error("No se pudo cargar el SDK de PayPal. Verifica NEXT_PUBLIC_PAYPAL_CLIENT_ID y que paypal.com no esté bloqueado.");
+    };
+    document.body.appendChild(script);
+  }, [props.paypalClientId]);
+
+  useEffect(() => {
+    if (!sdkReady || !paypalCardContainerRef.current || !window.paypal?.CardFields || !window.paypal?.Buttons) return;
+    if (!selectedPackage?.id) return;
+
+    paypalCardContainerRef.current.innerHTML = "";
+    if (paypalButtonsContainerRef.current) paypalButtonsContainerRef.current.innerHTML = "";
+    const cardFields = window.paypal.CardFields({
+      createOrder: async () => {
+        const saved = await saveTenantBillingProfile(billing);
+        if (!saved.success) throw new Error(saved.error);
+
+        const result = await createPaypalSdkOrderForPlan(selectedPlan, selectedPackage.id);
+        if (!result.success) throw new Error(result.error);
+        return result.orderId;
+      },
+      onApprove: async (data) => {
+        const orderId = data.orderID;
+        if (!orderId) throw new Error("PayPal no devolvió orderID");
+
+        setIsCardProcessing(true);
+        const capture = await capturePaypalAndCreateInvoice(orderId);
+        setIsCardProcessing(false);
+        if (!capture.success) throw new Error(capture.error);
+
+        toast.success("Pago confirmado con PayPal.");
+        window.location.assign("/billing?payment=success");
+      },
+      onError: (error) => {
+        setIsCardProcessing(false);
+        toast.error(error instanceof Error ? error.message : "No se pudo completar el pago con tarjeta");
+      },
+    });
+
+    if (!cardFields.isEligible()) {
+      setCardEligible(false);
+      cardFieldsRef.current = null;
+      setPaypalOrderReady(true);
+      const fallbackButtons = window.paypal.Buttons({
+        style: { layout: "vertical", label: "paypal", shape: "rect" },
+        createOrder: async () => {
+          const saved = await saveTenantBillingProfile(billing);
+          if (!saved.success) throw new Error(saved.error);
+          const result = await createPaypalSdkOrderForPlan(selectedPlan, selectedPackage.id);
+          if (!result.success) throw new Error(result.error);
+          return result.orderId;
+        },
+        onApprove: async (data) => {
+          const orderId = data.orderID;
+          if (!orderId) throw new Error("PayPal no devolvió orderID");
+          const capture = await capturePaypalAndCreateInvoice(orderId);
+          if (!capture.success) throw new Error(capture.error);
+          toast.success("Pago confirmado con PayPal.");
+          window.location.assign("/billing?payment=success");
+        },
+        onError: (error) => {
+          toast.error(error instanceof Error ? error.message : "No se pudo completar el pago con PayPal");
+        },
+      });
+      if (paypalButtonsContainerRef.current) void fallbackButtons.render(paypalButtonsContainerRef.current);
+      return;
+    }
+
+    cardFieldsRef.current = cardFields;
+    setCardEligible(true);
+    setPaypalOrderReady(true);
+    void cardFields.NameField().render("#paypal-name-field");
+    void cardFields.NumberField().render("#paypal-number-field");
+    void cardFields.ExpiryField().render("#paypal-expiry-field");
+    void cardFields.CVVField().render("#paypal-cvv-field");
+
+    return () => {
+      setPaypalOrderReady(false);
+      if (cardFields.close) cardFields.close();
+    };
+  }, [billing, sdkReady, selectedPackage?.id, selectedPlan, selectedPackage]);
+
+  const submitCardPayment = () => {
+    if (!cardFieldsRef.current) {
+      toast.error("El formulario de tarjeta aún no está listo.");
+      return;
+    }
+    setIsCardProcessing(true);
+    void cardFieldsRef.current.submit().catch((error: unknown) => {
+      setIsCardProcessing(false);
+      toast.error(error instanceof Error ? error.message : "No se pudo procesar el pago de tarjeta.");
+    });
+  };
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 via-sky-500/10 to-indigo-500/10 p-4">
@@ -160,6 +312,15 @@ export function BillingClient(props: BillingClientProps) {
       </div>
 
       <div className="rounded-2xl border bg-card p-4">
+        <p className="mb-3 text-sm font-semibold">Checkout en pasos</p>
+        <div className="mb-4 flex flex-wrap gap-2 text-xs">
+          <button type="button" onClick={() => setCurrentStep(1)} className={`rounded-full border px-3 py-1 ${currentStep === 1 ? "border-cyan-500 text-cyan-600" : ""}`}>Paso 1: Plan</button>
+          <button type="button" onClick={() => setCurrentStep(2)} className={`rounded-full border px-3 py-1 ${currentStep === 2 ? "border-cyan-500 text-cyan-600" : ""}`}>Paso 2: Facturación</button>
+          <button type="button" onClick={() => setCurrentStep(3)} className={`rounded-full border px-3 py-1 ${currentStep === 3 ? "border-cyan-500 text-cyan-600" : ""}`}>Paso 3: Tarjeta</button>
+        </div>
+      </div>
+
+      {currentStep === 1 ? <div className="rounded-2xl border bg-card p-4">
         <p className="mb-3 text-sm font-medium">1) Elige tu paquete</p>
         <div className="grid gap-3 md:grid-cols-3">
           {props.paquetesDisponibles.map((pkg) => {
@@ -181,9 +342,12 @@ export function BillingClient(props: BillingClientProps) {
             );
           })}
         </div>
-      </div>
+        <div className="mt-4">
+          <Button type="button" onClick={() => setCurrentStep(2)}>Continuar a facturación</Button>
+        </div>
+      </div> : null}
 
-      <div className="rounded-2xl border bg-card p-4">
+      {currentStep === 1 ? <div className="rounded-2xl border bg-card p-4">
         <p className="mb-3 text-sm font-medium">2) Elige el período de facturación</p>
         <div className="grid gap-4 md:grid-cols-4">
           {periods.map((plan) => (
@@ -201,9 +365,9 @@ export function BillingClient(props: BillingClientProps) {
             </button>
           ))}
         </div>
-      </div>
+      </div> : null}
 
-      <div className="rounded-2xl border bg-card p-4">
+      {currentStep >= 2 ? <div className="rounded-2xl border bg-card p-4">
         <p className="mb-3 flex items-center gap-2 text-sm font-medium"><ReceiptText className="h-4 w-4 text-cyan-500" /> 3) Datos de facturación</p>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1"><Label>Razón social / Nombre</Label><Input value={billing.facturarNombre} onChange={(e) => setBilling((p) => ({ ...p, facturarNombre: e.target.value }))} /></div>
@@ -217,11 +381,38 @@ export function BillingClient(props: BillingClientProps) {
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={onBillingSave} disabled={isPending}>Guardar datos</Button>
-          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || !selectedPackage}>
-            Continuar pago con PayPal
+          <Button type="button" onClick={() => setCurrentStep(3)} disabled={isPending}>Continuar al pago</Button>
+          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || isCardProcessing || !selectedPackage}>
+            Pagar con PayPal (redirección)
           </Button>
         </div>
-      </div>
+      </div> : null}
+
+      {currentStep === 3 ? <div className="rounded-2xl border bg-card p-4">
+        <p className="mb-3 text-sm font-medium">4) Pago con tarjeta (seguro por PayPal)</p>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Tus datos de tarjeta se capturan de forma segura por PayPal. Esta plataforma no almacena número de tarjeta ni CVV.
+        </p>
+        <div ref={paypalCardContainerRef} className="hidden" />
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1 md:col-span-2"><Label>Nombre del titular</Label><div id="paypal-name-field" className="h-11 rounded-md border px-3 py-2" /></div>
+          <div className="space-y-1 md:col-span-2"><Label>Número de tarjeta</Label><div id="paypal-number-field" className="h-11 rounded-md border px-3 py-2" /></div>
+          <div className="space-y-1"><Label>Expiración</Label><div id="paypal-expiry-field" className="h-11 rounded-md border px-3 py-2" /></div>
+          <div className="space-y-1"><Label>CVV</Label><div id="paypal-cvv-field" className="h-11 rounded-md border px-3 py-2" /></div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button type="button" onClick={submitCardPayment} disabled={!cardEligible || !paypalOrderReady || isCardProcessing}>
+            Pagar con PayPal
+          </Button>
+          <Button type="button" variant="outline" onClick={() => setCurrentStep(2)} disabled={isCardProcessing}>Volver</Button>
+        </div>
+        {!cardEligible ? <p className="mt-2 text-xs text-amber-600">PayPal no habilitó campos de tarjeta para esta sesión; puedes completar el pago con el botón oficial de PayPal aquí mismo.</p> : null}
+        {!cardEligible ? <div ref={paypalButtonsContainerRef} className="mt-3 max-w-sm" /> : null}
+        {!props.paypalClientId ? <p className="mt-2 text-xs text-amber-600">Configura NEXT_PUBLIC_PAYPAL_CLIENT_ID para habilitar este botón.</p> : null}
+        <div className="mt-3 rounded-md border border-cyan-500/30 bg-cyan-500/10 p-2 text-xs text-cyan-800">
+          Pago seguro a través de PayPal · No guardamos datos sensibles de tu tarjeta.
+        </div>
+      </div> : null}
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1"><WalletCards className="h-3.5 w-3.5" /> Factura automática al confirmar pago</span>
