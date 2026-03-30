@@ -245,10 +245,32 @@ export function PacienteFormulario({
                   {...field}
                   value={field.value || ""}
                   id={field.name}
-                  placeholder="Ej. 9999-9999"
+                  placeholder="Ej. +50499999999"
                 />
               </FieldContent>
-              <FieldDescription>Numero de telefono del paciente.</FieldDescription>
+              <FieldDescription>Número internacional recomendado (E.164).</FieldDescription>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+
+
+        {/* ZIP / Código postal */}
+        <Controller
+          name="codigoPostal"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>ZIP / Código postal</FieldLabel>
+              <FieldContent>
+                <Input
+                  {...field}
+                  value={field.value || ""}
+                  id={field.name}
+                  placeholder="Ej. 11101"
+                />
+              </FieldContent>
+              <FieldDescription>Código postal del país del paciente.</FieldDescription>
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}

@@ -52,6 +52,7 @@ import { toast } from "sonner";
 import { ConstanciaMedicaResumen, createConstanciaMedica, updateConstanciaMedica } from "@/app/(protected)/pacientes/actions";
 import { generateConstanciaMedicaPDF } from "@/lib/pdf/constancia-medica-pdf";
 import { FinanciamientoCard } from "@/app/(protected)/pagos/components/FinanciamientoCard";
+import { WhatsAppChatPanel } from "./whatsapp-chat-panel";
 
 interface PacientePerfilProps {
   paciente: Paciente;
@@ -581,6 +582,8 @@ export function PacientePerfil({
           </div>
         </CardContent>
       </Card>
+
+      <WhatsAppChatPanel pacienteId={paciente.id ?? ""} />
 
       {/* Stats Cards */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">

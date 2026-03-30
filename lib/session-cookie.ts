@@ -1,7 +1,14 @@
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
 function normalizeHost(value: string): string {
-  return value.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^\./, "").replace(/^www\./, "").split("/")[0].split(":")[0];
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^\./, "")
+    .replace(/^www\./, "")
+    .split("/")[0]
+    .split(":")[0];
 }
 
 function resolveRootHost(): string | null {
@@ -22,8 +29,21 @@ function resolveRootHost(): string | null {
   return null;
 }
 
+function isIpv4(host: string): boolean {
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+}
+
+function shouldUseHostOnlyCookie(rootHost: string): boolean {
+  return (
+    LOCAL_HOSTS.has(rootHost) ||
+    rootHost.endsWith(".localhost") ||
+    rootHost.endsWith(".local") ||
+    isIpv4(rootHost)
+  );
+}
+
 export function getSessionCookieDomain(): string | undefined {
   const rootHost = resolveRootHost();
-  if (!rootHost || LOCAL_HOSTS.has(rootHost)) return undefined;
+  if (!rootHost || shouldUseHostOnlyCookie(rootHost)) return undefined;
   return `.${rootHost}`;
 }
