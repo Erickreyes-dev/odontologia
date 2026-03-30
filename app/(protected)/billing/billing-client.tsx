@@ -111,6 +111,7 @@ export function BillingClient(props: BillingClientProps) {
   const paypalCardContainerRef = useRef<HTMLDivElement | null>(null);
   const paypalButtonsContainerRef = useRef<HTMLDivElement | null>(null);
   const cardFieldsRef = useRef<ReturnType<NonNullable<Window["paypal"]>["CardFields"]> | null>(null);
+  const billingRef = useRef(billing);
 
   const selectedPackage = useMemo(
     () => props.paquetesDisponibles.find((item) => item.id === selectedPackageId) ?? props.paquetesDisponibles[0],
@@ -135,6 +136,10 @@ export function BillingClient(props: BillingClientProps) {
     : props.subscriptionStatus === "cancelado"
       ? "bg-rose-500/10 text-rose-700 border-rose-500/40"
       : "bg-amber-500/10 text-amber-700 border-amber-500/40";
+
+  useEffect(() => {
+    billingRef.current = billing;
+  }, [billing]);
 
   const onPaypalCheckout = (periodo: "mensual" | "trimestral" | "semestral" | "anual") => {
     startTransition(() => {
@@ -220,15 +225,17 @@ export function BillingClient(props: BillingClientProps) {
 
     paypalCardContainerRef.current.innerHTML = "";
     if (paypalButtonsContainerRef.current) paypalButtonsContainerRef.current.innerHTML = "";
-    const cardFields = window.paypal.CardFields({
-      createOrder: async () => {
-        const saved = await saveTenantBillingProfile(billing);
-        if (!saved.success) throw new Error(saved.error);
+    const createOrderFromServer = async () => {
+      const saved = await saveTenantBillingProfile(billingRef.current);
+      if (!saved.success) throw new Error(saved.error);
 
-        const result = await createPaypalSdkOrderForPlan(selectedPlan, selectedPackage.id);
-        if (!result.success) throw new Error(result.error);
-        return result.orderId;
-      },
+      const result = await createPaypalSdkOrderForPlan(selectedPlan, selectedPackage.id);
+      if (!result.success) throw new Error(result.error);
+      return result.orderId;
+    };
+
+    const cardFields = window.paypal.CardFields({
+      createOrder: createOrderFromServer,
       onApprove: async (data) => {
         const orderId = data.orderID;
         if (!orderId) throw new Error("PayPal no devolvió orderID");
@@ -272,52 +279,32 @@ export function BillingClient(props: BillingClientProps) {
     if (!cardFields.isEligible()) {
       setCardEligible(false);
       setIsCardFormValid(false);
-      setCardDisableReason("PayPal indicó que Card Fields no es elegible para esta sesión/merchant.");
+      setCardDisableReason("PayPal no habilitó Card Fields para esta sesión. Revisa consola para motivo oficial devuelto por el SDK.");
       cardFieldsRef.current = null;
       setPaypalOrderReady(true);
-      const ineligibleHints = [
-        "La cuenta/merchant de PayPal puede no tener Advanced Card Payments habilitado.",
-        "El client-id puede no corresponder al entorno esperado (sandbox/live).",
-        "La moneda o país de la cuenta/comprador puede no ser compatible para Card Fields.",
-        "La sesión del comprador/dispositivo puede no cumplir criterios de riesgo/eligibilidad de PayPal.",
-      ];
-
       console.warn("[PayPal][CardFields][ineligible]", {
-        message: "PayPal no habilitó Card Fields en esta sesión.",
-        paypalClientIdConfigured: Boolean(props.paypalClientId),
-        sdkReady,
+        message: "PayPal CardFields.isEligible() devolvió false.",
         selectedPlan,
         selectedPackageId: selectedPackage.id,
-        browser: navigator.userAgent,
-        currentUrl: window.location.href,
-        hints: ineligibleHints,
       });
 
       if (cardFields.getState) {
         void cardFields.getState().then((state) => {
           console.warn("[PayPal][CardFields][ineligible-state]", {
             state,
-            message: "Estado devuelto por PayPal para depurar por qué Card Fields no es elegible.",
-            hints: ineligibleHints,
+            message: "Estado oficial devuelto por el SDK de PayPal para diagnosticar ineligibilidad.",
           });
         }).catch((error: unknown) => {
           console.warn("[PayPal][CardFields][ineligible-state-error]", error);
         });
       } else {
         console.warn("[PayPal][CardFields][ineligible-state]", {
-          message: "El SDK no expuso getState() en esta versión/contexto.",
-          hints: ineligibleHints,
+          message: "El SDK de PayPal no expuso getState() para detallar la ineligibilidad en este contexto.",
         });
       }
       const fallbackButtons = window.paypal.Buttons({
         style: { layout: "vertical", label: "paypal", shape: "rect" },
-        createOrder: async () => {
-          const saved = await saveTenantBillingProfile(billing);
-          if (!saved.success) throw new Error(saved.error);
-          const result = await createPaypalSdkOrderForPlan(selectedPlan, selectedPackage.id);
-          if (!result.success) throw new Error(result.error);
-          return result.orderId;
-        },
+        createOrder: createOrderFromServer,
         onApprove: async (data) => {
           const orderId = data.orderID;
           if (!orderId) throw new Error("PayPal no devolvió orderID");
@@ -330,7 +317,11 @@ export function BillingClient(props: BillingClientProps) {
           toast.error(error instanceof Error ? error.message : "No se pudo completar el pago con PayPal");
         },
       });
-      if (paypalButtonsContainerRef.current) void fallbackButtons.render(paypalButtonsContainerRef.current);
+      if (paypalButtonsContainerRef.current) {
+        void fallbackButtons.render(paypalButtonsContainerRef.current).catch((error: unknown) => {
+          console.error("[PayPal][Buttons][render-error]", error);
+        });
+      }
       return;
     }
 
@@ -347,7 +338,7 @@ export function BillingClient(props: BillingClientProps) {
       setIsCardFormValid(false);
       if (cardFields.close) cardFields.close();
     };
-  }, [billing, sdkReady, selectedPackage?.id, selectedPlan, selectedPackage, props.paypalClientId]);
+  }, [sdkReady, selectedPackage?.id, selectedPlan, selectedPackage, props.paypalClientId]);
 
   const submitCardPayment = () => {
     if (!cardFieldsRef.current) {
@@ -355,10 +346,24 @@ export function BillingClient(props: BillingClientProps) {
       return;
     }
     setIsCardProcessing(true);
-    void cardFieldsRef.current.submit().catch((error: unknown) => {
-      setIsCardProcessing(false);
-      toast.error(error instanceof Error ? error.message : "No se pudo procesar el pago de tarjeta.");
-    });
+    void (async () => {
+      try {
+        if (cardFieldsRef.current?.getState) {
+          const state = await cardFieldsRef.current.getState();
+          const errors = state?.errors ?? [];
+          if (state?.isFormValid === false && errors.length > 0) {
+            const detail = errors.map((item) => `${item.field ?? "campo"}:${item.code ?? "UNKNOWN"}`).join(", ");
+            console.warn("[PayPal][CardFields][submit-blocked-by-state]", state);
+            setCardDisableReason(`PayPal reporta campos inválidos: ${detail}`);
+          }
+        }
+
+        await cardFieldsRef.current.submit();
+      } catch (error: unknown) {
+        setIsCardProcessing(false);
+        toast.error(error instanceof Error ? error.message : "No se pudo procesar el pago de tarjeta.");
+      }
+    })();
   };
 
   return (
