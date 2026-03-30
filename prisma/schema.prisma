@@ -39,7 +39,6 @@ model Tenant {
   createAt        DateTime  @default(now())
   updateAt        DateTime  @updatedAt
 
-  permisos               Permiso[]
   roles                  Rol[]
   empleados              Empleados[]
   puestos                Puesto[]
@@ -133,17 +132,14 @@ model TenantInvoice {
 
 model Permiso {
   id          String       @id @default(uuid())
-  tenantId    String?      @db.VarChar(36)
   nombre      String       @db.VarChar(100)
   descripcion String
   createAt    DateTime     @default(now())
   updateAt    DateTime     @updatedAt
   activo      Boolean
   roles       RolPermiso[]
-  tenant      Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  @@unique([tenantId, nombre])
-  @@index([tenantId])
+  @@unique([nombre])
 }
 
 model RolPermiso {
