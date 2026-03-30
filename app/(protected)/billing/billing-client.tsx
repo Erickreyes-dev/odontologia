@@ -163,7 +163,7 @@ export function BillingClient(props: BillingClientProps) {
               toast.error(capture.error);
               return;
             }
-            toast.success("Pago confirmado correctamente");
+            toast.success("¡Pago realizado con éxito! Gracias por contratar nuestro servicio.");
           },
           onError: (error) => {
             console.error("[Billing][PayPal][buttons][error]", error);
