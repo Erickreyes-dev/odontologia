@@ -140,28 +140,55 @@ export function BillingClient(props: BillingClientProps) {
     startTransition(() => {
       void (async () => {
         try {
+          console.info("[Billing][PayPal][checkout][start]", {
+            timestamp: new Date().toISOString(),
+            periodo,
+            selectedPlan,
+            selectedPackageId: selectedPackage?.id ?? null,
+          });
+
           if (!selectedPackage?.id) {
+            console.warn("[Billing][PayPal][checkout][abort]", { reason: "missing_selected_package" });
             toast.error("No hay paquete seleccionado para procesar el pago");
             return;
           }
 
           const saved = await saveTenantBillingProfile(billing);
+          console.info("[Billing][PayPal][saveBillingProfile][response]", {
+            timestamp: new Date().toISOString(),
+            success: saved.success,
+            error: saved.success ? null : saved.error,
+          });
           if (!saved.success) {
             toast.error(saved.error);
             return;
           }
 
           const result = await createCheckoutForPlan(periodo, selectedPackage.id);
+          console.info("[Billing][PayPal][createCheckoutForPlan][response]", {
+            timestamp: new Date().toISOString(),
+            success: result.success,
+            approveLink: result.success ? (result.approveLink ?? null) : null,
+            error: result.success ? null : result.error,
+          });
           if (!result.success) {
             toast.error(result.error);
             return;
           }
           if (result.approveLink) {
+            console.info("[Billing][PayPal][redirect]", {
+              timestamp: new Date().toISOString(),
+              approveLink: result.approveLink,
+            });
             window.location.assign(result.approveLink);
             return;
           }
+          console.warn("[Billing][PayPal][checkout][missing_approve_link]", {
+            timestamp: new Date().toISOString(),
+          });
           toast.error("No se recibió URL de PayPal para continuar el pago");
         } catch (error) {
+          console.error("[Billing][PayPal][checkout][exception]", error);
           toast.error(error instanceof Error ? error.message : "Error inesperado al iniciar pago con PayPal");
         }
       })();
@@ -197,13 +224,25 @@ export function BillingClient(props: BillingClientProps) {
     startTransition(() => {
       void (async () => {
         try {
+          console.info("[Billing][saveBillingProfile][start]", {
+            timestamp: new Date().toISOString(),
+            selectedPlan,
+            selectedPackageId: selectedPackage?.id ?? null,
+          });
           const result = await saveTenantBillingProfile(billing);
+          console.info("[Billing][saveBillingProfile][response]", {
+            timestamp: new Date().toISOString(),
+            success: result.success,
+            error: result.success ? null : result.error,
+          });
           if (!result.success) {
             toast.error(result.error);
             return;
           }
-          toast.success("Datos de facturación guardados");
+          setCurrentStep(3);
+          toast.success("Datos de facturación guardados. Continúa con tu tarjeta en el paso 3.");
         } catch (error) {
+          console.error("[Billing][saveBillingProfile][exception]", error);
           toast.error(error instanceof Error ? error.message : "No se pudo guardar la información de facturación");
         }
       })();
@@ -468,7 +507,7 @@ export function BillingClient(props: BillingClientProps) {
           <div className="space-y-1"><Label>Código postal</Label><Input value={billing.facturarPostal} onChange={(e) => setBilling((p) => ({ ...p, facturarPostal: e.target.value }))} /></div>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" onClick={onBillingSave} disabled={isPending}>Guardar datos</Button>
+          <Button type="button" variant="outline" onClick={onBillingSave} disabled={isPending}>Guardar datos y continuar al pago</Button>
           <Button type="button" onClick={() => setCurrentStep(3)} disabled={isPending}>Continuar al pago</Button>
           <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || isCardProcessing || !selectedPackage}>
             Pagar con PayPal (redirección)
