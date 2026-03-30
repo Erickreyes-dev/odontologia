@@ -167,10 +167,16 @@ function usernameFromEmail(email: string) {
 async function findGoogleUserByEmail(email: string) {
   return prisma.usuarios.findFirst({
     where: {
-      correo: email,
-      tenant: { authProvider: "google" },
+      tenant: { activo: true },
       activo: true,
       tenantId: { not: null },
+      OR: [
+        { correo: email },
+        { Empleados: { correo: email } },
+      ],
+    },
+    orderBy: {
+      createAt: "asc",
     },
     include: {
       ...usuarioGoogleInclude.include,
