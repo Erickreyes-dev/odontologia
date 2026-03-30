@@ -93,6 +93,7 @@ export function BillingClient(props: BillingClientProps) {
   const [cardEligible, setCardEligible] = useState(false);
   const [paypalOrderReady, setPaypalOrderReady] = useState(false);
   const paypalCardContainerRef = useRef<HTMLDivElement | null>(null);
+  const paypalButtonsContainerRef = useRef<HTMLDivElement | null>(null);
   const cardFieldsRef = useRef<ReturnType<NonNullable<Window["paypal"]>["CardFields"]> | null>(null);
 
   const selectedPackage = useMemo(
@@ -198,10 +199,11 @@ export function BillingClient(props: BillingClientProps) {
   }, [props.paypalClientId]);
 
   useEffect(() => {
-    if (!sdkReady || !paypalCardContainerRef.current || !window.paypal?.CardFields) return;
+    if (!sdkReady || !paypalCardContainerRef.current || !window.paypal?.CardFields || !window.paypal?.Buttons) return;
     if (!selectedPackage?.id) return;
 
     paypalCardContainerRef.current.innerHTML = "";
+    if (paypalButtonsContainerRef.current) paypalButtonsContainerRef.current.innerHTML = "";
     const cardFields = window.paypal.CardFields({
       createOrder: async () => {
         const saved = await saveTenantBillingProfile(billing);
@@ -232,6 +234,29 @@ export function BillingClient(props: BillingClientProps) {
     if (!cardFields.isEligible()) {
       setCardEligible(false);
       cardFieldsRef.current = null;
+      setPaypalOrderReady(true);
+      const fallbackButtons = window.paypal.Buttons({
+        style: { layout: "vertical", label: "paypal", shape: "rect" },
+        createOrder: async () => {
+          const saved = await saveTenantBillingProfile(billing);
+          if (!saved.success) throw new Error(saved.error);
+          const result = await createPaypalSdkOrderForPlan(selectedPlan, selectedPackage.id);
+          if (!result.success) throw new Error(result.error);
+          return result.orderId;
+        },
+        onApprove: async (data) => {
+          const orderId = data.orderID;
+          if (!orderId) throw new Error("PayPal no devolvió orderID");
+          const capture = await capturePaypalAndCreateInvoice(orderId);
+          if (!capture.success) throw new Error(capture.error);
+          toast.success("Pago confirmado con PayPal.");
+          window.location.assign("/billing?payment=success");
+        },
+        onError: (error) => {
+          toast.error(error instanceof Error ? error.message : "No se pudo completar el pago con PayPal");
+        },
+      });
+      if (paypalButtonsContainerRef.current) void fallbackButtons.render(paypalButtonsContainerRef.current);
       return;
     }
 
@@ -381,7 +406,8 @@ export function BillingClient(props: BillingClientProps) {
           </Button>
           <Button type="button" variant="outline" onClick={() => setCurrentStep(2)} disabled={isCardProcessing}>Volver</Button>
         </div>
-        {!cardEligible ? <p className="mt-2 text-xs text-amber-600">PayPal no habilitó pago con tarjeta para esta sesión. Usa el botón de redirección.</p> : null}
+        {!cardEligible ? <p className="mt-2 text-xs text-amber-600">PayPal no habilitó campos de tarjeta para esta sesión; puedes completar el pago con el botón oficial de PayPal aquí mismo.</p> : null}
+        {!cardEligible ? <div ref={paypalButtonsContainerRef} className="mt-3 max-w-sm" /> : null}
         {!props.paypalClientId ? <p className="mt-2 text-xs text-amber-600">Configura NEXT_PUBLIC_PAYPAL_CLIENT_ID para habilitar este botón.</p> : null}
         <div className="mt-3 rounded-md border border-cyan-500/30 bg-cyan-500/10 p-2 text-xs text-cyan-800">
           Pago seguro a través de PayPal · No guardamos datos sensibles de tu tarjeta.
