@@ -19,11 +19,10 @@ async function ensurePlatformPermissions(tenantId: string) {
 
   for (const permission of PLATFORM_PERMISSIONS) {
     const permiso = await prisma.permiso.upsert({
-      where: { tenantId_nombre: { tenantId, nombre: permission.nombre } },
+      where: { nombre: permission.nombre },
       update: { descripcion: permission.descripcion, activo: true },
       create: {
         id: randomUUID(),
-        tenantId,
         nombre: permission.nombre,
         descripcion: permission.descripcion,
         activo: true,
@@ -124,10 +123,11 @@ export async function createTenant(
 
       const tenantPermisos: { id: string; nombre: string }[] = [];
       for (const permission of TENANT_PERMISSIONS) {
-        const created = await tx.permiso.create({
-          data: {
+        const created = await tx.permiso.upsert({
+          where: { nombre: permission.nombre },
+          update: { descripcion: permission.descripcion, activo: true },
+          create: {
             id: randomUUID(),
-            tenantId: tenant.id,
             nombre: permission.nombre,
             descripcion: permission.descripcion,
             activo: true,
