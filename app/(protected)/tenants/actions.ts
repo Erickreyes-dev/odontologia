@@ -106,7 +106,6 @@ export async function createTenant(
         const created = await tx.permiso.create({
           data: {
             id: randomUUID(),
-            tenantId: tenant.id,
             nombre: permission.nombre,
             descripcion: permission.descripcion,
             activo: true,
@@ -223,7 +222,6 @@ export async function deleteTenant(
         where: {
           OR: [
             { rol: { tenantId } },
-            { permiso: { tenantId } },
           ],
         },
       });
@@ -265,7 +263,6 @@ export async function deleteTenant(
       await tx.usuarios.deleteMany({ where: { tenantId } });
       await tx.empleados.deleteMany({ where: { tenantId } });
       await tx.rol.deleteMany({ where: { tenantId } });
-      await tx.permiso.deleteMany({ where: { tenantId } });
       await tx.puesto.deleteMany({ where: { tenantId } });
       await tx.tenantInvoice.deleteMany({ where: { tenantId } });
       await tx.solicitudCitaPublica.deleteMany({ where: { tenantId } });
