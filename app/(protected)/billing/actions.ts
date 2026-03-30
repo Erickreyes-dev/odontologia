@@ -81,6 +81,7 @@ function calculateAmountByPeriod(paquete: {
 export async function createCheckoutForPlan(
   periodoPlan: "mensual" | "trimestral" | "semestral" | "anual",
   selectedPaqueteId?: string,
+  cardHolderName?: string,
 ) {
   const session = await getSession();
   if (!session?.TenantId) return { success: false as const, error: "Sesión inválida" };
@@ -100,7 +101,10 @@ export async function createCheckoutForPlan(
 
   try {
     const monto = calculateAmountByPeriod(paqueteToCharge, periodoPlan);
-    const order = await createPaypalOrder(monto, `Plan ${paqueteToCharge.nombre} (${periodoPlan})`, tenant.slug);
+    const cardHolder = cardHolderName?.trim();
+    const order = await createPaypalOrder(monto, `Plan ${paqueteToCharge.nombre} (${periodoPlan})`, tenant.slug, {
+      customId: cardHolder ? `holder:${cardHolder.slice(0, 60)}` : undefined,
+    });
     const approveLink = getPaypalApprovalLink(order);
 
     if (!approveLink) {

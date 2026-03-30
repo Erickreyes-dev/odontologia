@@ -61,12 +61,18 @@ function buildTenantBillingReturnUrl(tenantSlug: string) {
   return `${protocol}//${host}${port}/billing`;
 }
 
-export async function createPaypalOrder(amount: number, description: string, tenantSlug: string) {
+export async function createPaypalOrder(
+  amount: number,
+  description: string,
+  tenantSlug: string,
+  options?: { customId?: string },
+) {
   if (!tenantSlug?.trim()) throw new Error("No se pudo resolver el tenant para el retorno de PayPal");
   const billingUrl = buildTenantBillingReturnUrl(tenantSlug);
   return createPaypalOrderWithContext(amount, description, {
     returnUrl: `${billingUrl}?paypal=success`,
     cancelUrl: `${billingUrl}?paypal=cancelled`,
+    customId: options?.customId,
   });
 }
 

@@ -61,6 +61,12 @@ export function BillingClient(props: BillingClientProps) {
     facturarPais: props.facturarPais,
     facturarPostal: props.facturarPostal,
   });
+  const [cardForm, setCardForm] = useState({
+    titular: "",
+    numeroTarjeta: "",
+    fechaExpiracion: "",
+    cvv: "",
+  });
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   const selectedPackage = useMemo(
@@ -87,7 +93,10 @@ export function BillingClient(props: BillingClientProps) {
       ? "bg-rose-500/10 text-rose-700 border-rose-500/40"
       : "bg-amber-500/10 text-amber-700 border-amber-500/40";
 
-  const onPaypalCheckout = (periodo: "mensual" | "trimestral" | "semestral" | "anual") => {
+  const onPaypalCheckout = (
+    periodo: "mensual" | "trimestral" | "semestral" | "anual",
+    cardHolderName?: string,
+  ) => {
     startTransition(() => {
       void (async () => {
         try {
@@ -115,7 +124,7 @@ export function BillingClient(props: BillingClientProps) {
             return;
           }
 
-          const result = await createCheckoutForPlan(periodo, selectedPackage.id);
+          const result = await createCheckoutForPlan(periodo, selectedPackage.id, cardHolderName);
           console.info("[Billing][PayPal][createCheckoutForPlan][response]", {
             timestamp: new Date().toISOString(),
             success: result.success,
@@ -173,6 +182,35 @@ export function BillingClient(props: BillingClientProps) {
         }
       })();
     });
+  };
+
+  const onPaymentSubmit = () => {
+    const sanitizedNumber = cardForm.numeroTarjeta.replace(/\s+/g, "");
+    const sanitizedExpiry = cardForm.fechaExpiracion.trim();
+    const sanitizedCvv = cardForm.cvv.trim();
+    const sanitizedHolder = cardForm.titular.trim();
+
+    if (!sanitizedHolder || !sanitizedNumber || !sanitizedExpiry || !sanitizedCvv) {
+      toast.error("Completa los datos de la tarjeta para continuar");
+      return;
+    }
+
+    if (!/^\d{13,19}$/.test(sanitizedNumber)) {
+      toast.error("Número de tarjeta inválido");
+      return;
+    }
+
+    if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(sanitizedExpiry)) {
+      toast.error("La fecha de expiración debe tener formato MM/AA");
+      return;
+    }
+
+    if (!/^\d{3,4}$/.test(sanitizedCvv)) {
+      toast.error("CVV inválido");
+      return;
+    }
+
+    onPaypalCheckout(selectedPlan, sanitizedHolder);
   };
 
   return (
@@ -279,9 +317,49 @@ export function BillingClient(props: BillingClientProps) {
         <p className="text-sm text-muted-foreground">
           Se cobrará <span className="font-semibold text-foreground">USD {selectedAmount.toFixed(2)}</span> por el plan <span className="font-semibold text-foreground">{selectedPlan}</span> del paquete <span className="font-semibold text-foreground">{selectedPackage?.nombre ?? "seleccionado"}</span>.
         </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="space-y-1 md:col-span-2">
+            <Label>Nombre del titular</Label>
+            <Input
+              value={cardForm.titular}
+              onChange={(e) => setCardForm((prev) => ({ ...prev, titular: e.target.value }))}
+              placeholder="Como aparece en la tarjeta"
+              autoComplete="cc-name"
+            />
+          </div>
+          <div className="space-y-1 md:col-span-2">
+            <Label>Número de tarjeta</Label>
+            <Input
+              value={cardForm.numeroTarjeta}
+              onChange={(e) => setCardForm((prev) => ({ ...prev, numeroTarjeta: e.target.value }))}
+              placeholder="1234 5678 9012 3456"
+              inputMode="numeric"
+              autoComplete="cc-number"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Fecha de expiración</Label>
+            <Input
+              value={cardForm.fechaExpiracion}
+              onChange={(e) => setCardForm((prev) => ({ ...prev, fechaExpiracion: e.target.value }))}
+              placeholder="MM/AA"
+              autoComplete="cc-exp"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>CVV</Label>
+            <Input
+              value={cardForm.cvv}
+              onChange={(e) => setCardForm((prev) => ({ ...prev, cvv: e.target.value }))}
+              placeholder="123"
+              inputMode="numeric"
+              autoComplete="cc-csc"
+            />
+          </div>
+        </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={() => setCurrentStep(2)} disabled={isPending}>Volver a facturación</Button>
-          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || !selectedPackage}>
+          <Button type="button" onClick={onPaymentSubmit} disabled={isPending || !selectedPackage}>
             Pagar con PayPal (redirección)
           </Button>
         </div>
