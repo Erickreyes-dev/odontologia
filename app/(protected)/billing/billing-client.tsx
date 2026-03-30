@@ -16,7 +16,7 @@ declare global {
         createOrder: () => Promise<string>;
         onApprove: (data: { orderID?: string }) => Promise<void>;
         onError?: (error: unknown) => void;
-        onClick?: () => void;
+        onClick?: () => void | Promise<void>;
         style?: {
           layout?: "vertical" | "horizontal";
           label?: "paypal" | "checkout" | "buynow" | "pay" | "installment";
@@ -152,6 +152,19 @@ export function BillingClient(props: BillingClientProps) {
       try {
         await window.paypal?.Buttons({
           style: { layout: "vertical", label: "pay", tagline: false },
+          onClick: () => {
+            const alreadySubscribed = props.subscriptionStatus !== "cancelado" && Boolean(props.paqueteActualId);
+            const isChangingPackage = Boolean(selectedPackageId) && selectedPackageId !== props.paqueteActualId;
+            if (!alreadySubscribed || !isChangingPackage) return;
+
+            const shouldContinue = window.confirm(
+              `Ya cuentas con una suscripción activa (${props.paqueteNombre}). ¿Estás seguro de que deseas contratar el paquete ${selectedPackage?.nombre ?? "seleccionado"}?`,
+            );
+
+            if (!shouldContinue) {
+              throw new Error("subscription_change_cancelled_by_user");
+            }
+          },
           createOrder: () => onPaypalCheckout(selectedPlan),
           onApprove: async (data) => {
             if (!data.orderID) {
@@ -176,7 +189,17 @@ export function BillingClient(props: BillingClientProps) {
       }
     };
     void render();
-  }, [currentStep, isPaypalSdkReady, onPaypalCheckout, selectedPlan]);
+  }, [
+    currentStep,
+    isPaypalSdkReady,
+    onPaypalCheckout,
+    props.paqueteActualId,
+    props.paqueteNombre,
+    props.subscriptionStatus,
+    selectedPackage?.nombre,
+    selectedPackageId,
+    selectedPlan,
+  ]);
 
   useEffect(() => {
     if (currentStep === 2) return;
