@@ -18,6 +18,7 @@ async function ensurePlatformPermissions(tenantId: string) {
   if (!role) return;
 
   for (const permission of PLATFORM_PERMISSIONS) {
+    
     const permiso = await prisma.permiso.upsert({
       where: { nombre: permission.nombre },
       update: { descripcion: permission.descripcion, activo: true },
