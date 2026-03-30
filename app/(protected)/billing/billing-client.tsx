@@ -481,7 +481,7 @@ export function BillingClient(props: BillingClientProps) {
           <div className="space-y-1"><Label>CVV</Label><div id="paypal-cvv-field" className="h-11 rounded-md border px-3 py-2" /></div>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button type="button" onClick={submitCardPayment} disabled={!cardEligible || !paypalOrderReady || isCardProcessing}>
+          <Button type="button" onClick={submitCardPayment} disabled={!cardEligible || !paypalOrderReady || !isCardFormValid || isCardProcessing}>
             Pagar con PayPal
           </Button>
           <Button type="button" variant="outline" onClick={() => setCurrentStep(2)} disabled={isCardProcessing}>Volver</Button>
