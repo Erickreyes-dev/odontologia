@@ -61,7 +61,7 @@ export function BillingClient(props: BillingClientProps) {
     facturarPais: props.facturarPais,
     facturarPostal: props.facturarPostal,
   });
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   const selectedPackage = useMemo(
     () => props.paquetesDisponibles.find((item) => item.id === selectedPackageId) ?? props.paquetesDisponibles[0],
@@ -270,7 +270,7 @@ export function BillingClient(props: BillingClientProps) {
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={onBillingSave} disabled={isPending}>Guardar datos y continuar al pago</Button>
           <Button type="button" onClick={() => setCurrentStep(3)} disabled={isPending}>Continuar al pago</Button>
-          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || isCardProcessing || !selectedPackage}>
+          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || !selectedPackage}>
             Pagar con PayPal (redirección)
           </Button>
         </div>
