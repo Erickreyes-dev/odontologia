@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { BadgeCheck, CalendarClock, Check, Globe, ReceiptText, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -168,6 +168,31 @@ export function BillingClient(props: BillingClientProps) {
     });
   };
 
+  const createOrderFromServer = useCallback(async () => {
+    if (!selectedPackage?.id) throw new Error("No hay paquete seleccionado para procesar el pago");
+
+    console.info("[PayPal][createOrder][click]", {
+      timestamp: new Date().toISOString(),
+      selectedPlan,
+      selectedPackageId: selectedPackage.id,
+    });
+
+    const saved = await saveTenantBillingProfile(billing);
+    if (!saved.success) throw new Error(saved.error);
+
+    const result = await createPaypalSdkOrderForPlan(selectedPlan, selectedPackage.id);
+    if (!result.success) throw new Error(result.error);
+
+    console.info("[PayPal][createOrder][created]", {
+      timestamp: new Date().toISOString(),
+      orderId: result.orderId,
+      selectedPlan,
+      selectedPackageId: selectedPackage.id,
+    });
+
+    return result.orderId;
+  }, [billing, selectedPackage?.id, selectedPlan]);
+
   const onBillingSave = () => {
     startTransition(() => {
       void (async () => {
@@ -221,14 +246,7 @@ export function BillingClient(props: BillingClientProps) {
     paypalCardContainerRef.current.innerHTML = "";
     if (paypalButtonsContainerRef.current) paypalButtonsContainerRef.current.innerHTML = "";
     const cardFields = window.paypal.CardFields({
-      createOrder: async () => {
-        const saved = await saveTenantBillingProfile(billing);
-        if (!saved.success) throw new Error(saved.error);
-
-        const result = await createPaypalSdkOrderForPlan(selectedPlan, selectedPackage.id);
-        if (!result.success) throw new Error(result.error);
-        return result.orderId;
-      },
+      createOrder: createOrderFromServer,
       onApprove: async (data) => {
         const orderId = data.orderID;
         if (!orderId) throw new Error("PayPal no devolvió orderID");
@@ -311,13 +329,7 @@ export function BillingClient(props: BillingClientProps) {
       }
       const fallbackButtons = window.paypal.Buttons({
         style: { layout: "vertical", label: "paypal", shape: "rect" },
-        createOrder: async () => {
-          const saved = await saveTenantBillingProfile(billing);
-          if (!saved.success) throw new Error(saved.error);
-          const result = await createPaypalSdkOrderForPlan(selectedPlan, selectedPackage.id);
-          if (!result.success) throw new Error(result.error);
-          return result.orderId;
-        },
+        createOrder: createOrderFromServer,
         onApprove: async (data) => {
           const orderId = data.orderID;
           if (!orderId) throw new Error("PayPal no devolvió orderID");
@@ -347,15 +359,16 @@ export function BillingClient(props: BillingClientProps) {
       setIsCardFormValid(false);
       if (cardFields.close) cardFields.close();
     };
-  }, [billing, sdkReady, selectedPackage?.id, selectedPlan, selectedPackage, props.paypalClientId]);
+  }, [createOrderFromServer, sdkReady, selectedPackage?.id, selectedPlan, selectedPackage, props.paypalClientId]);
 
   const submitCardPayment = () => {
-    if (!cardFieldsRef.current) {
+    const cardFields = cardFieldsRef.current;
+    if (!cardFields) {
       toast.error("El formulario de tarjeta aún no está listo.");
       return;
     }
     setIsCardProcessing(true);
-    void cardFieldsRef.current.submit().catch((error: unknown) => {
+    void cardFields.submit().catch((error: unknown) => {
       setIsCardProcessing(false);
       toast.error(error instanceof Error ? error.message : "No se pudo procesar el pago de tarjeta.");
     });
