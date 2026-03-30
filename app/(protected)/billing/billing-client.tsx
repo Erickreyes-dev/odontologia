@@ -275,11 +275,38 @@ export function BillingClient(props: BillingClientProps) {
       setCardDisableReason("PayPal indicó que Card Fields no es elegible para esta sesión/merchant.");
       cardFieldsRef.current = null;
       setPaypalOrderReady(true);
+      const ineligibleHints = [
+        "La cuenta/merchant de PayPal puede no tener Advanced Card Payments habilitado.",
+        "El client-id puede no corresponder al entorno esperado (sandbox/live).",
+        "La moneda o país de la cuenta/comprador puede no ser compatible para Card Fields.",
+        "La sesión del comprador/dispositivo puede no cumplir criterios de riesgo/eligibilidad de PayPal.",
+      ];
+
+      console.warn("[PayPal][CardFields][ineligible]", {
+        message: "PayPal no habilitó Card Fields en esta sesión.",
+        paypalClientIdConfigured: Boolean(props.paypalClientId),
+        sdkReady,
+        selectedPlan,
+        selectedPackageId: selectedPackage.id,
+        browser: navigator.userAgent,
+        currentUrl: window.location.href,
+        hints: ineligibleHints,
+      });
+
       if (cardFields.getState) {
         void cardFields.getState().then((state) => {
-          console.warn("[PayPal][CardFields][ineligible-state]", state);
+          console.warn("[PayPal][CardFields][ineligible-state]", {
+            state,
+            message: "Estado devuelto por PayPal para depurar por qué Card Fields no es elegible.",
+            hints: ineligibleHints,
+          });
         }).catch((error: unknown) => {
           console.warn("[PayPal][CardFields][ineligible-state-error]", error);
+        });
+      } else {
+        console.warn("[PayPal][CardFields][ineligible-state]", {
+          message: "El SDK no expuso getState() en esta versión/contexto.",
+          hints: ineligibleHints,
         });
       }
       const fallbackButtons = window.paypal.Buttons({
@@ -320,7 +347,7 @@ export function BillingClient(props: BillingClientProps) {
       setIsCardFormValid(false);
       if (cardFields.close) cardFields.close();
     };
-  }, [billing, sdkReady, selectedPackage?.id, selectedPlan, selectedPackage]);
+  }, [billing, sdkReady, selectedPackage?.id, selectedPlan, selectedPackage, props.paypalClientId]);
 
   const submitCardPayment = () => {
     if (!cardFieldsRef.current) {
