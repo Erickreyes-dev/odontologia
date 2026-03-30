@@ -12,6 +12,7 @@ import { getSessionCookieDomain } from "@/lib/session-cookie";
 import { calculateExpirationDateByPlan, isSubscriptionActive, resolveSubscriptionStatus } from "@/lib/subscription-status";
 import { createPaypalOrderWithContext, getPaypalApprovalLink } from "@/lib/paypal";
 import { finalizeOnboardingProvision } from "@/lib/onboarding-payment";
+import { Prisma } from "@/lib/generated/prisma";
 
 interface GoogleOnboardingInput {
   credential: string;
@@ -26,6 +27,13 @@ type OnboardingRegisterResult =
   | { success: true; tenantUrl: string; alreadyExists?: boolean; requiresPayment?: false }
   | { success: true; requiresPayment: true; approveLink: string; reusedPending?: boolean }
   | { success: false; error: string };
+
+const usuarioGoogleInclude = Prisma.validator<Prisma.UsuariosDefaultArgs>()({
+  include: {
+    rol: { include: { permisos: { include: { permiso: true } } } },
+    tenant: true,
+  },
+});
 
 async function verifyGoogleCredential(credential: string) {
   const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`, { cache: "no-store" });
@@ -165,8 +173,7 @@ async function findGoogleUserByEmail(email: string) {
       tenantId: { not: null },
     },
     include: {
-      rol: true,
-      tenant: { include: { roles: true, permisos: true } },
+      ...usuarioGoogleInclude.include,
     },
   });
 }
@@ -191,8 +198,7 @@ async function findUserForTenantGoogleLogin(email: string, tenantSlug?: string |
       ],
     },
     include: {
-      rol: true,
-      tenant: { include: { permisos: true } },
+      ...usuarioGoogleInclude.include,
     },
   });
 }
@@ -216,7 +222,7 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
         Rol: existingGoogleUser.rol.nombre,
         IdRol: existingGoogleUser.rol_id,
         IdEmpleado: existingGoogleUser.empleado_id,
-        Permiso: existingGoogleUser.tenant.permisos.map((p) => p.nombre),
+        Permiso: existingGoogleUser.rol.permisos.map((rp) => rp.permiso.nombre),
         DebeCambiar: Boolean(existingGoogleUser.DebeCambiarPassword),
         Puesto: "",
         PuestoId: "",
@@ -374,10 +380,11 @@ export async function registerTenantWithGoogle(input: GoogleOnboardingInput): Pr
 
       const permisos = [] as { id: string; nombre: string }[];
       for (const permission of TENANT_PERMISSIONS) {
-        const created = await tx.permiso.create({
-          data: {
+        const created = await tx.permiso.upsert({
+          where: { nombre: permission.nombre },
+          update: { descripcion: permission.descripcion, activo: true },
+          create: {
             id: randomUUID(),
-            tenantId: tenant.id,
             nombre: permission.nombre,
             descripcion: permission.descripcion,
             activo: true,
@@ -478,7 +485,7 @@ export async function loginGoogleExistingTenant(credential: string): Promise<{ s
       Rol: existingGoogleUser.rol.nombre,
       IdRol: existingGoogleUser.rol_id,
       IdEmpleado: existingGoogleUser.empleado_id,
-      Permiso: existingGoogleUser.tenant.permisos.map((p) => p.nombre),
+      Permiso: existingGoogleUser.rol.permisos.map((rp) => rp.permiso.nombre),
       DebeCambiar: Boolean(existingGoogleUser.DebeCambiarPassword),
       Puesto: "",
       PuestoId: "",
@@ -515,8 +522,7 @@ export async function finalizeGoogleOnboardingPayment(orderId: string, credentia
     const user = await prisma.usuarios.findUnique({
       where: { id: provisioning.userId },
       include: {
-        rol: true,
-        tenant: { include: { permisos: true } },
+        ...usuarioGoogleInclude.include,
       },
     });
 
@@ -538,7 +544,7 @@ export async function finalizeGoogleOnboardingPayment(orderId: string, credentia
       Rol: user.rol.nombre,
       IdRol: user.rol_id,
       IdEmpleado: user.empleado_id,
-      Permiso: user.tenant.permisos.map((p) => p.nombre),
+      Permiso: user.rol.permisos.map((rp) => rp.permiso.nombre),
       DebeCambiar: Boolean(user.DebeCambiarPassword),
       Puesto: "",
       PuestoId: "",
