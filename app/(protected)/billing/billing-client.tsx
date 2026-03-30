@@ -1,53 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { BadgeCheck, CalendarClock, Check, Globe, ReceiptText, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { capturePaypalAndCreateInvoice, createCheckoutForPlan, createPaypalSdkOrderForPlan, saveTenantBillingProfile } from "./actions";
+import { createCheckoutForPlan, saveTenantBillingProfile } from "./actions";
 import { toast } from "sonner";
 import type { SubscriptionStatus } from "@/lib/subscription-status";
-
-declare global {
-  interface Window {
-    paypal?: {
-      CardFields: (config: {
-        createOrder: () => Promise<string>;
-        onApprove: (data: { orderID?: string }) => Promise<void>;
-        onError: (error: unknown) => void;
-        inputEvents?: {
-          onChange?: (data: {
-            emittedBy?: string;
-            isFormValid?: boolean;
-            errors?: Array<{ field?: string; code?: string; message?: string }>;
-            fields?: Record<string, { isValid?: boolean; isEmpty?: boolean; isPotentiallyValid?: boolean }>;
-            cards?: Array<{ type?: string; niceType?: string; code?: { name?: string; size?: number } }>;
-          }) => void;
-        };
-      }) => {
-        isEligible: () => boolean;
-        NameField: () => { render: (container: string) => Promise<void> };
-        NumberField: () => { render: (container: string) => Promise<void> };
-        CVVField: () => { render: (container: string) => Promise<void> };
-        ExpiryField: () => { render: (container: string) => Promise<void> };
-        submit: () => Promise<void>;
-        getState?: () => Promise<{
-          isFormValid?: boolean;
-          errors?: Array<{ field?: string; code?: string; message?: string }>;
-          fields?: Record<string, { isValid?: boolean; isEmpty?: boolean; isPotentiallyValid?: boolean }>;
-        }>;
-        close?: () => void;
-      };
-      Buttons: (config: {
-        style?: Record<string, unknown>;
-        createOrder: () => Promise<string>;
-        onApprove: (data: { orderID?: string }) => Promise<void>;
-        onError: (error: unknown) => void;
-      }) => { render: (container: string | HTMLElement) => Promise<void>; close?: () => void };
-    };
-  }
-}
 
 type BillingPackage = {
   id: string;
@@ -101,16 +61,7 @@ export function BillingClient(props: BillingClientProps) {
     facturarPais: props.facturarPais,
     facturarPostal: props.facturarPostal,
   });
-  const [sdkReady, setSdkReady] = useState(false);
-  const [isCardProcessing, setIsCardProcessing] = useState(false);
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
-  const [cardEligible, setCardEligible] = useState(false);
-  const [paypalOrderReady, setPaypalOrderReady] = useState(false);
-  const [isCardFormValid, setIsCardFormValid] = useState(false);
-  const [cardDisableReason, setCardDisableReason] = useState("Completa los datos de tarjeta para habilitar el botón.");
-  const paypalCardContainerRef = useRef<HTMLDivElement | null>(null);
-  const paypalButtonsContainerRef = useRef<HTMLDivElement | null>(null);
-  const cardFieldsRef = useRef<ReturnType<NonNullable<Window["paypal"]>["CardFields"]> | null>(null);
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
   const selectedPackage = useMemo(
     () => props.paquetesDisponibles.find((item) => item.id === selectedPackageId) ?? props.paquetesDisponibles[0],
@@ -140,237 +91,86 @@ export function BillingClient(props: BillingClientProps) {
     startTransition(() => {
       void (async () => {
         try {
+          console.info("[Billing][PayPal][checkout][start]", {
+            timestamp: new Date().toISOString(),
+            periodo,
+            selectedPlan,
+            selectedPackageId: selectedPackage?.id ?? null,
+          });
+
           if (!selectedPackage?.id) {
+            console.warn("[Billing][PayPal][checkout][abort]", { reason: "missing_selected_package" });
             toast.error("No hay paquete seleccionado para procesar el pago");
             return;
           }
 
           const saved = await saveTenantBillingProfile(billing);
+          console.info("[Billing][PayPal][saveBillingProfile][response]", {
+            timestamp: new Date().toISOString(),
+            success: saved.success,
+            error: saved.success ? null : saved.error,
+          });
           if (!saved.success) {
             toast.error(saved.error);
             return;
           }
 
           const result = await createCheckoutForPlan(periodo, selectedPackage.id);
+          console.info("[Billing][PayPal][createCheckoutForPlan][response]", {
+            timestamp: new Date().toISOString(),
+            success: result.success,
+            approveLink: result.success ? (result.approveLink ?? null) : null,
+            error: result.success ? null : result.error,
+          });
           if (!result.success) {
             toast.error(result.error);
             return;
           }
           if (result.approveLink) {
+            console.info("[Billing][PayPal][redirect]", {
+              timestamp: new Date().toISOString(),
+              approveLink: result.approveLink,
+            });
             window.location.assign(result.approveLink);
             return;
           }
+          console.warn("[Billing][PayPal][checkout][missing_approve_link]", {
+            timestamp: new Date().toISOString(),
+          });
           toast.error("No se recibió URL de PayPal para continuar el pago");
         } catch (error) {
+          console.error("[Billing][PayPal][checkout][exception]", error);
           toast.error(error instanceof Error ? error.message : "Error inesperado al iniciar pago con PayPal");
         }
       })();
     });
   };
 
-  const createOrderFromServer = useCallback(async () => {
-    if (!selectedPackage?.id) throw new Error("No hay paquete seleccionado para procesar el pago");
-
-    console.info("[PayPal][createOrder][click]", {
-      timestamp: new Date().toISOString(),
-      selectedPlan,
-      selectedPackageId: selectedPackage.id,
-    });
-
-    const saved = await saveTenantBillingProfile(billing);
-    if (!saved.success) throw new Error(saved.error);
-
-    const result = await createPaypalSdkOrderForPlan(selectedPlan, selectedPackage.id);
-    if (!result.success) throw new Error(result.error);
-
-    console.info("[PayPal][createOrder][created]", {
-      timestamp: new Date().toISOString(),
-      orderId: result.orderId,
-      selectedPlan,
-      selectedPackageId: selectedPackage.id,
-    });
-
-    return result.orderId;
-  }, [billing, selectedPackage?.id, selectedPlan]);
-
   const onBillingSave = () => {
     startTransition(() => {
       void (async () => {
         try {
+          console.info("[Billing][saveBillingProfile][start]", {
+            timestamp: new Date().toISOString(),
+            selectedPlan,
+            selectedPackageId: selectedPackage?.id ?? null,
+          });
           const result = await saveTenantBillingProfile(billing);
+          console.info("[Billing][saveBillingProfile][response]", {
+            timestamp: new Date().toISOString(),
+            success: result.success,
+            error: result.success ? null : result.error,
+          });
           if (!result.success) {
             toast.error(result.error);
             return;
           }
           toast.success("Datos de facturación guardados");
         } catch (error) {
+          console.error("[Billing][saveBillingProfile][exception]", error);
           toast.error(error instanceof Error ? error.message : "No se pudo guardar la información de facturación");
         }
       })();
-    });
-  };
-
-  useEffect(() => {
-    if (!props.paypalClientId) {
-      setSdkReady(false);
-      return;
-    }
-    if (window.paypal?.Buttons) {
-      setSdkReady(true);
-      return;
-    }
-
-    const existingScript = document.querySelector<HTMLScriptElement>("script[data-paypal-sdk='true']");
-    if (existingScript) {
-      const onLoad = () => setSdkReady(true);
-      existingScript.addEventListener("load", onLoad);
-      return () => existingScript.removeEventListener("load", onLoad);
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(props.paypalClientId)}&currency=USD&intent=capture&components=buttons,card-fields&disable-funding=venmo,paylater&commit=true`;
-    script.async = true;
-    script.dataset.paypalSdk = "true";
-    script.onload = () => setSdkReady(true);
-    script.onerror = () => {
-      setSdkReady(false);
-      toast.error("No se pudo cargar el SDK de PayPal. Verifica NEXT_PUBLIC_PAYPAL_CLIENT_ID y que paypal.com no esté bloqueado.");
-    };
-    document.body.appendChild(script);
-  }, [props.paypalClientId]);
-
-  useEffect(() => {
-    if (!sdkReady || !paypalCardContainerRef.current || !window.paypal?.CardFields || !window.paypal?.Buttons) return;
-    if (!selectedPackage?.id) return;
-
-    paypalCardContainerRef.current.innerHTML = "";
-    if (paypalButtonsContainerRef.current) paypalButtonsContainerRef.current.innerHTML = "";
-    const cardFields = window.paypal.CardFields({
-      createOrder: createOrderFromServer,
-      onApprove: async (data) => {
-        const orderId = data.orderID;
-        if (!orderId) throw new Error("PayPal no devolvió orderID");
-
-        setIsCardProcessing(true);
-        const capture = await capturePaypalAndCreateInvoice(orderId);
-        setIsCardProcessing(false);
-        if (!capture.success) throw new Error(capture.error);
-
-        toast.success("Pago confirmado con PayPal.");
-        window.location.assign("/billing?payment=success");
-      },
-      onError: (error) => {
-        setIsCardProcessing(false);
-        toast.error(error instanceof Error ? error.message : "No se pudo completar el pago con tarjeta");
-      },
-      inputEvents: {
-        onChange: (data) => {
-          const formValid = Boolean(data.isFormValid);
-          setIsCardFormValid(formValid);
-          const reason = formValid
-            ? "Tarjeta validada por PayPal. El botón puede habilitarse."
-            : data.errors?.length
-              ? `PayPal reporta validaciones pendientes: ${data.errors.map((err) => `${err.field ?? "campo"}:${err.code ?? "UNKNOWN"}`).join(", ")}`
-              : "PayPal aún no marca el formulario como válido.";
-          setCardDisableReason(reason);
-
-          console.info("[PayPal][CardFields][onChange]", {
-            emittedBy: data.emittedBy,
-            isFormValid: data.isFormValid,
-            fields: data.fields,
-            errors: data.errors,
-            cards: data.cards,
-            buttonEnabled: formValid,
-            disableReason: reason,
-          });
-        },
-      },
-    });
-
-    if (!cardFields.isEligible()) {
-      setCardEligible(false);
-      setIsCardFormValid(false);
-      setCardDisableReason("PayPal indicó que Card Fields no es elegible para esta sesión/merchant.");
-      cardFieldsRef.current = null;
-      setPaypalOrderReady(true);
-      const ineligibleHints = [
-        "La cuenta/merchant de PayPal puede no tener Advanced Card Payments habilitado.",
-        "El client-id puede no corresponder al entorno esperado (sandbox/live).",
-        "La moneda o país de la cuenta/comprador puede no ser compatible para Card Fields.",
-        "La sesión del comprador/dispositivo puede no cumplir criterios de riesgo/eligibilidad de PayPal.",
-      ];
-
-      console.warn("[PayPal][CardFields][ineligible]", {
-        message: "PayPal no habilitó Card Fields en esta sesión.",
-        paypalClientIdConfigured: Boolean(props.paypalClientId),
-        sdkReady,
-        selectedPlan,
-        selectedPackageId: selectedPackage.id,
-        browser: navigator.userAgent,
-        currentUrl: window.location.href,
-        hints: ineligibleHints,
-      });
-
-      if (cardFields.getState) {
-        void cardFields.getState().then((state) => {
-          console.warn("[PayPal][CardFields][ineligible-state]", {
-            state,
-            message: "Estado devuelto por PayPal para depurar por qué Card Fields no es elegible.",
-            hints: ineligibleHints,
-          });
-        }).catch((error: unknown) => {
-          console.warn("[PayPal][CardFields][ineligible-state-error]", error);
-        });
-      } else {
-        console.warn("[PayPal][CardFields][ineligible-state]", {
-          message: "El SDK no expuso getState() en esta versión/contexto.",
-          hints: ineligibleHints,
-        });
-      }
-      const fallbackButtons = window.paypal.Buttons({
-        style: { layout: "vertical", label: "paypal", shape: "rect" },
-        createOrder: createOrderFromServer,
-        onApprove: async (data) => {
-          const orderId = data.orderID;
-          if (!orderId) throw new Error("PayPal no devolvió orderID");
-          const capture = await capturePaypalAndCreateInvoice(orderId);
-          if (!capture.success) throw new Error(capture.error);
-          toast.success("Pago confirmado con PayPal.");
-          window.location.assign("/billing?payment=success");
-        },
-        onError: (error) => {
-          toast.error(error instanceof Error ? error.message : "No se pudo completar el pago con PayPal");
-        },
-      });
-      if (paypalButtonsContainerRef.current) void fallbackButtons.render(paypalButtonsContainerRef.current);
-      return;
-    }
-
-    cardFieldsRef.current = cardFields;
-    setCardEligible(true);
-    setPaypalOrderReady(true);
-    void cardFields.NameField().render("#paypal-name-field");
-    void cardFields.NumberField().render("#paypal-number-field");
-    void cardFields.ExpiryField().render("#paypal-expiry-field");
-    void cardFields.CVVField().render("#paypal-cvv-field");
-
-    return () => {
-      setPaypalOrderReady(false);
-      setIsCardFormValid(false);
-      if (cardFields.close) cardFields.close();
-    };
-  }, [createOrderFromServer, sdkReady, selectedPackage?.id, selectedPlan, selectedPackage, props.paypalClientId]);
-
-  const submitCardPayment = () => {
-    const cardFields = cardFieldsRef.current;
-    if (!cardFields) {
-      toast.error("El formulario de tarjeta aún no está listo.");
-      return;
-    }
-    setIsCardProcessing(true);
-    void cardFields.submit().catch((error: unknown) => {
-      setIsCardProcessing(false);
-      toast.error(error instanceof Error ? error.message : "No se pudo procesar el pago de tarjeta.");
     });
   };
 
@@ -404,7 +204,6 @@ export function BillingClient(props: BillingClientProps) {
         <div className="mb-4 flex flex-wrap gap-2 text-xs">
           <button type="button" onClick={() => setCurrentStep(1)} className={`rounded-full border px-3 py-1 ${currentStep === 1 ? "border-cyan-500 text-cyan-600" : ""}`}>Paso 1: Plan</button>
           <button type="button" onClick={() => setCurrentStep(2)} className={`rounded-full border px-3 py-1 ${currentStep === 2 ? "border-cyan-500 text-cyan-600" : ""}`}>Paso 2: Facturación</button>
-          <button type="button" onClick={() => setCurrentStep(3)} className={`rounded-full border px-3 py-1 ${currentStep === 3 ? "border-cyan-500 text-cyan-600" : ""}`}>Paso 3: Tarjeta</button>
         </div>
       </div>
 
@@ -469,37 +268,9 @@ export function BillingClient(props: BillingClientProps) {
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={onBillingSave} disabled={isPending}>Guardar datos</Button>
-          <Button type="button" onClick={() => setCurrentStep(3)} disabled={isPending}>Continuar al pago</Button>
-          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || isCardProcessing || !selectedPackage}>
+          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || !selectedPackage}>
             Pagar con PayPal (redirección)
           </Button>
-        </div>
-      </div> : null}
-
-      {currentStep === 3 ? <div className="rounded-2xl border bg-card p-4">
-        <p className="mb-3 text-sm font-medium">4) Pago con tarjeta (seguro por PayPal)</p>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Tus datos de tarjeta se capturan de forma segura por PayPal. Esta plataforma no almacena número de tarjeta ni CVV.
-        </p>
-        <div ref={paypalCardContainerRef} className="hidden" />
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-1 md:col-span-2"><Label>Nombre del titular</Label><div id="paypal-name-field" className="h-11 rounded-md border px-3 py-2" /></div>
-          <div className="space-y-1 md:col-span-2"><Label>Número de tarjeta</Label><div id="paypal-number-field" className="h-11 rounded-md border px-3 py-2" /></div>
-          <div className="space-y-1"><Label>Expiración</Label><div id="paypal-expiry-field" className="h-11 rounded-md border px-3 py-2" /></div>
-          <div className="space-y-1"><Label>CVV</Label><div id="paypal-cvv-field" className="h-11 rounded-md border px-3 py-2" /></div>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button type="button" onClick={submitCardPayment} disabled={!cardEligible || !paypalOrderReady || !isCardFormValid || isCardProcessing}>
-            Pagar con PayPal
-          </Button>
-          <Button type="button" variant="outline" onClick={() => setCurrentStep(2)} disabled={isCardProcessing}>Volver</Button>
-        </div>
-        {!cardEligible ? <p className="mt-2 text-xs text-amber-600">PayPal no habilitó campos de tarjeta para esta sesión; puedes completar el pago con el botón oficial de PayPal aquí mismo.</p> : null}
-        {cardEligible && !isCardFormValid ? <p className="mt-2 text-xs text-amber-600">{cardDisableReason}</p> : null}
-        {!cardEligible ? <div ref={paypalButtonsContainerRef} className="mt-3 max-w-sm" /> : null}
-        {!props.paypalClientId ? <p className="mt-2 text-xs text-amber-600">Configura NEXT_PUBLIC_PAYPAL_CLIENT_ID para habilitar este botón.</p> : null}
-        <div className="mt-3 rounded-md border border-cyan-500/30 bg-cyan-500/10 p-2 text-xs text-cyan-800">
-          Pago seguro a través de PayPal · No guardamos datos sensibles de tu tarjeta.
         </div>
       </div> : null}
 
