@@ -61,7 +61,7 @@ export function BillingClient(props: BillingClientProps) {
     facturarPais: props.facturarPais,
     facturarPostal: props.facturarPostal,
   });
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   const selectedPackage = useMemo(
     () => props.paquetesDisponibles.find((item) => item.id === selectedPackageId) ?? props.paquetesDisponibles[0],
@@ -205,6 +205,7 @@ export function BillingClient(props: BillingClientProps) {
         <div className="mb-4 flex flex-wrap gap-2 text-xs">
           <button type="button" onClick={() => setCurrentStep(1)} className={`rounded-full border px-3 py-1 ${currentStep === 1 ? "border-cyan-500 text-cyan-600" : ""}`}>Paso 1: Plan</button>
           <button type="button" onClick={() => setCurrentStep(2)} className={`rounded-full border px-3 py-1 ${currentStep === 2 ? "border-cyan-500 text-cyan-600" : ""}`}>Paso 2: Facturación</button>
+          <button type="button" onClick={() => setCurrentStep(3)} className={`rounded-full border px-3 py-1 ${currentStep === 3 ? "border-cyan-500 text-cyan-600" : ""}`}>Paso 3: Pago</button>
         </div>
       </div>
 
@@ -255,8 +256,8 @@ export function BillingClient(props: BillingClientProps) {
         </div>
       </div> : null}
 
-      {currentStep >= 2 ? <div className="rounded-2xl border bg-card p-4">
-        <p className="mb-3 flex items-center gap-2 text-sm font-medium"><ReceiptText className="h-4 w-4 text-cyan-500" /> 3) Datos de facturación</p>
+      {currentStep === 2 ? <div className="rounded-2xl border bg-card p-4">
+        <p className="mb-3 flex items-center gap-2 text-sm font-medium"><ReceiptText className="h-4 w-4 text-cyan-500" /> 2) Datos de facturación</p>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1"><Label>Razón social / Nombre</Label><Input value={billing.facturarNombre} onChange={(e) => setBilling((p) => ({ ...p, facturarNombre: e.target.value }))} /></div>
           <div className="space-y-1"><Label>Correo facturación</Label><Input value={billing.facturarCorreo} onChange={(e) => setBilling((p) => ({ ...p, facturarCorreo: e.target.value }))} /></div>
@@ -270,7 +271,17 @@ export function BillingClient(props: BillingClientProps) {
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={onBillingSave} disabled={isPending}>Guardar datos y continuar al pago</Button>
           <Button type="button" onClick={() => setCurrentStep(3)} disabled={isPending}>Continuar al pago</Button>
-          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || isCardProcessing || !selectedPackage}>
+        </div>
+      </div> : null}
+
+      {currentStep === 3 ? <div className="rounded-2xl border bg-card p-4">
+        <p className="mb-3 flex items-center gap-2 text-sm font-medium"><WalletCards className="h-4 w-4 text-cyan-500" /> 3) Confirma y paga</p>
+        <p className="text-sm text-muted-foreground">
+          Se cobrará <span className="font-semibold text-foreground">USD {selectedAmount.toFixed(2)}</span> por el plan <span className="font-semibold text-foreground">{selectedPlan}</span> del paquete <span className="font-semibold text-foreground">{selectedPackage?.nombre ?? "seleccionado"}</span>.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" onClick={() => setCurrentStep(2)} disabled={isPending}>Volver a facturación</Button>
+          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || !selectedPackage}>
             Pagar con PayPal (redirección)
           </Button>
         </div>
