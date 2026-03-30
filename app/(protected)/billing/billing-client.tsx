@@ -16,6 +16,15 @@ declare global {
         createOrder: () => Promise<string>;
         onApprove: (data: { orderID?: string }) => Promise<void>;
         onError: (error: unknown) => void;
+        inputEvents?: {
+          onChange?: (data: {
+            emittedBy?: string;
+            isFormValid?: boolean;
+            errors?: Array<{ field?: string; code?: string; message?: string }>;
+            fields?: Record<string, { isValid?: boolean; isEmpty?: boolean; isPotentiallyValid?: boolean }>;
+            cards?: Array<{ type?: string; niceType?: string; code?: { name?: string; size?: number } }>;
+          }) => void;
+        };
       }) => {
         isEligible: () => boolean;
         NameField: () => { render: (container: string) => Promise<void> };
@@ -23,6 +32,11 @@ declare global {
         CVVField: () => { render: (container: string) => Promise<void> };
         ExpiryField: () => { render: (container: string) => Promise<void> };
         submit: () => Promise<void>;
+        getState?: () => Promise<{
+          isFormValid?: boolean;
+          errors?: Array<{ field?: string; code?: string; message?: string }>;
+          fields?: Record<string, { isValid?: boolean; isEmpty?: boolean; isPotentiallyValid?: boolean }>;
+        }>;
         close?: () => void;
       };
       Buttons: (config: {
@@ -92,6 +106,8 @@ export function BillingClient(props: BillingClientProps) {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [cardEligible, setCardEligible] = useState(false);
   const [paypalOrderReady, setPaypalOrderReady] = useState(false);
+  const [isCardFormValid, setIsCardFormValid] = useState(false);
+  const [cardDisableReason, setCardDisableReason] = useState("Completa los datos de tarjeta para habilitar el botón.");
   const paypalCardContainerRef = useRef<HTMLDivElement | null>(null);
   const paypalButtonsContainerRef = useRef<HTMLDivElement | null>(null);
   const cardFieldsRef = useRef<ReturnType<NonNullable<Window["paypal"]>["CardFields"]> | null>(null);
@@ -229,12 +245,43 @@ export function BillingClient(props: BillingClientProps) {
         setIsCardProcessing(false);
         toast.error(error instanceof Error ? error.message : "No se pudo completar el pago con tarjeta");
       },
+      inputEvents: {
+        onChange: (data) => {
+          const formValid = Boolean(data.isFormValid);
+          setIsCardFormValid(formValid);
+          const reason = formValid
+            ? "Tarjeta validada por PayPal. El botón puede habilitarse."
+            : data.errors?.length
+              ? `PayPal reporta validaciones pendientes: ${data.errors.map((err) => `${err.field ?? "campo"}:${err.code ?? "UNKNOWN"}`).join(", ")}`
+              : "PayPal aún no marca el formulario como válido.";
+          setCardDisableReason(reason);
+
+          console.info("[PayPal][CardFields][onChange]", {
+            emittedBy: data.emittedBy,
+            isFormValid: data.isFormValid,
+            fields: data.fields,
+            errors: data.errors,
+            cards: data.cards,
+            buttonEnabled: formValid,
+            disableReason: reason,
+          });
+        },
+      },
     });
 
     if (!cardFields.isEligible()) {
       setCardEligible(false);
+      setIsCardFormValid(false);
+      setCardDisableReason("PayPal indicó que Card Fields no es elegible para esta sesión/merchant.");
       cardFieldsRef.current = null;
       setPaypalOrderReady(true);
+      if (cardFields.getState) {
+        void cardFields.getState().then((state) => {
+          console.warn("[PayPal][CardFields][ineligible-state]", state);
+        }).catch((error: unknown) => {
+          console.warn("[PayPal][CardFields][ineligible-state-error]", error);
+        });
+      }
       const fallbackButtons = window.paypal.Buttons({
         style: { layout: "vertical", label: "paypal", shape: "rect" },
         createOrder: async () => {
@@ -270,6 +317,7 @@ export function BillingClient(props: BillingClientProps) {
 
     return () => {
       setPaypalOrderReady(false);
+      setIsCardFormValid(false);
       if (cardFields.close) cardFields.close();
     };
   }, [billing, sdkReady, selectedPackage?.id, selectedPlan, selectedPackage]);
@@ -401,12 +449,13 @@ export function BillingClient(props: BillingClientProps) {
           <div className="space-y-1"><Label>CVV</Label><div id="paypal-cvv-field" className="h-11 rounded-md border px-3 py-2" /></div>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button type="button" onClick={submitCardPayment} disabled={!cardEligible || !paypalOrderReady || isCardProcessing}>
+          <Button type="button" onClick={submitCardPayment} disabled={!cardEligible || !paypalOrderReady || !isCardFormValid || isCardProcessing}>
             Pagar con PayPal
           </Button>
           <Button type="button" variant="outline" onClick={() => setCurrentStep(2)} disabled={isCardProcessing}>Volver</Button>
         </div>
         {!cardEligible ? <p className="mt-2 text-xs text-amber-600">PayPal no habilitó campos de tarjeta para esta sesión; puedes completar el pago con el botón oficial de PayPal aquí mismo.</p> : null}
+        {cardEligible && !isCardFormValid ? <p className="mt-2 text-xs text-amber-600">{cardDisableReason}</p> : null}
         {!cardEligible ? <div ref={paypalButtonsContainerRef} className="mt-3 max-w-sm" /> : null}
         {!props.paypalClientId ? <p className="mt-2 text-xs text-amber-600">Configura NEXT_PUBLIC_PAYPAL_CLIENT_ID para habilitar este botón.</p> : null}
         <div className="mt-3 rounded-md border border-cyan-500/30 bg-cyan-500/10 p-2 text-xs text-cyan-800">
