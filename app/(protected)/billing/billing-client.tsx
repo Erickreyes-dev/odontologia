@@ -165,7 +165,8 @@ export function BillingClient(props: BillingClientProps) {
             toast.error(result.error);
             return;
           }
-          toast.success("Datos de facturación guardados");
+          setCurrentStep(3);
+          toast.success("Datos de facturación guardados. Continúa con tu tarjeta en el paso 3.");
         } catch (error) {
           console.error("[Billing][saveBillingProfile][exception]", error);
           toast.error(error instanceof Error ? error.message : "No se pudo guardar la información de facturación");
@@ -267,8 +268,9 @@ export function BillingClient(props: BillingClientProps) {
           <div className="space-y-1"><Label>Código postal</Label><Input value={billing.facturarPostal} onChange={(e) => setBilling((p) => ({ ...p, facturarPostal: e.target.value }))} /></div>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" onClick={onBillingSave} disabled={isPending}>Guardar datos</Button>
-          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || !selectedPackage}>
+          <Button type="button" variant="outline" onClick={onBillingSave} disabled={isPending}>Guardar datos y continuar al pago</Button>
+          <Button type="button" onClick={() => setCurrentStep(3)} disabled={isPending}>Continuar al pago</Button>
+          <Button type="button" onClick={() => onPaypalCheckout(selectedPlan)} disabled={isPending || isCardProcessing || !selectedPackage}>
             Pagar con PayPal (redirección)
           </Button>
         </div>
