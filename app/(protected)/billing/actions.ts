@@ -136,6 +136,7 @@ export async function createCheckoutForPlan(
 export async function createPaypalSdkOrderForPlan(
   periodoPlan: "mensual" | "trimestral" | "semestral" | "anual",
   selectedPaqueteId?: string,
+  cardHolderName?: string,
 ) {
   const session = await getSession();
   if (!session?.TenantId) return { success: false as const, error: "Sesión inválida" };
@@ -155,7 +156,10 @@ export async function createPaypalSdkOrderForPlan(
 
   try {
     const monto = calculateAmountByPeriod(paqueteToCharge, periodoPlan);
-    const order = await createPaypalOrder(monto, `Plan ${paqueteToCharge.nombre} (${periodoPlan})`, tenant.slug);
+    const cardHolder = cardHolderName?.trim();
+    const order = await createPaypalOrder(monto, `Plan ${paqueteToCharge.nombre} (${periodoPlan})`, tenant.slug, {
+      customId: cardHolder ? `holder:${cardHolder.slice(0, 60)}` : undefined,
+    });
 
     await prisma.tenant.update({
       where: { id: tenant.id },

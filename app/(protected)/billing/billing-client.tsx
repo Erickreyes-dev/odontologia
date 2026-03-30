@@ -1,13 +1,26 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { BadgeCheck, CalendarClock, Check, Globe, ReceiptText, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createCheckoutForPlan, saveTenantBillingProfile } from "./actions";
+import { capturePaypalAndCreateInvoice, createPaypalSdkOrderForPlan, saveTenantBillingProfile } from "./actions";
 import { toast } from "sonner";
 import type { SubscriptionStatus } from "@/lib/subscription-status";
+
+declare global {
+  interface Window {
+    paypal?: {
+      Buttons: (options: {
+        createOrder: () => Promise<string>;
+        onApprove: (data: { orderID?: string }) => Promise<void>;
+        onError?: (error: unknown) => void;
+        onClick?: () => void;
+      }) => { render: (selector: string) => Promise<void> };
+    };
+  }
+}
 
 type BillingPackage = {
   id: string;
@@ -67,7 +80,14 @@ export function BillingClient(props: BillingClientProps) {
     fechaExpiracion: "",
     cvv: "",
   });
+  const [isPaypalSdkReady, setIsPaypalSdkReady] = useState(false);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const paypalButtonsRenderedRef = useRef(false);
+  const cardFormRef = useRef(cardForm);
+
+  useEffect(() => {
+    cardFormRef.current = cardForm;
+  }, [cardForm]);
 
   const selectedPackage = useMemo(
     () => props.paquetesDisponibles.find((item) => item.id === selectedPackageId) ?? props.paquetesDisponibles[0],
@@ -93,67 +113,105 @@ export function BillingClient(props: BillingClientProps) {
       ? "bg-rose-500/10 text-rose-700 border-rose-500/40"
       : "bg-amber-500/10 text-amber-700 border-amber-500/40";
 
-  const onPaypalCheckout = (
+  const onPaypalCheckout = useCallback(async (
     periodo: "mensual" | "trimestral" | "semestral" | "anual",
     cardHolderName?: string,
   ) => {
-    startTransition(() => {
-      void (async () => {
-        try {
-          console.info("[Billing][PayPal][checkout][start]", {
-            timestamp: new Date().toISOString(),
-            periodo,
-            selectedPlan,
-            selectedPackageId: selectedPackage?.id ?? null,
-          });
+    if (!selectedPackage?.id) {
+      toast.error("No hay paquete seleccionado para procesar el pago");
+      throw new Error("missing_selected_package");
+    }
 
-          if (!selectedPackage?.id) {
-            console.warn("[Billing][PayPal][checkout][abort]", { reason: "missing_selected_package" });
-            toast.error("No hay paquete seleccionado para procesar el pago");
-            return;
-          }
+    const saved = await saveTenantBillingProfile(billing);
+    if (!saved.success) {
+      toast.error(saved.error);
+      throw new Error(saved.error);
+    }
 
-          const saved = await saveTenantBillingProfile(billing);
-          console.info("[Billing][PayPal][saveBillingProfile][response]", {
-            timestamp: new Date().toISOString(),
-            success: saved.success,
-            error: saved.success ? null : saved.error,
-          });
-          if (!saved.success) {
-            toast.error(saved.error);
-            return;
-          }
+    const result = await createPaypalSdkOrderForPlan(periodo, selectedPackage.id, cardHolderName);
+    if (!result.success) {
+      toast.error(result.error);
+      throw new Error(result.error);
+    }
+    return result.orderId;
+  }, [billing, selectedPackage?.id]);
 
-          const result = await createCheckoutForPlan(periodo, selectedPackage.id, cardHolderName);
-          console.info("[Billing][PayPal][createCheckoutForPlan][response]", {
-            timestamp: new Date().toISOString(),
-            success: result.success,
-            approveLink: result.success ? (result.approveLink ?? null) : null,
-            error: result.success ? null : result.error,
-          });
-          if (!result.success) {
-            toast.error(result.error);
-            return;
-          }
-          if (result.approveLink) {
-            console.info("[Billing][PayPal][redirect]", {
-              timestamp: new Date().toISOString(),
-              approveLink: result.approveLink,
-            });
-            window.location.assign(result.approveLink);
-            return;
-          }
-          console.warn("[Billing][PayPal][checkout][missing_approve_link]", {
-            timestamp: new Date().toISOString(),
-          });
-          toast.error("No se recibió URL de PayPal para continuar el pago");
-        } catch (error) {
-          console.error("[Billing][PayPal][checkout][exception]", error);
-          toast.error(error instanceof Error ? error.message : "Error inesperado al iniciar pago con PayPal");
-        }
-      })();
-    });
-  };
+  useEffect(() => {
+    if (currentStep !== 3) return;
+    if (!props.paypalClientId) return;
+    if (typeof window === "undefined") return;
+    if (window.paypal) {
+      setIsPaypalSdkReady(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(props.paypalClientId)}&currency=USD&intent=capture&components=buttons`;
+    script.async = true;
+    script.onload = () => setIsPaypalSdkReady(true);
+    script.onerror = () => toast.error("No se pudo cargar el SDK de PayPal");
+    document.body.appendChild(script);
+  }, [currentStep, props.paypalClientId]);
+
+  useEffect(() => {
+    if (currentStep !== 3 || !isPaypalSdkReady || paypalButtonsRenderedRef.current) return;
+    if (!window.paypal) return;
+
+    const render = async () => {
+      try {
+        await window.paypal?.Buttons({
+          onClick: () => {
+            const holder = cardFormRef.current.titular.trim();
+            const number = cardFormRef.current.numeroTarjeta.replace(/\s+/g, "");
+            const expiry = cardFormRef.current.fechaExpiracion.trim();
+            const cvv = cardFormRef.current.cvv.trim();
+
+            if (!holder || !number || !expiry || !cvv) {
+              toast.error("Completa los datos de la tarjeta para continuar");
+              throw new Error("missing_card_data");
+            }
+            if (!/^\d{13,19}$/.test(number)) {
+              toast.error("Número de tarjeta inválido");
+              throw new Error("invalid_card_number");
+            }
+            if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)) {
+              toast.error("La fecha de expiración debe tener formato MM/AA");
+              throw new Error("invalid_expiry");
+            }
+            if (!/^\d{3,4}$/.test(cvv)) {
+              toast.error("CVV inválido");
+              throw new Error("invalid_cvv");
+            }
+          },
+          createOrder: () => onPaypalCheckout(selectedPlan, cardFormRef.current.titular.trim()),
+          onApprove: async (data) => {
+            if (!data.orderID) {
+              toast.error("No se recibió la orden de PayPal");
+              return;
+            }
+            const capture = await capturePaypalAndCreateInvoice(data.orderID);
+            if (!capture.success) {
+              toast.error(capture.error);
+              return;
+            }
+            toast.success("Pago confirmado correctamente");
+          },
+          onError: (error) => {
+            console.error("[Billing][PayPal][buttons][error]", error);
+            toast.error("No se pudo procesar el pago con PayPal");
+          },
+        }).render("#paypal-buttons-container");
+        paypalButtonsRenderedRef.current = true;
+      } catch (error) {
+        console.error("[Billing][PayPal][buttons][render_error]", error);
+      }
+    };
+    void render();
+  }, [currentStep, isPaypalSdkReady, onPaypalCheckout, selectedPlan]);
+
+  useEffect(() => {
+    if (currentStep === 3) return;
+    paypalButtonsRenderedRef.current = false;
+  }, [currentStep]);
 
   const onBillingSave = () => {
     startTransition(() => {
@@ -184,33 +242,10 @@ export function BillingClient(props: BillingClientProps) {
     });
   };
 
-  const onPaymentSubmit = () => {
-    const sanitizedNumber = cardForm.numeroTarjeta.replace(/\s+/g, "");
-    const sanitizedExpiry = cardForm.fechaExpiracion.trim();
-    const sanitizedCvv = cardForm.cvv.trim();
-    const sanitizedHolder = cardForm.titular.trim();
-
-    if (!sanitizedHolder || !sanitizedNumber || !sanitizedExpiry || !sanitizedCvv) {
-      toast.error("Completa los datos de la tarjeta para continuar");
-      return;
-    }
-
-    if (!/^\d{13,19}$/.test(sanitizedNumber)) {
-      toast.error("Número de tarjeta inválido");
-      return;
-    }
-
-    if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(sanitizedExpiry)) {
-      toast.error("La fecha de expiración debe tener formato MM/AA");
-      return;
-    }
-
-    if (!/^\d{3,4}$/.test(sanitizedCvv)) {
-      toast.error("CVV inválido");
-      return;
-    }
-
-    onPaypalCheckout(selectedPlan, sanitizedHolder);
+  const onCardExpiryChange = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 4);
+    const masked = digits.length <= 2 ? digits : `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    setCardForm((prev) => ({ ...prev, fechaExpiracion: masked }));
   };
 
   return (
@@ -341,8 +376,10 @@ export function BillingClient(props: BillingClientProps) {
             <Label>Fecha de expiración</Label>
             <Input
               value={cardForm.fechaExpiracion}
-              onChange={(e) => setCardForm((prev) => ({ ...prev, fechaExpiracion: e.target.value }))}
+              onChange={(e) => onCardExpiryChange(e.target.value)}
               placeholder="MM/AA"
+              inputMode="numeric"
+              maxLength={5}
               autoComplete="cc-exp"
             />
           </div>
@@ -359,10 +396,9 @@ export function BillingClient(props: BillingClientProps) {
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={() => setCurrentStep(2)} disabled={isPending}>Volver a facturación</Button>
-          <Button type="button" onClick={onPaymentSubmit} disabled={isPending || !selectedPackage}>
-            Pagar con PayPal (redirección)
-          </Button>
         </div>
+        <div id="paypal-buttons-container" className="mt-4" />
+        <p className="mt-2 text-xs text-muted-foreground">El pago se procesa desde este sitio con el SDK oficial de PayPal (sin redirección completa).</p>
       </div> : null}
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
