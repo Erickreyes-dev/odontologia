@@ -8,7 +8,6 @@ import { paginate } from '@/app/type';
 import { Prisma } from '@/lib/generated/prisma';
 import { tenantWhere, withTenantData } from '@/lib/tenant-query';
 import { getSession } from '@/auth';
-import { normalizePhoneForWhatsApp } from '@/lib/whatsapp/phone';
 
 function normalizeOptionalEmail(value?: string | null): string | null {
     if (value == null) return null;
@@ -52,7 +51,6 @@ export async function getPacientes({
         : null,
       genero: r.genero,
       telefono: r.telefono,
-      codigoPostal: r.codigoPostal,
       correo: r.correo,
       direccion: r.direccion,
       seguroId: r.seguroId || "",
@@ -93,7 +91,6 @@ export async function getPacientesActivos(): Promise<Paciente[]> {
             fechaNacimiento: r.fechaNacimiento ? new Date(r.fechaNacimiento) : null, // Date real
             genero: r.genero,
             telefono: r.telefono,
-            codigoPostal: r.codigoPostal,
             correo: r.correo,
             direccion: r.direccion,
             seguroId: r.seguroId || "",
@@ -148,7 +145,6 @@ export async function getPacienteById(id: string): Promise<Paciente | null> {
             fechaNacimiento: r.fechaNacimiento ? new Date(r.fechaNacimiento) : null, // Date real
             genero: r.genero,
             telefono: r.telefono,
-            codigoPostal: r.codigoPostal,
             correo: r.correo,
             direccion: r.direccion,
             seguroId: r.seguroId || "",
@@ -184,8 +180,7 @@ export async function createPaciente(data: Paciente): Promise<{ success: true; d
                 identidad: validatedData.identidad,
                 fechaNacimiento: validatedData.fechaNacimiento ? new Date(validatedData.fechaNacimiento) : null,
                 genero: validatedData.genero,
-                telefono: normalizePhoneForWhatsApp(validatedData.telefono) ?? validatedData.telefono ?? null,
-                codigoPostal: validatedData.codigoPostal,
+                telefono: validatedData.telefono,
                 correo: normalizeOptionalEmail(validatedData.correo),
                 direccion: validatedData.direccion,
                 seguroId: normalizeOptionalSeguroId(validatedData.seguroId),
@@ -202,7 +197,6 @@ export async function createPaciente(data: Paciente): Promise<{ success: true; d
             fechaNacimiento: r.fechaNacimiento ? new Date(r.fechaNacimiento) : null, // Date real
             genero: r.genero,
             telefono: r.telefono,
-            codigoPostal: r.codigoPostal,
             correo: r.correo,
             direccion: r.direccion,
             seguroId: r.seguroId || "",
@@ -248,8 +242,7 @@ export async function updatePaciente(id: string, data: Partial<Paciente>): Promi
                 ...(validatedData.identidad && { identidad: validatedData.identidad }),
                 ...(validatedData.fechaNacimiento !== undefined && { fechaNacimiento: validatedData.fechaNacimiento ? new Date(validatedData.fechaNacimiento) : null }),
                 ...(validatedData.genero !== undefined && { genero: validatedData.genero }),
-                ...(validatedData.telefono !== undefined && { telefono: normalizePhoneForWhatsApp(validatedData.telefono) ?? validatedData.telefono }),
-                ...(validatedData.codigoPostal !== undefined && { codigoPostal: validatedData.codigoPostal }),
+                ...(validatedData.telefono !== undefined && { telefono: validatedData.telefono }),
                 ...(validatedData.correo !== undefined && { correo: normalizeOptionalEmail(validatedData.correo) }),
                 ...(validatedData.direccion !== undefined && { direccion: validatedData.direccion }),
                 ...(validatedData.seguroId !== undefined && { seguroId: normalizeOptionalSeguroId(validatedData.seguroId) }),
@@ -266,7 +259,6 @@ export async function updatePaciente(id: string, data: Partial<Paciente>): Promi
             fechaNacimiento: r.fechaNacimiento ? new Date(r.fechaNacimiento) : null, // Date real
             genero: r.genero,
             telefono: r.telefono,
-            codigoPostal: r.codigoPostal,
             correo: r.correo,
             direccion: r.direccion,
             seguroId: r.seguroId || "",

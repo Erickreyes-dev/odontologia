@@ -11,9 +11,6 @@ import { EmailService } from "@/lib/sendEmail";
 import { generateCotizacionEmailHtml } from "@/lib/templates/clinical-notifications";
 import { getTenantEmailBranding } from "@/lib/tenant-branding";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
-import { NotificationChannel, shouldSendEmail, shouldSendWhatsApp } from "@/lib/notification-channel";
-import { getOrCreateConversation, sendWhatsAppText } from "@/lib/whatsapp/service";
-import { normalizePhoneForWhatsApp } from "@/lib/whatsapp/phone";
 
 /**
  * Obtiene todas las cotizaciones
@@ -23,7 +20,7 @@ export async function getCotizaciones(): Promise<Cotizacion[]> {
     const records = await prisma.cotizacion.findMany({
       where: await tenantWhere<Prisma.CotizacionWhereInput>(),
       include: {
-        paciente: { select: { id: true, nombre: true, apellido: true, correo: true, telefono: true } },
+        paciente: true,
         detalles: {
           include: {
             servicio: true,
@@ -151,7 +148,7 @@ export async function getCotizacionById(
  */
 export async function createCotizacion(
   data: Cotizacion,
-  options?: { notificationChannel?: NotificationChannel }
+  options?: { sendEmailToPaciente?: boolean }
 ): Promise<{ success: true; data: Cotizacion } | { success: false; error: string }> {
   try {
     const validatedData = CotizacionSchema.parse(data);
@@ -195,9 +192,7 @@ export async function createCotizacion(
       },
     });
 
-    const channel = options?.notificationChannel ?? "email";
-
-    if (shouldSendEmail(channel)) {
+    if (options?.sendEmailToPaciente) {
       if (!cotizacion.paciente.correo) {
         return { success: false, error: "El paciente no tiene correo registrado para enviar la cotización." };
       }
@@ -220,22 +215,6 @@ export async function createCotizacion(
           tenantName,
         }),
       });
-    }
-
-    if (shouldSendWhatsApp(channel)) {
-      const normalizedPhone = normalizePhoneForWhatsApp(cotizacion.paciente.telefono);
-      if (!normalizedPhone) {
-        if (!shouldSendEmail(channel)) {
-          return { success: false, error: "El paciente no tiene teléfono internacional válido para WhatsApp." };
-        }
-      } else {
-        const conversation = await getOrCreateConversation({ pacienteId: cotizacion.pacienteId });
-        await sendWhatsAppText({
-          conversationId: conversation.id,
-          body: `Hola ${cotizacion.paciente.nombre}, tu cotización por ${Number(cotizacion.total).toFixed(2)} está disponible en la clínica.`,
-          pacienteTelefono: normalizedPhone,
-        });
-      }
     }
 
     revalidatePath("/cotizaciones");

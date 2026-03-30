@@ -12,9 +12,6 @@ import { EmailService } from "@/lib/sendEmail";
 import { generateAppointmentEmailHtml } from "@/lib/templates/clinical-notifications";
 import { getTenantEmailBranding } from "@/lib/tenant-branding";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
-import { NotificationChannel, shouldSendEmail, shouldSendWhatsApp } from "@/lib/notification-channel";
-import { getOrCreateConversation, sendWhatsAppText } from "@/lib/whatsapp/service";
-import { normalizePhoneForWhatsApp } from "@/lib/whatsapp/phone";
 
 /**
  * Obtiene todas las citas con paginacion
@@ -379,7 +376,7 @@ export async function getSeguimientoContextoParaCita(seguimientoId: string): Pro
  */
 export async function createCita(
   data: Cita,
-  options?: { notificationChannel?: NotificationChannel }
+  options?: { sendEmailToPaciente?: boolean }
 ): Promise<{ success: true; data: Cita } | { success: false; error: string }> {
   try {
     const validatedData = CitaSchema.parse({
@@ -409,15 +406,13 @@ export async function createCita(
         observacion: validatedData.observacion,
       }),
       include: {
-        paciente: { select: { nombre: true, apellido: true, correo: true, telefono: true } },
+        paciente: { select: { nombre: true, apellido: true, correo: true } },
         medico: { include: { empleado: { select: { nombre: true, apellido: true } } } },
         consultorio: { select: { nombre: true } },
       },
     });
 
-    const channel = options?.notificationChannel ?? "email";
-
-    if (shouldSendEmail(channel)) {
+    if (options?.sendEmailToPaciente) {
       if (!r.paciente?.correo) {
         return { success: false, error: "El paciente no tiene correo registrado para enviar la cita." };
       }
@@ -607,7 +602,7 @@ export async function sendCitaEmail(
     const cita = await prisma.cita.findFirst({
       where: await tenantWhere<Prisma.CitaWhereInput>({ id }),
       include: {
-        paciente: { select: { nombre: true, apellido: true, correo: true, telefono: true } },
+        paciente: { select: { nombre: true, apellido: true, correo: true } },
         medico: { include: { empleado: { select: { nombre: true, apellido: true } } } },
         consultorio: { select: { nombre: true } },
       },

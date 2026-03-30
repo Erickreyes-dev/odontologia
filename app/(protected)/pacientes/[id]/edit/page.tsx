@@ -33,7 +33,6 @@ export default async function EditSeguro({ params }: { params: { id: string } })
         fechaNacimiento: paciente.fechaNacimiento,
         genero: paciente.genero,
         telefono: paciente.telefono,
-        codigoPostal: paciente.codigoPostal,
         correo: paciente.correo,
         direccion: paciente.direccion,
         seguroId: paciente.seguroId,

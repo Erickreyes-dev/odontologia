@@ -13,6 +13,7 @@ import { CalendarIcon, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Popover,
@@ -70,7 +71,7 @@ export function CotizacionFormulario({
   defaultPacienteId,
 }: CotizacionFormularioProps) {
   const router = useRouter();
-  const [notificationChannel, setNotificationChannel] = useState<"email" | "whatsapp" | "both">("email");
+  const [sendEmailToPaciente, setSendEmailToPaciente] = useState(false);
 
   const form = useForm<z.infer<typeof CotizacionSchema>>({
     resolver: zodResolver(CotizacionSchema),
@@ -145,7 +146,12 @@ export function CotizacionFormulario({
         }
       } else {
         const selectedPaciente = pacientes.find((p) => p.id === cotizacionData.pacienteId);
-        const result = await createCotizacion(cotizacionData, { notificationChannel });
+        if (sendEmailToPaciente && !selectedPaciente?.correo) {
+          toast.error("El paciente no tiene correo registrado.");
+          return;
+        }
+
+        const result = await createCotizacion(cotizacionData, { sendEmailToPaciente });
         if (result.success) {
           toast.success("Cotización creada correctamente");
           router.push("/cotizaciones");
@@ -575,18 +581,22 @@ export function CotizacionFormulario({
       </Card>
 
       {/* Botón Enviar */}
-      <div className="rounded-lg border border-dashed p-4 space-y-2">
-        <label className="text-sm font-medium">Canal de notificación</label>
-        <Select value={notificationChannel} onValueChange={(v) => setNotificationChannel(v as "email" | "whatsapp" | "both")}>
-          <SelectTrigger className="max-w-xs">
-            <SelectValue placeholder="Selecciona canal" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="email">Email</SelectItem>
-            <SelectItem value="whatsapp">WhatsApp</SelectItem>
-            <SelectItem value="both">Ambos</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="rounded-lg border border-dashed p-4">
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="enviarCorreoCotizacion"
+            checked={sendEmailToPaciente}
+            onCheckedChange={(checked) => setSendEmailToPaciente(checked === true)}
+          />
+          <div>
+            <label htmlFor="enviarCorreoCotizacion" className="text-sm font-medium cursor-pointer">
+              Enviar cotización por correo
+            </label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Se enviará automáticamente al guardar.
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="flex justify-end">

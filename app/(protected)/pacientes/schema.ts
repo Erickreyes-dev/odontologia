@@ -1,5 +1,6 @@
+
 import * as z from 'zod';
-import { isValidInternationalPhone } from '@/lib/whatsapp/phone';
+
 
 export const PacienteSchema = z.object({
     id: z.string().optional(),
@@ -12,12 +13,7 @@ export const PacienteSchema = z.object({
         .transform((val) => (val ? new Date(val) : null))
         .optional(),
     genero: z.string().optional().nullable(),
-    telefono: z
-      .string()
-      .optional()
-      .nullable()
-      .refine((value) => isValidInternationalPhone(value), "Teléfono inválido. Usa formato internacional, por ejemplo +504XXXXXXXX"),
-    codigoPostal: z.string().trim().min(3, "El código ZIP/postal es requerido"),
+    telefono: z.string().optional().nullable(),
     correo: z
         .string()
         .trim()
