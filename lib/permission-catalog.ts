@@ -55,6 +55,11 @@ export const TENANT_PERMISSIONS: PermissionSeed[] = [
   { nombre: "ver_inventario", descripcion: "Permiso para ver inventario de productos" },
   { nombre: "crear_inventario", descripcion: "Permiso para crear inventario" },
   { nombre: "editar_inventario", descripcion: "Permiso para editar inventario" },
+  { nombre: "ver_whatsapp", descripcion: "Permiso para ver el módulo de WhatsApp" },
+  { nombre: "configurar_whatsapp", descripcion: "Permiso para conectar y configurar WhatsApp" },
+  { nombre: "enviar_whatsapp", descripcion: "Permiso para enviar mensajes por WhatsApp" },
+  { nombre: "ver_conversaciones_whatsapp", descripcion: "Permiso para ver conversaciones de WhatsApp" },
+  { nombre: "gestionar_conversaciones_whatsapp", descripcion: "Permiso para gestionar conversaciones de WhatsApp" },
 ];
 
 export const PLATFORM_PERMISSIONS: PermissionSeed[] = [

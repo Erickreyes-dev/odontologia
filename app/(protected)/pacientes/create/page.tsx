@@ -26,6 +26,7 @@ export default async function Create() {
         fechaNacimiento: null,
         genero: "",
         telefono: "",
+        codigoPostal: "",
         correo: "",
         direccion: "",
         seguroId: "",

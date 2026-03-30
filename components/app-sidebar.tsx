@@ -18,7 +18,7 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import {  Boxes, Building2, Calendar, ChevronDown, ChevronUp, CreditCard, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
+import {  Boxes, Building2, Calendar, ChevronDown, ChevronUp, CreditCard, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, MessageCircle, Package, Receipt, Settings, ShieldPlus, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
 import Link from "next/link";
 import Image from "next/image";
 import { NavUser } from "./nav-user";
@@ -176,6 +176,12 @@ const items = [
     permiso: "ver_pagos",
   },
 
+  {
+    title: "WhatsApp",
+    url: "/whatsapp",
+    icon: MessageCircle,
+    permiso: "ver_whatsapp",
+  },
   {
     title: "Mi Clínica",
     url: "/mi-clinica",

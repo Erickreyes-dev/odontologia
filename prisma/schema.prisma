@@ -10,34 +10,34 @@ datasource db {
 }
 
 model Tenant {
-  id             String    @id @default(uuid()) @db.VarChar(36)
-  nombre         String    @db.VarChar(120)
-  slug           String    @unique @db.VarChar(60)
-  contactoNombre String?   @db.VarChar(120)
-  contactoCorreo String?   @db.VarChar(150)
-  telefono       String?   @db.VarChar(20)
-  logoBase64     String?   @db.LongText
-  mision         String?   @db.LongText
-  vision         String?   @db.LongText
-  serviciosInfo  String?   @db.LongText
-  horariosInfo   String?   @db.LongText
-  redesSociales  String?   @db.LongText
-  activo         Boolean   @default(true) @db.Bit(1)
-  plan           String    @default("starter") @db.VarChar(30)
-  maxUsuarios    Int       @default(20)
-  paqueteId      String?   @db.VarChar(36)
-  periodoPlan     String    @default("mensual") @db.VarChar(20)
-  proximoPago     DateTime? @db.DateTime(3)
-  paisCodigo      String    @default("HN") @db.VarChar(5)
-  monedaCodigo    String    @default("HNL") @db.VarChar(10)
-  teamSize        String?   @db.VarChar(20)
-  authProvider    String    @default("password") @db.VarChar(20)
+  id               String    @id @default(uuid()) @db.VarChar(36)
+  nombre           String    @db.VarChar(120)
+  slug             String    @unique @db.VarChar(60)
+  contactoNombre   String?   @db.VarChar(120)
+  contactoCorreo   String?   @db.VarChar(150)
+  telefono         String?   @db.VarChar(20)
+  logoBase64       String?   @db.LongText
+  mision           String?   @db.LongText
+  vision           String?   @db.LongText
+  serviciosInfo    String?   @db.LongText
+  horariosInfo     String?   @db.LongText
+  redesSociales    String?   @db.LongText
+  activo           Boolean   @default(true) @db.Bit(1)
+  plan             String    @default("starter") @db.VarChar(30)
+  maxUsuarios      Int       @default(20)
+  paqueteId        String?   @db.VarChar(36)
+  periodoPlan      String    @default("mensual") @db.VarChar(20)
+  proximoPago      DateTime? @db.DateTime(3)
+  paisCodigo       String    @default("HN") @db.VarChar(5)
+  monedaCodigo     String    @default("HNL") @db.VarChar(10)
+  teamSize         String?   @db.VarChar(20)
+  authProvider     String    @default("password") @db.VarChar(20)
   trialEndsAt      DateTime? @db.DateTime(3)
   fechaExpiracion  DateTime? @db.DateTime(3)
   estado           String    @default("vigente") @db.VarChar(20)
   paypalCustomerId String?   @db.VarChar(120)
-  createAt        DateTime  @default(now())
-  updateAt        DateTime  @updatedAt
+  createAt         DateTime  @default(now())
+  updateAt         DateTime  @updatedAt
 
   permisos               Permiso[]
   roles                  Rol[]
@@ -72,6 +72,10 @@ model Tenant {
   reciboDetalles         ReciboDetalle[]
   solicitudesCitaPublica SolicitudCitaPublica[]
   tenantInvoices         TenantInvoice[]
+  whatsappConnections    WhatsAppConnection[]
+  chatConversations      ChatConversation[]
+  chatMessages           ChatMessage[]
+  whatsappWebhookEvents  WhatsAppWebhookEvent[]
   paquete                Paquete?               @relation(fields: [paqueteId], references: [id])
 
   @@index([paqueteId])
@@ -97,32 +101,32 @@ model Paquete {
 }
 
 model TenantInvoice {
-  id               String   @id @default(uuid()) @db.VarChar(36)
-  tenantId         String   @db.VarChar(36)
-  paqueteId        String   @db.VarChar(36)
-  periodoPlan      String   @db.VarChar(20)
-  monto            Decimal  @db.Decimal(10, 2)
-  subtotal         Decimal? @db.Decimal(10, 2)
-  impuesto         Decimal? @db.Decimal(10, 2)
-  total            Decimal? @db.Decimal(10, 2)
-  moneda           String   @default("USD") @db.VarChar(10)
-  estado           String   @default("pendiente") @db.VarChar(20)
-  numeroFactura    String?  @db.VarChar(40)
-  facturarNombre   String?  @db.VarChar(150)
-  facturarCorreo   String?  @db.VarChar(150)
-  facturarTelefono String?  @db.VarChar(30)
-  facturarTaxId    String?  @db.VarChar(40)
-  facturarDireccion String? @db.VarChar(255)
-  facturarCiudad   String?  @db.VarChar(80)
-  facturarPais     String?  @db.VarChar(80)
-  facturarPostal   String?  @db.VarChar(20)
-  descripcion      String?  @db.VarChar(255)
-  paypalOrderId    String?  @db.VarChar(120)
-  paypalCaptureId  String?  @db.VarChar(120)
-  fechaFacturacion DateTime @default(now())
-  fechaPago        DateTime?
-  createAt         DateTime @default(now())
-  updateAt         DateTime @updatedAt
+  id                String    @id @default(uuid()) @db.VarChar(36)
+  tenantId          String    @db.VarChar(36)
+  paqueteId         String    @db.VarChar(36)
+  periodoPlan       String    @db.VarChar(20)
+  monto             Decimal   @db.Decimal(10, 2)
+  subtotal          Decimal?  @db.Decimal(10, 2)
+  impuesto          Decimal?  @db.Decimal(10, 2)
+  total             Decimal?  @db.Decimal(10, 2)
+  moneda            String    @default("USD") @db.VarChar(10)
+  estado            String    @default("pendiente") @db.VarChar(20)
+  numeroFactura     String?   @db.VarChar(40)
+  facturarNombre    String?   @db.VarChar(150)
+  facturarCorreo    String?   @db.VarChar(150)
+  facturarTelefono  String?   @db.VarChar(30)
+  facturarTaxId     String?   @db.VarChar(40)
+  facturarDireccion String?   @db.VarChar(255)
+  facturarCiudad    String?   @db.VarChar(80)
+  facturarPais      String?   @db.VarChar(80)
+  facturarPostal    String?   @db.VarChar(20)
+  descripcion       String?   @db.VarChar(255)
+  paypalOrderId     String?   @db.VarChar(120)
+  paypalCaptureId   String?   @db.VarChar(120)
+  fechaFacturacion  DateTime  @default(now())
+  fechaPago         DateTime?
+  createAt          DateTime  @default(now())
+  updateAt          DateTime  @updatedAt
 
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   paquete Paquete @relation(fields: [paqueteId], references: [id])
@@ -236,6 +240,7 @@ model Usuarios {
   rol                 Rol                  @relation(fields: [rol_id], references: [id])
   PasswordResetToken  PasswordResetToken[]
   recibosEmitidos     Recibo[]             @relation("ReciboEmitidoPor")
+  chatMessagesSent    ChatMessage[]
 
   @@unique([tenantId, usuario])
   @@index([tenantId])
@@ -278,7 +283,8 @@ model Paciente {
   apellido        String          @db.VarChar(100)
   fechaNacimiento DateTime?       @db.DateTime(6)
   genero          String?         @db.VarChar(20)
-  telefono        String?         @db.VarChar(20)
+  telefono        String?         @db.VarChar(30)
+  codigoPostal    String          @default("") @db.VarChar(20)
   correo          String?         @db.VarChar(150)
   direccion       String?         @db.VarChar(255)
   conocioClinica  ConocioClinica?
@@ -298,6 +304,7 @@ model Paciente {
   financiamientos    Financiamiento[]
   ordenesCobro       OrdenDeCobro[]
   constanciasMedicas ConstanciaMedica[]
+  chatConversations  ChatConversation[]
 
   @@unique([tenantId, identidad])
   @@index([tenantId])
@@ -532,18 +539,18 @@ model ConsultaServicio {
 }
 
 model Producto {
-  id          String   @id @default(uuid()) @db.VarChar(36)
-  tenantId    String?  @db.VarChar(36)
-  nombre      String   @db.VarChar(150)
-  descripcion String?  @db.VarChar(255)
+  id          String       @id @default(uuid()) @db.VarChar(36)
+  tenantId    String?      @db.VarChar(36)
+  nombre      String       @db.VarChar(150)
+  descripcion String?      @db.VarChar(255)
   tipo        TipoProducto @default(CONSUMIBLE)
-  precioVenta Decimal? @db.Decimal(10, 2)
-  unidad      String?  @db.VarChar(50)
-  stock       Int      @default(0)
-  stockMinimo Int      @default(0)
-  activo      Boolean  @db.Bit(1)
-  createAt    DateTime @default(now())
-  updateAt    DateTime @updatedAt
+  precioVenta Decimal?     @db.Decimal(10, 2)
+  unidad      String?      @db.VarChar(50)
+  stock       Int          @default(0)
+  stockMinimo Int          @default(0)
+  activo      Boolean      @db.Bit(1)
+  createAt    DateTime     @default(now())
+  updateAt    DateTime     @updatedAt
 
   tenant             Tenant?            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   consultasProductos ConsultaProducto[]
@@ -554,13 +561,13 @@ model Producto {
 }
 
 model ConsultaProducto {
-  id         String   @id @default(uuid()) @db.VarChar(36)
-  tenantId   String?  @db.VarChar(36)
-  consultaId String   @db.VarChar(36)
-  productoId String   @db.VarChar(36)
-  cantidad   Int      @default(1)
-  precioUnitarioAplicado Decimal @default(0) @db.Decimal(10, 2)
-  createAt   DateTime @default(now())
+  id                     String   @id @default(uuid()) @db.VarChar(36)
+  tenantId               String?  @db.VarChar(36)
+  consultaId             String   @db.VarChar(36)
+  productoId             String   @db.VarChar(36)
+  cantidad               Int      @default(1)
+  precioUnitarioAplicado Decimal  @default(0) @db.Decimal(10, 2)
+  createAt               DateTime @default(now())
 
   tenant   Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   consulta Consulta @relation(fields: [consultaId], references: [id], onDelete: Cascade)
@@ -967,4 +974,140 @@ model ConstanciaMedica {
   @@index([tenantId])
   @@index([pacienteId])
   @@index([medicoId])
+}
+
+enum WhatsAppConnectionStatus {
+  pending
+  connected
+  error
+  disconnected
+}
+
+enum WhatsAppBillingOwner {
+  tenant_meta_direct
+}
+
+enum ChatConversationEstado {
+  open
+  closed
+  archived
+}
+
+enum ChatMessageDirection {
+  outbound
+  inbound
+  system
+}
+
+enum ChatMessageType {
+  text
+  template
+  image
+  document
+  audio
+  video
+  location
+  contact
+}
+
+enum ChatMessageProviderStatus {
+  queued
+  sent
+  delivered
+  read
+  failed
+  received
+}
+
+model WhatsAppConnection {
+  id                   String                   @id @default(uuid()) @db.VarChar(36)
+  tenantId             String                   @db.VarChar(36)
+  provider             String                   @default("meta") @db.VarChar(20)
+  businessId           String                   @db.VarChar(80)
+  wabaId               String                   @db.VarChar(80)
+  phoneNumberId        String                   @db.VarChar(80)
+  displayPhoneNumber   String?                  @db.VarChar(40)
+  verifiedName         String?                  @db.VarChar(120)
+  accessTokenEncrypted String                   @db.LongText
+  tokenExpiresAt       DateTime?                @db.DateTime(3)
+  status               WhatsAppConnectionStatus @default(pending)
+  billingOwner         WhatsAppBillingOwner     @default(tenant_meta_direct)
+  lastSyncAt           DateTime?                @db.DateTime(3)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversations ChatConversation[]
+  webhookEvents WhatsAppWebhookEvent[]
+
+  @@unique([tenantId, phoneNumberId])
+  @@index([tenantId, status])
+}
+
+model ChatConversation {
+  id            String                 @id @default(uuid()) @db.VarChar(36)
+  tenantId      String                 @db.VarChar(36)
+  pacienteId    String                 @db.VarChar(36)
+  connectionId  String                 @db.VarChar(36)
+  waChatId      String?                @db.VarChar(120)
+  estado        ChatConversationEstado @default(open)
+  lastMessageAt DateTime?              @db.DateTime(3)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  paciente   Paciente           @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  connection WhatsAppConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  messages   ChatMessage[]
+
+  @@unique([tenantId, pacienteId, connectionId])
+  @@index([tenantId, estado, lastMessageAt])
+  @@index([tenantId, waChatId])
+  @@index([connectionId])
+  @@index([pacienteId])
+}
+
+model ChatMessage {
+  id                String                    @id @default(uuid()) @db.VarChar(36)
+  tenantId          String                    @db.VarChar(36)
+  conversationId    String                    @db.VarChar(36)
+  direction         ChatMessageDirection
+  type              ChatMessageType
+  body              String?                   @db.LongText
+  mediaUrl          String?                   @db.VarChar(1000)
+  mediaMimeType     String?                   @db.VarChar(120)
+  mediaFileName     String?                   @db.VarChar(255)
+  providerMessageId String?                   @db.VarChar(120)
+  providerStatus    ChatMessageProviderStatus @default(queued)
+  errorCode         String?                   @db.VarChar(80)
+  errorMessage      String?                   @db.VarChar(500)
+  sentByUserId      String?                   @db.VarChar(36)
+  createdAt         DateTime                  @default(now())
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sentByUser   Usuarios?        @relation(fields: [sentByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, providerMessageId])
+  @@index([tenantId, conversationId, createdAt])
+  @@index([tenantId, providerStatus])
+  @@index([conversationId])
+  @@index([providerMessageId])
+}
+
+model WhatsAppWebhookEvent {
+  id              String    @id @default(uuid()) @db.VarChar(36)
+  tenantId        String    @db.VarChar(36)
+  connectionId    String    @db.VarChar(36)
+  providerEventId String    @db.VarChar(120)
+  payloadJson     String    @db.LongText
+  processedAt     DateTime? @db.DateTime(3)
+  createdAt       DateTime  @default(now())
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  connection WhatsAppConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, providerEventId])
+  @@index([tenantId, processedAt])
+  @@index([connectionId])
 }
