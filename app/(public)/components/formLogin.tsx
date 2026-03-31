@@ -16,6 +16,7 @@ import { getSession, login } from "../../../auth";
 import ForgotPasswordForm from "./forworgot"; // revisa el nombre real
 import { schemaSignIn, TSchemaSignIn } from "@/lib/shemas";
 import GoogleOnboardingButton from "./google-onboarding-button";
+import Link from "next/link";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
@@ -180,6 +181,9 @@ export default function Login() {
         </Button>
 
         <GoogleOnboardingButton />
+        <Link href="/registro-clinica" className="block text-center text-sm text-cyan-300 hover:underline">
+          ¿No tienes cuenta? Regístrate con Google o correo
+        </Link>
         <Button variant="link" type="button" onClick={() => setOpen(true)} className="mx-auto block text-slate-300">
           ¿Olvidaste tu contraseña?
         </Button>

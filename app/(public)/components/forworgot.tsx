@@ -41,12 +41,12 @@ export default function ForgotPasswordForm({ onCancel, onSuccess }: ForgotPasswo
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
                 <label htmlFor="username" className="text-sm font-medium">
-                    Usuario
+                    Usuario o correo
                 </label>
                 <Input
                     id="username"
                     name="username"
-                    placeholder="Tu nombre de usuario"
+                    placeholder="Tu usuario o correo"
                     required
                     className="w-full"
                     disabled={isSubmitting}
