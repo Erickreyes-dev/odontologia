@@ -38,13 +38,13 @@ export default async function LoginPage() {
         </div>
 
         <div className="flex items-center justify-center p-6 sm:p-10">
-          <Card className="mx-auto w-full max-w-md border-slate-700/70 bg-slate-900/60 text-white shadow-none">
-            <CardHeader className="space-y-1">
-              <CardTitle className="text-center text-3xl font-bold">Bienvenido</CardTitle>
-              <CardDescription className="text-center text-slate-300">
-                Ingresa clínica, usuario y contraseña para iniciar sesión
-              </CardDescription>
-            </CardHeader>
+            <Card className="mx-auto w-full max-w-md border-slate-700/70 bg-slate-900/60 text-white shadow-none">
+              <CardHeader className="space-y-1">
+                <CardTitle className="text-center text-3xl font-bold">Iniciar sesión</CardTitle>
+                <CardDescription className="text-center text-slate-300">
+                  Accede con tu clínica, usuario y contraseña para entrar a tu panel.
+                </CardDescription>
+              </CardHeader>
             <CardContent>
               <Suspense fallback={<div className="text-center text-gray-400">Cargando…</div>}>
                 <Login />
