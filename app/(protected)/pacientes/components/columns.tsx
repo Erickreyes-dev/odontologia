@@ -47,6 +47,16 @@ export const columns: ColumnDef<Paciente>[] = [
   },
   {
     accessorKey: "nombre",
+    filterFn: (row, _columnId, filterValue) => {
+      const term = String(filterValue ?? "").toLowerCase().trim();
+      if (!term) return true;
+
+      const fullName = `${row.original.nombre ?? ""} ${row.original.apellido ?? ""}`
+        .toLowerCase()
+        .trim();
+
+      return fullName.includes(term);
+    },
     header: ({ column }) => (
       <Button
         variant="ghost"
@@ -77,6 +87,24 @@ export const columns: ColumnDef<Paciente>[] = [
   },
   {
     accessorKey: "fechaNacimiento",
+    filterFn: (row, _columnId, filterValue) => {
+      const term = String(filterValue ?? "").toLowerCase().trim();
+      if (!term) return true;
+
+      const fecha = row.original.fechaNacimiento;
+      if (!fecha) return false;
+
+      const date = new Date(fecha);
+      const edad = calcularEdad(date);
+      const iso = date.toISOString().slice(0, 10); // YYYY-MM-DD
+      const local = date.toLocaleDateString("es-HN");
+
+      return (
+        String(edad).includes(term) ||
+        iso.includes(term) ||
+        local.toLowerCase().includes(term)
+      );
+    },
     header: ({ column }) => (
       <Button
         variant="ghost"
@@ -126,6 +154,20 @@ export const columns: ColumnDef<Paciente>[] = [
 
   {
     accessorKey: "activo",
+    filterFn: (row, _columnId, filterValue) => {
+      const term = String(filterValue ?? "").toLowerCase().trim();
+      if (!term) return true;
+
+      const isActive = Boolean(row.original.activo);
+      const matchesActiveTerms = ["activo", "activa", "si", "sí", "true", "1"];
+      const matchesInactiveTerms = ["inactivo", "inactiva", "no", "false", "0"];
+
+      if (matchesActiveTerms.includes(term)) return isActive;
+      if (matchesInactiveTerms.includes(term)) return !isActive;
+
+      const label = isActive ? "activo" : "inactivo";
+      return label.includes(term);
+    },
     header: ({ column }) => (
       <Button
         variant="ghost"

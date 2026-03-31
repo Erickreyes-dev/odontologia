@@ -46,6 +46,16 @@ export function DataTable<TData, TValue>({
   pageCount,
   onPageChange,
 }: DataTableProps<TData, TValue>) {
+  const filterLabels: Record<string, string> = {
+    identidad: "identidad",
+    nombre: "nombre o apellido",
+    telefono: "teléfono",
+    fechaNacimiento: "fecha de nacimiento o edad",
+    correo: "correo",
+    genero: "género",
+    activo: "estado",
+  };
+
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -92,6 +102,8 @@ export function DataTable<TData, TValue>({
     },
   });
 
+  const visibleRows = table.getRowModel().rows;
+
   return (
     <div className="rounded-md border p-4">
       {/* Buscador + botón nuevo */}
@@ -120,7 +132,7 @@ export function DataTable<TData, TValue>({
           .map((column) => (
             <Input
               key={column.id}
-              placeholder={`Filtrar ${column.id}...`}
+              placeholder={`Filtrar por ${filterLabels[column.id] ?? column.id}...`}
               value={(column.getFilterValue() as string) ?? ""}
               onChange={(event) => column.setFilterValue(event.target.value)}
             />
@@ -148,8 +160,8 @@ export function DataTable<TData, TValue>({
           </TableHeader>
 
           <TableBody>
-            {data.length > 0 ? (
-              table.getRowModel().rows.map((row) => (
+            {visibleRows.length > 0 ? (
+              visibleRows.map((row) => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
