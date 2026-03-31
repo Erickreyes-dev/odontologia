@@ -180,9 +180,16 @@ export default function Login() {
           {isPending ? "Iniciando..." : "Iniciar sesión"}
         </Button>
 
+        <div className="space-y-2 pt-2">
+          <p className="text-center text-sm font-medium text-slate-200">O ingresa con tu cuenta de Google o correo</p>
+          <p className="text-center text-xs text-slate-400">
+            Si aún no tienes acceso, crea tu cuenta en pocos pasos.
+          </p>
+        </div>
+
         <GoogleOnboardingButton />
-        <Link href="/registro-clinica" className="block text-center text-sm text-cyan-300 hover:underline">
-          ¿No tienes cuenta? Regístrate con Google o correo
+        <Link href="/registro-clinica" className="block text-center text-sm font-medium text-cyan-300 hover:underline">
+          Crear cuenta con Google o correo
         </Link>
         <Button variant="link" type="button" onClick={() => setOpen(true)} className="mx-auto block text-slate-300">
           ¿Olvidaste tu contraseña?
