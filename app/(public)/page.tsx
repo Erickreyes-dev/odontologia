@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TenantAppointmentForm } from "@/components/tenant-appointment-form";
-import { CalendarClock, HeartHandshake, Mail, PhoneCall, Sparkles, Stethoscope } from "lucide-react";
+import { CalendarClock, Check, HeartHandshake, Mail, PhoneCall, Sparkles, Stethoscope, Users } from "lucide-react";
 import { resolveCurrencyByCountry } from "@/lib/country-currency";
 
 const services = [
@@ -101,8 +101,29 @@ function normalizeLogo(logoBase64: string | null): string | null {
   return `data:image/png;base64,${logoBase64}`;
 }
 
+function parsePackageBenefits(description: string | null): string[] {
+  if (!description) return [];
+
+  return description
+    .split(/\n|•|;|\./g)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
 export default async function LandingPage() {
   const tenantSlug = headers().get("x-tenant-slug");
+  const paquetesActivos = await prisma.paquete.findMany({
+    where: { activo: true },
+    select: {
+      id: true,
+      nombre: true,
+      descripcion: true,
+      precio: true,
+      precioAnual: true,
+      maxUsuarios: true,
+    },
+    orderBy: [{ precio: "asc" }, { nombre: "asc" }],
+  });
 
   let tenantLanding = null;
   if (tenantSlug) {
@@ -442,17 +463,17 @@ export default async function LandingPage() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="w-full border-border bg-transparent text-foreground hover:bg-muted sm:w-auto"
+                className="w-full border-cyan-500 bg-transparent text-cyan-600 hover:bg-cyan-500/10 dark:text-cyan-300 dark:hover:bg-cyan-500/15 sm:w-auto"
               >
-                <Link href="#servicios">Ver servicios</Link>
+                <Link href="#precios">Ver paquetes</Link>
               </Button>
               <Button
                 asChild
                 size="lg"
                 variant="outline"
-                className="w-full border-cyan-500 bg-transparent text-cyan-600 hover:bg-cyan-500/10 dark:text-cyan-300 dark:hover:bg-cyan-500/15 sm:w-auto"
+                className="w-full border-border bg-transparent text-foreground hover:bg-muted sm:w-auto"
               >
-                <Link href="#impacto">Ver impacto en tu clínica</Link>
+                <Link href="#servicios">Ver servicios</Link>
               </Button>
             </div>
           </div>
@@ -496,6 +517,100 @@ export default async function LandingPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      </section>
+
+      <section id="precios" className="border-y border-border/60 bg-muted/25">
+        <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:py-16">
+          <div className="mb-8 space-y-2 text-center">
+            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Paquetes y precios</p>
+            <h3 className="text-2xl font-bold sm:text-3xl">Elige el plan ideal para el tamaño de tu clínica</h3>
+            <p className="mx-auto max-w-3xl text-sm text-muted-foreground">
+              Ahorra más al contratar anual: te mostramos de forma transparente cuánto conservas en caja comparado con pagar mes a mes.
+            </p>
+          </div>
+
+          {paquetesActivos.length > 0 ? (
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {paquetesActivos.map((paquete, index) => {
+                const monthlyPrice = Number(paquete.precio);
+                const yearlyPrice = Number(paquete.precioAnual ?? 0);
+                const monthlyEquivalentYear = monthlyPrice * 12;
+                const annualSavings = yearlyPrice > 0 ? monthlyEquivalentYear - yearlyPrice : 0;
+                const savingsPercent = yearlyPrice > 0 && monthlyEquivalentYear > 0
+                  ? Math.round((annualSavings / monthlyEquivalentYear) * 100)
+                  : 0;
+                const benefits = parsePackageBenefits(paquete.descripcion);
+
+                return (
+                  <Card
+                    key={paquete.id}
+                    className={`relative overflow-hidden border-border/70 bg-card/95 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+                      index === 1 ? "ring-2 ring-cyan-500/40" : ""
+                    }`}
+                  >
+                    <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-cyan-500/10 blur-2xl" />
+                    <CardHeader className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="rounded-full border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">
+                          {index === 1 ? "Más elegido" : "Plan"}
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                          <Users className="h-3.5 w-3.5" />
+                          Hasta {paquete.maxUsuarios} usuarios
+                        </span>
+                      </div>
+                      <CardTitle className="text-2xl">{paquete.nombre}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
+                        <p className="text-xs text-muted-foreground">Pago mensual</p>
+                        <p className="text-2xl font-extrabold text-foreground">${monthlyPrice.toFixed(2)}</p>
+                      </div>
+
+                      <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-3">
+                        <p className="text-xs text-muted-foreground">Pago anual</p>
+                        <p className="text-2xl font-extrabold text-cyan-700 dark:text-cyan-300">
+                          {yearlyPrice > 0 ? `$${yearlyPrice.toFixed(2)}` : "Consultar"}
+                        </p>
+                        {annualSavings > 0 ? (
+                          <p className="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                            Ahorras ${annualSavings.toFixed(2)} al año ({savingsPercent}% vs mensual)
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Ahorro anual disponible bajo cotización.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Incluye</p>
+                        {benefits.length > 0 ? (
+                          <ul className="space-y-2 text-sm text-muted-foreground">
+                            {benefits.map((benefit) => (
+                              <li key={benefit} className="flex items-start gap-2">
+                                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                                <span>{benefit}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Implementación base, soporte y acceso a módulos clínicos.</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="border-border bg-card shadow-sm">
+              <CardContent className="pt-6 text-sm text-muted-foreground">
+                Aún no hay paquetes publicados. Configúralos desde el panel de administración para mostrarlos aquí.
+              </CardContent>
+            </Card>
+          )}
         </div>
       </section>
 
