@@ -8,6 +8,7 @@ import { TENANT_PERMISSIONS } from "@/lib/permission-catalog";
 import { prisma } from "@/lib/prisma";
 import { EmailService } from "@/lib/sendEmail";
 import { generateRegistrationVerificationEmailHtml } from "@/lib/templates/verifyRegistrationEmail";
+import { generateRootTenantRegistrationNotificationHtml } from "@/lib/templates/rootTenantRegistrationNotificationEmail";
 import { resolveCurrencyByCountry } from "@/lib/country-currency";
 import { calculateExpirationDateByPlan } from "@/lib/subscription-status";
 
@@ -240,8 +241,38 @@ export async function registerTenantWithEmail(input: {
       data: { consumedAt: new Date() },
     });
 
-    return { tenantUrl: `https://${tenant.slug}.medisoftcore.com`, username: user.usuario };
+    return {
+      tenantUrl: `https://${tenant.slug}.medisoftcore.com`,
+      username: user.usuario,
+      tenantSlug: tenant.slug,
+      planNombre: selectedPackage.nombre,
+      contactoNombre: cleanName,
+      contactoCorreo: verification.email,
+    };
   });
 
-  return { success: true, ...created } as const;
+  const rootNotificationEmail = process.env.ROOT_NOTIFICATION_EMAIL?.trim() || process.env.ROOT_EMAIL?.trim();
+  if (rootNotificationEmail) {
+    const emailService = new EmailService();
+    try {
+      await emailService.sendMail({
+        to: rootNotificationEmail,
+        subject: `Nuevo tenant registrado: ${consultorioNombre}`,
+        html: generateRootTenantRegistrationNotificationHtml({
+          consultorioNombre,
+          tenantSlug: created.tenantSlug,
+          contactoNombre: created.contactoNombre,
+          contactoCorreo: created.contactoCorreo,
+          planNombre: created.planNombre,
+          teamSize: input.teamSize,
+          paisCodigo: input.paisCodigo,
+        }),
+        text: `Nuevo tenant registrado: ${consultorioNombre} (${created.tenantSlug}) | Contacto: ${created.contactoNombre} <${created.contactoCorreo}> | Plan: ${created.planNombre} | Team: ${input.teamSize} | País: ${input.paisCodigo}`,
+      });
+    } catch (error) {
+      console.error("No se pudo enviar la notificación de nuevo tenant al correo root", error);
+    }
+  }
+
+  return { success: true, tenantUrl: created.tenantUrl, username: created.username } as const;
 }
