@@ -242,7 +242,7 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
                 return (
                   <button key={pkg.id} type="button" onClick={() => setPackageId(pkg.id)} className={`rounded-xl border p-4 text-left transition ${isSelected ? "border-cyan-400 bg-cyan-500/10" : "border-slate-700 hover:border-slate-500"}`}>
                     <p className="font-semibold text-white">{pkg.nombre}</p>
-                    <p className="text-xs text-slate-400">{pkg.descripcion || "Paquete configurable desde root"}</p>
+                    <p className="text-xs text-slate-400">{pkg.descripcion || "Paquete disponibles"}</p>
                     <p className="mt-1 text-xs text-slate-400">Hasta {pkg.maxUsuarios} usuarios</p>
                   </button>
                 );
@@ -267,7 +267,7 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
             </div>
 
             <div className="rounded-xl border border-slate-700 p-3 text-xs text-slate-300">
-              Prueba gratis: {selectedPackage?.trialActivo ? `${selectedPackage.trialDias} días (configurado desde root)` : "No incluida en este paquete"}
+              Prueba gratis: {selectedPackage?.trialActivo ? `${selectedPackage.trialDias} días (configurado)` : "No incluida en este paquete"}
             </div>
             {packageIncludesTrial ? (
               <div className="rounded-xl border border-cyan-500/50 bg-cyan-500/10 p-3 text-xs text-cyan-100">
