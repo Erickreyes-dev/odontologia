@@ -46,9 +46,16 @@ export async function isResetTokenValid(token: string): Promise<boolean> {
  * un correo al empleado asociado al usuario.
  */
 export async function requestPasswordReset(username: string): Promise<boolean> {
-    // 1️⃣ Buscar usuario e incluir su empleado para obtener el correo
+    const lookup = username.trim().toLowerCase();
+    // 1️⃣ Buscar usuario por usuario o correo
     const user = await prisma.usuarios.findFirst({
-        where: { usuario: username },
+        where: {
+            OR: [
+                { usuario: username.trim() },
+                { correo: lookup },
+                { Empleados: { correo: lookup } },
+            ],
+        },
         include: {
             Empleados: {
                 select: { correo: true, nombre: true, apellido: true },
@@ -58,8 +65,9 @@ export async function requestPasswordReset(username: string): Promise<boolean> {
             },
         },
     });
-    // Si no existe usuario o no hay empleado/correo, no divulgamos la razón
-    if (!user || !user.Empleados?.correo) {
+    const destinationEmail = user?.Empleados?.correo || user?.correo;
+    // Si no existe usuario o no hay correo, no divulgamos la razón
+    if (!user || !destinationEmail) {
         return false;
     }
 
@@ -85,13 +93,15 @@ export async function requestPasswordReset(username: string): Promise<boolean> {
     const link = `${baseUrl}/forgot-password?token=${encodeURIComponent(token)}`;
 
     // 5️⃣ Preparar correo usando la plantilla
-    const fullName = `${user.Empleados.nombre} ${user.Empleados.apellido}`;
+    const fullName = user.Empleados
+        ? `${user.Empleados.nombre} ${user.Empleados.apellido}`
+        : user.usuario;
     const html = generatePasswordResetEmailHtml(fullName, link, {
         clinicLogoBase64: normalizeLogoDataUri(user.tenant?.logoBase64 ?? null),
         clinicName: user.tenant?.nombre ?? null,
     });
     const mailPayload: MailPayload = {
-        to: user.Empleados.correo,
+        to: destinationEmail,
         subject: "Restablecer contraseña",
         html,
     };

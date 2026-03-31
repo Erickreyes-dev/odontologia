@@ -250,6 +250,18 @@ model PasswordResetToken {
   @@index([userId], map: "IX_PasswordResetToken_userId")
 }
 
+model RegistrationEmailToken {
+  id         String    @id @default(uuid()) @db.VarChar(36)
+  email      String    @db.VarChar(150)
+  token      String    @unique @db.VarChar(128)
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email], map: "IX_RegistrationEmailToken_email")
+}
+
 model Seguro {
   id          String   @id @default(uuid()) @db.VarChar(36)
   tenantId    String?  @db.VarChar(36)

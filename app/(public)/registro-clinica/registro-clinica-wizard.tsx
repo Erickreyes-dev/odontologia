@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { finalizeGoogleOnboardingPayment, loginGoogleExistingTenant, registerTenantWithGoogle } from "../google-onboarding/actions";
+import {
+  registerTenantWithEmail,
+  requestEmailRegistrationVerification,
+  validateEmailRegistrationToken,
+} from "../email-onboarding/actions";
 import { BadgeCheck, Building2, Check, Globe, ShieldCheck, Sparkles, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,7 +58,14 @@ function getPrice(pkg: PackageOption, period: Period) {
 }
 
 export function RegistroClinicaWizard({ activePackages }: { activePackages: PackageOption[] }) {
+  const [authMethod, setAuthMethod] = useState<"google" | "email">("google");
   const [credential, setCredential] = useState("");
+  const [verifiedEmailToken, setVerifiedEmailToken] = useState("");
+  const [verifiedEmail, setVerifiedEmail] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [verificationRequested, setVerificationRequested] = useState(false);
   const [consultorioNombre, setConsultorioNombre] = useState("");
   const [teamSize, setTeamSize] = useState<"1" | "2" | "3-5" | ">5">("1");
   const [paisCodigo, setPaisCodigo] = useState("US");
@@ -126,6 +138,29 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
   }, [credential, router, searchParams, startTransition]);
 
   useEffect(() => {
+    const emailToken = searchParams.get("emailToken");
+    if (!emailToken) return;
+
+    let isCancelled = false;
+    startTransition(async () => {
+      const validation = await validateEmailRegistrationToken(emailToken);
+      if (isCancelled) return;
+      if (!validation.valid) {
+        setError(validation.error);
+        return;
+      }
+      setAuthMethod("email");
+      setVerifiedEmailToken(emailToken);
+      setVerifiedEmail(validation.email);
+      setError(null);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [searchParams, startTransition]);
+
+  useEffect(() => {
     if (packageIncludesTrial && periodoPlan !== "mensual") {
       setPeriodoPlan("mensual");
     }
@@ -194,6 +229,57 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
       window.localStorage.setItem("tenant_url", response.tenantUrl);
       window.localStorage.removeItem("google_onboarding_credential");
       setTimeout(() => router.replace("/dashboard"), 1200);
+    });
+  };
+
+  const onSendVerificationLink = () => {
+    setError(null);
+    startTransition(async () => {
+      const response = await requestEmailRegistrationVerification(verifiedEmail);
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+      setVerificationRequested(true);
+    });
+  };
+
+  const onSubmitEmailOnboarding = () => {
+    if (!selectedPackage) {
+      setError("No hay paquetes configurados por el administrador raíz.");
+      return;
+    }
+    if (!verifiedEmailToken) {
+      setError("Primero verifica tu correo con el enlace que enviamos.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Las contraseñas no coinciden.");
+      return;
+    }
+
+    startTransition(async () => {
+      const response = await registerTenantWithEmail({
+        emailToken: verifiedEmailToken,
+        contactName,
+        password,
+        consultorioNombre,
+        teamSize,
+        paisCodigo,
+        packageId: selectedPackage.id,
+        periodoPlan,
+      });
+
+      if (!response.success) {
+        setError(response.error);
+        return;
+      }
+
+      setTenantUrl(response.tenantUrl);
+      window.localStorage.setItem("tenant_url", response.tenantUrl);
+      setTimeout(() => {
+        router.replace(`/login?tenantSlug=${slugPreview}`);
+      }, 1200);
     });
   };
 
@@ -287,16 +373,50 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
           </section>
 
           <section className="space-y-3 rounded-2xl border border-slate-700 bg-slate-950/40 p-4">
-            <p className="flex items-center gap-2 text-sm font-semibold text-cyan-300"><ShieldCheck className="h-4 w-4" /> 3) Confirma con Google</p>
-            {!credential ? (
+            <p className="flex items-center gap-2 text-sm font-semibold text-cyan-300"><ShieldCheck className="h-4 w-4" /> 3) Verifica tu identidad</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant={authMethod === "google" ? "default" : "outline"} className="w-full" onClick={() => setAuthMethod("google")}>
+                Google
+              </Button>
+              <Button type="button" variant={authMethod === "email" ? "default" : "outline"} className="w-full" onClick={() => setAuthMethod("email")}>
+                Correo + contraseña
+              </Button>
+            </div>
+            {authMethod === "google" && !credential ? (
               <Button type="button" variant="outline" onClick={onGoogleClick} className="w-full border-slate-600 bg-slate-900 text-slate-100 hover:bg-slate-800">
                 Iniciar sesión con Google
               </Button>
             ) : null}
-            <Button type="button" onClick={onSubmit} disabled={isPending || !credential} className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400">
-              {isPending ? "Procesando..." : canProvisionWithoutPayment ? "Crear clínica / iniciar sesión" : "Continuar a pago seguro"}
-            </Button>
-            {!credential ? <p className="text-xs text-slate-400">Primero conecta tu cuenta Google para finalizar.</p> : <p className="text-xs text-emerald-300">Cuenta Google ya seleccionada.</p>}
+            {authMethod === "google" ? (
+              <>
+                <Button type="button" onClick={onSubmit} disabled={isPending || !credential} className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+                  {isPending ? "Procesando..." : canProvisionWithoutPayment ? "Crear clínica / iniciar sesión" : "Continuar a pago seguro"}
+                </Button>
+                {!credential ? <p className="text-xs text-slate-400">Primero conecta tu cuenta Google para finalizar.</p> : <p className="text-xs text-emerald-300">Cuenta Google ya seleccionada.</p>}
+              </>
+            ) : (
+              <div className="space-y-2">
+                <Input value={verifiedEmail} onChange={(e) => setVerifiedEmail(e.target.value)} placeholder="correo@proveedor.com" className="border-slate-700 bg-slate-900" />
+                {!verifiedEmailToken ? (
+                  <>
+                    <Button type="button" onClick={onSendVerificationLink} disabled={isPending || !verifiedEmail} className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+                      {isPending ? "Enviando..." : "Enviar enlace de verificación"}
+                    </Button>
+                    {verificationRequested ? <p className="text-xs text-emerald-300">Te enviamos el enlace. Verifica tu correo y regresa con el link.</p> : null}
+                  </>
+                ) : (
+                  <>
+                    <Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Nombre de contacto" className="border-slate-700 bg-slate-900" />
+                    <Input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Contraseña (mínimo 8 caracteres)" className="border-slate-700 bg-slate-900" />
+                    <Input value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} type="password" placeholder="Confirmar contraseña" className="border-slate-700 bg-slate-900" />
+                    <Button type="button" onClick={onSubmitEmailOnboarding} disabled={isPending} className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+                      {isPending ? "Creando clínica..." : "Crear clínica con correo"}
+                    </Button>
+                    <p className="text-xs text-emerald-300">Correo verificado: {verifiedEmail}</p>
+                  </>
+                )}
+              </div>
+            )}
             {error ? <p className="text-sm text-rose-300">{error}</p> : null}
             {tenantUrl ? (
               <p className="rounded-lg border border-emerald-400/40 bg-emerald-500/10 p-2 text-sm text-emerald-200">
