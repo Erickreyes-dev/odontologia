@@ -3,9 +3,11 @@
 import { signOut } from "@/auth";
 import { useRef } from "react";
 import { LogoutIcon, LogoutIconHandle } from "./ui/logout";
+import { useI18n } from "./i18n/i18n-provider";
 
 const LogoutButton = () => {
     const logoutIconRef = useRef<LogoutIconHandle>(null);
+    const { t } = useI18n();
 
     const handleMouseEnter = () => {
         logoutIconRef.current?.startAnimation();
@@ -26,7 +28,7 @@ const LogoutButton = () => {
             onMouseLeave={handleMouseLeave}
             className="w-full flex items-center justify-between"
         >
-            <span>Cerrar sesión</span>
+            <span>{t("nav.logout")}</span>
             <LogoutIcon ref={logoutIconRef} size={20} />
         </button>
     );

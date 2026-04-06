@@ -11,6 +11,8 @@ import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { resolveSubscriptionStatus } from "@/lib/subscription-status";
 import Link from "next/link";
+import { getServerTranslator } from "@/lib/i18n/settings";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 
 function calculateTrialDaysLeft(trialEndsAt?: Date | null): number {
   if (!trialEndsAt) return 0;
@@ -21,6 +23,7 @@ function calculateTrialDaysLeft(trialEndsAt?: Date | null): number {
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const sesion = await getSession();
+  const { t } = getServerTranslator();
 
   if (!sesion) {
     redirect("/");
@@ -69,7 +72,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
 
   const shouldBlockModules = Boolean(tenantPlan && requiresActiveSubscription && effectiveStatus !== "vigente");
   const quickData = shouldBlockModules ? null : await getQuickActionCatalogs();
-  const packageName = tenantPlan?.paquete?.nombre ?? tenantPlan?.plan ?? "Sin paquete";
+  const packageName = tenantPlan?.paquete?.nombre ?? tenantPlan?.plan ?? t("layout.noPackage");
   const trialDaysLeft = calculateTrialDaysLeft(tenantPlan?.trialEndsAt);
 
   return (
@@ -77,25 +80,28 @@ export default async function Layout({ children }: { children: React.ReactNode }
       <AppSidebar />
       <main className="w-full p-2" data-tour="main-content">
         <div className="mb-2 flex items-center justify-between">
-          <SidebarTrigger data-tour="sidebar-trigger" />
+          <div className="flex items-center gap-2">
+            <SidebarTrigger data-tour="sidebar-trigger" />
+            <LanguageSwitcher />
+          </div>
           <div className="flex items-center gap-2">
             {quickData ? <QuickActionsPopover data={quickData} /> : null}
             <div className="hidden rounded-xl border bg-card px-3 py-1.5 text-xs sm:flex sm:items-center sm:gap-2">
               <BadgeCheck className="h-3.5 w-3.5 text-cyan-500" />
-              <span className="text-muted-foreground">Paquete actual:</span>
+              <span className="text-muted-foreground">{t("layout.currentPackage")}</span>
               <span className="font-semibold text-foreground">{packageName}</span>
             </div>
             {tenantPlan && effectiveStatus !== "vigente" ? (
               <div className="hidden rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700 sm:flex sm:items-center sm:gap-2 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
                 <AlertTriangle className="h-3.5 w-3.5" />
-                <span className="font-semibold">Suscripción {effectiveStatus}</span>
+                <span className="font-semibold">{t("layout.subscription")} {effectiveStatus}</span>
               </div>
             ) : null}
             {trialDaysLeft > 0 ? (
               <div className="hidden rounded-xl border bg-card px-3 py-1.5 text-xs sm:flex sm:items-center sm:gap-2">
                 <Timer className="h-3.5 w-3.5 text-amber-500" />
-                <span className="text-muted-foreground">Tiempo de prueba:</span>
-                <span className="font-semibold text-foreground">{`${trialDaysLeft} día(s) restantes`}</span>
+                <span className="text-muted-foreground">{t("layout.trialTime")}</span>
+                <span className="font-semibold text-foreground">{`${trialDaysLeft} ${t("layout.remainingDays")}`}</span>
               </div>
             ) : null}
             <AppHelpGuide />
@@ -106,17 +112,17 @@ export default async function Layout({ children }: { children: React.ReactNode }
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
               <AlertTriangle className="h-6 w-6" />
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight">Suscripción requerida</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("layout.subscriptionRequired")}</h1>
             <p className="mt-3 text-sm text-muted-foreground">
-              Tu paquete está {effectiveStatus}. Para usar este módulo debes activar o renovar la suscripción.
+              {t("layout.subscriptionMessage", { status: effectiveStatus })}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Módulo actual: <span className="font-medium text-foreground">{pathname ?? "desconocido"}</span>
+              {t("layout.currentModule")} <span className="font-medium text-foreground">{pathname ?? t("layout.unknownModule")}</span>
             </p>
 
             <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
               <Button asChild>
-                <Link href="/billing">Ir a facturación</Link>
+                <Link href="/billing">{t("layout.goBilling")}</Link>
               </Button>
             </div>
           </div>
