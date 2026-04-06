@@ -32,10 +32,12 @@ export function EmpleadoFormulario({
   isUpdate,
   initialData,
   puestos,
+  redirectAfterSave = "/empleados",
 }: {
   isUpdate: boolean;
   initialData?: z.infer<typeof EmpleadoSchema>;
   puestos: Puesto[];
+  redirectAfterSave?: string;
 }) {
   const router = useRouter();
 
@@ -77,7 +79,7 @@ export function EmpleadoFormulario({
         toast.success("Empleado creado correctamente");
       }
 
-      router.push("/empleados");
+      router.push(redirectAfterSave);
       router.refresh();
     } catch (error) {
       console.error("Error en la operación:", error);
