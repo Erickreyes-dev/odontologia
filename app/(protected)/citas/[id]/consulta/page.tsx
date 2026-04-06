@@ -11,6 +11,7 @@ import { ConsultaForm } from "./components/ConsultaForm";
 import { Calendar } from "lucide-react";
 import { getSeguimientosPendientes } from "@/app/(protected)/planes-tratamiento/actions";
 import { getFinanciamientosPorPaciente } from "@/app/(protected)/pagos/actions";
+import Link from "next/link";
 
 interface ConsultaPageProps {
   params: Promise<{ id: string }>;
@@ -48,6 +49,18 @@ export default async function ConsultaPage({ params }: ConsultaPageProps) {
         //   { label: "Consulta", href: `/citas/${id}/consulta` },
         // ]}
       />
+      {cita.paciente?.id && (
+        <div className="mb-4 rounded-md border bg-muted/30 p-3 text-sm">
+          ¿Necesitas registrar hallazgos de medicina general (signos vitales, diagnóstico CIE-10, receta, órdenes e interconsulta)?
+          {" "}
+          <Link
+            href={`/medicina-general?pacienteId=${cita.paciente.id}${consulta?.id ? `&consultaId=${consulta.id}` : ""}`}
+            className="font-medium underline"
+          >
+            Abrir módulo medicina general con contexto de esta consulta
+          </Link>
+        </div>
+      )}
 
       <ConsultaForm
         cita={cita}

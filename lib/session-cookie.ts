@@ -24,6 +24,16 @@ function resolveRootHost(): string | null {
 
 export function getSessionCookieDomain(): string | undefined {
   const rootHost = resolveRootHost();
-  if (!rootHost || LOCAL_HOSTS.has(rootHost)) return undefined;
+  if (!rootHost) return undefined;
+
+  // Browsers reject Domain=.localhost and related local development domains.
+  // In local/dev contexts we must omit `domain` and let the cookie be host-only.
+  const isLocalDomain =
+    LOCAL_HOSTS.has(rootHost) ||
+    rootHost.endsWith(".localhost") ||
+    rootHost.endsWith(".local") ||
+    rootHost.endsWith(".test");
+
+  if (isLocalDomain) return undefined;
   return `.${rootHost}`;
 }
