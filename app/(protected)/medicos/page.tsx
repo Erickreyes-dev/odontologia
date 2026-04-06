@@ -14,7 +14,7 @@ export default async function Seguros() {
   const permisos = await getSessionPermisos();
 
   if (!session?.TenantId || !session?.TenantSlug) {
-    redirect("/configuracion-inicial");
+    return <NoAcceso />;
   }
   if (!permisos?.includes("ver_seguros")) {
     return <NoAcceso />;

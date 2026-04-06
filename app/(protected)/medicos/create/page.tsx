@@ -17,8 +17,11 @@ export default async function CreateMedico({
 
   const session = await getSession();
 
-  if (!session?.TenantId) {
+  if (!session) {
     redirect("/login");
+  }
+  if (!session.TenantId) {
+    redirect("/configuracion-inicial");
   }
 
   const [empleadosCount, profesionesCount] = await Promise.all([

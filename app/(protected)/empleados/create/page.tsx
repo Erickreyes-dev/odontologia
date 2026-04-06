@@ -19,6 +19,9 @@ export default async function Create({
   if (!sesion) {
     redirect("/login");
   }
+  if (!sesion.TenantId) {
+    redirect("/configuracion-inicial");
+  }
 
   // Verifica permisos para crear empleados
   if (!permisos?.includes("crear_empleados")) {

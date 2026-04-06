@@ -15,8 +15,11 @@ export default async function Create({
 
   const session = await getSession();
 
-  if (!session?.TenantId) {
+  if (!session) {
     redirect("/login");
+  }
+  if (!session.TenantId) {
+    redirect("/configuracion-inicial");
   }
 
   const medicosCount = await prisma.medico.count({ where: { tenantId: session.TenantId } });

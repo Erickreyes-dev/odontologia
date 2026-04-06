@@ -19,8 +19,20 @@ type SetupStep = {
 export default async function ConfiguracionInicialPage() {
   const session = await getSession();
 
-  if (!session?.TenantId) {
+  if (!session) {
     redirect("/login");
+  }
+
+  if (!session.TenantId) {
+    return (
+      <div className="space-y-4">
+        <HeaderComponent
+          Icon={Route}
+          description="Estamos terminando de preparar tu clínica. Recarga la página en unos segundos."
+          screenName="Configuración inicial"
+        />
+      </div>
+    );
   }
 
   const [puestosCount, empleadosCount, profesionesCount, medicosCount, consultoriosCount] = await Promise.all([
