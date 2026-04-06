@@ -21,6 +21,7 @@ import {
   createProgramaCronicoAction,
   createSignoVitalAction,
 } from "./actions";
+import { PrescripcionesPrintList } from "./components/prescripciones-print-list";
 import { SectionCard } from "./components/SectionCard";
 
 interface MedicinaGeneralPageProps {
@@ -39,7 +40,7 @@ export default async function MedicinaGeneralPage({ searchParams }: MedicinaGene
   const selectedPacienteId = searchParams?.pacienteId ?? "";
   const selectedConsultaId = searchParams?.consultaId ?? "";
 
-  const [pacientes, consultas, citasSinConsulta, historias, alergias, signos, diagnosticos, medicamentos, prescripciones, ordenes, interconsultas, programas] = await Promise.all([
+  const [pacientes, consultas, citasSinConsulta, historias, alergias, signos, diagnosticos, medicamentos, prescripciones, ordenes, interconsultas, programas, tenant] = await Promise.all([
     prisma.paciente.findMany({
       where: await tenantWhere({}),
       select: { id: true, nombre: true, apellido: true },
@@ -75,10 +76,34 @@ export default async function MedicinaGeneralPage({ searchParams }: MedicinaGene
     prisma.signoVital.findMany({ where: await tenantWhere({}), include: { consulta: true }, take: 8, orderBy: { fechaToma: "desc" } }),
     prisma.diagnosticoConsulta.findMany({ where: await tenantWhere({}), include: { consulta: true }, take: 8, orderBy: { createAt: "desc" } }),
     prisma.medicamentoCatalogo.findMany({ where: await tenantWhere({}), take: 8, orderBy: { createAt: "desc" } }),
-    prisma.prescripcion.findMany({ where: await tenantWhere({}), include: { items: true }, take: 8, orderBy: { fechaEmision: "desc" } }),
+    prisma.prescripcion.findMany({
+      where: await tenantWhere({}),
+      include: {
+        consulta: {
+          select: {
+            cita: {
+              select: {
+                paciente: { select: { nombre: true, apellido: true } },
+              },
+            },
+          },
+        },
+        items: {
+          include: {
+            medicamento: true,
+          },
+        },
+      },
+      take: 8,
+      orderBy: { fechaEmision: "desc" },
+    }),
     prisma.ordenEstudio.findMany({ where: await tenantWhere({}), take: 8, orderBy: { fechaSolicitud: "desc" } }),
     prisma.interconsulta.findMany({ where: await tenantWhere({}), take: 8, orderBy: { fechaReferencia: "desc" } }),
     prisma.programaCronicoPaciente.findMany({ where: await tenantWhere({}), include: { paciente: true }, take: 8, orderBy: { createAt: "desc" } }),
+    prisma.tenant.findFirst({
+      where: await tenantWhere({}),
+      select: { nombre: true },
+    }),
   ]);
 
   const pacienteSeleccionado = pacientes.find((p) => p.id === selectedPacienteId);
@@ -93,6 +118,21 @@ export default async function MedicinaGeneralPage({ searchParams }: MedicinaGene
     })),
   ];
   const defaultAtencion = selectedConsultaId || contextosAtencion[0]?.value || "";
+  const recetasParaImprimir = prescripciones.map((prescripcion) => ({
+    id: prescripcion.id,
+    fechaEmision: formatFechaCita(prescripcion.fechaEmision),
+    pacienteNombre: `${prescripcion.consulta.cita.paciente.nombre} ${prescripcion.consulta.cita.paciente.apellido}`.trim(),
+    consultaId: prescripcion.consultaId,
+    indicacionesGenerales: prescripcion.indicacionesGenerales,
+    items: prescripcion.items.map((item) => ({
+      medicamento: item.medicamento?.principioActivo ?? item.descripcionLibre ?? "Medicamento no especificado",
+      dosis: item.dosis,
+      via: item.via,
+      frecuencia: item.frecuencia,
+      duracion: item.duracion,
+      indicacion: item.indicacion,
+    })),
+  }));
 
   return (
     <div className="container mx-auto space-y-4 px-4 py-2 md:space-y-6 md:px-6">
@@ -262,7 +302,7 @@ export default async function MedicinaGeneralPage({ searchParams }: MedicinaGene
               <Field label="Indicación"><Input name="indicacion" placeholder="Para dolor y fiebre" /></Field>
               <Button type="submit" className="w-full md:w-auto">Crear receta</Button>
             </form>
-            <RecentList items={prescripciones.map((p) => `Prescripción ${p.id.slice(0, 8)} (${p.items.length} item)`)} emptyMessage="Sin prescripciones registradas aún." />
+            <PrescripcionesPrintList recetas={recetasParaImprimir} clinicName={tenant?.nombre ?? "Clínica"} />
           </SectionCard>
 
           <SectionCard title="Órdenes de estudio">
