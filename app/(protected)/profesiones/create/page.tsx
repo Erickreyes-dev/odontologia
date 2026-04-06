@@ -1,11 +1,28 @@
-import { getSessionPermisos } from "@/auth";
+import { getSession, getSessionPermisos } from "@/auth";
 import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import {  ShieldPlus } from "lucide-react";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import { ProfesionFormulario } from "../components/Form";
 
-export default async function Create() {
+export default async function Create({
+  searchParams,
+}: {
+  searchParams?: { fromSetup?: string };
+}) {
   const permisos = await getSessionPermisos();
+
+  const session = await getSession();
+
+  if (!session?.TenantId) {
+    redirect("/login");
+  }
+
+  const empleadosCount = await prisma.empleados.count({ where: { tenantId: session.TenantId } });
+  if (empleadosCount === 0) {
+    redirect("/configuracion-inicial");
+  }
 
   // Verifica permisos para crear profesiones
   if (!permisos?.includes("crear_profesiones")) {
@@ -30,6 +47,7 @@ export default async function Create() {
       <ProfesionFormulario
         isUpdate={false}
         initialData={initialData}
+        redirectAfterSave={searchParams?.fromSetup ? "/configuracion-inicial" : "/profesiones"}
       />
     </div>
   );

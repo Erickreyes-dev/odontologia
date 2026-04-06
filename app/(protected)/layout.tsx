@@ -14,6 +14,29 @@ import Link from "next/link";
 import { getServerTranslator } from "@/lib/i18n/settings";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 
+
+type InitialSetupState = {
+  puesto: boolean;
+  empleado: boolean;
+  profesion: boolean;
+  medico: boolean;
+  consultorio: boolean;
+};
+
+function resolveInitialSetupState(counts: { puestos: number; empleados: number; profesiones: number; medicos: number; consultorios: number }): InitialSetupState {
+  return {
+    puesto: counts.puestos > 0,
+    empleado: counts.empleados > 0,
+    profesion: counts.profesiones > 0,
+    medico: counts.medicos > 0,
+    consultorio: counts.consultorios > 0,
+  };
+}
+
+function isInitialSetupCompleted(state: InitialSetupState): boolean {
+  return Object.values(state).every(Boolean);
+}
+
 function calculateTrialDaysLeft(trialEndsAt?: Date | null): number {
   if (!trialEndsAt) return 0;
   const diffMs = trialEndsAt.getTime() - Date.now();
@@ -68,6 +91,45 @@ export default async function Layout({ children }: { children: React.ReactNode }
       tenantPlan.estado = effectiveStatus;
     }
 
+  }
+
+  const setupAllowedPrefixes = [
+    "/configuracion-inicial",
+    "/puestos",
+    "/empleados",
+    "/profesiones",
+    "/medicos",
+    "/consultorios",
+    "/profile",
+    "/billing",
+    "/suscripcion",
+    "/dashboard-admin",
+    "/tenants",
+    "/paquetes",
+  ];
+
+  const isSetupAllowedPath = setupAllowedPrefixes.some((prefix) => pathname?.startsWith(prefix));
+
+  if (sesion.TenantId) {
+    const [puestosCount, empleadosCount, profesionesCount, medicosCount, consultoriosCount] = await Promise.all([
+      prisma.puesto.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.empleados.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.profesion.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.medico.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.consultorio.count({ where: { tenantId: sesion.TenantId } }),
+    ]);
+
+    const initialSetup = resolveInitialSetupState({
+      puestos: puestosCount,
+      empleados: empleadosCount,
+      profesiones: profesionesCount,
+      medicos: medicosCount,
+      consultorios: consultoriosCount,
+    });
+
+    if (!isInitialSetupCompleted(initialSetup) && !isSetupAllowedPath) {
+      redirect("/configuracion-inicial");
+    }
   }
 
   const shouldBlockModules = Boolean(tenantPlan && requiresActiveSubscription && effectiveStatus !== "vigente");
