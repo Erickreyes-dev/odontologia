@@ -9,91 +9,183 @@ import { TenantAppointmentForm } from "@/components/tenant-appointment-form";
 import { CalendarClock, Check, HeartHandshake, Mail, PhoneCall, Sparkles, Stethoscope, Users } from "lucide-react";
 import { resolveCurrencyByCountry } from "@/lib/country-currency";
 
-const services = [
-  {
-    title: "Agenda inteligente de citas",
-    description:
-      "Confirma, reprograma y visualiza disponibilidad médica en segundos para reducir ausencias y maximizar la productividad.",
-  },
-  {
-    title: "Historia clínica centralizada",
-    description:
-      "Accede al perfil completo del paciente, evoluciones y antecedentes clínicos desde cualquier módulo autorizado.",
-  },
-  {
-    title: "Planes de tratamiento y cotizaciones",
-    description:
-      "Crea propuestas profesionales, ordénalas por etapas y conviértelas en tratamientos aprobados sin fricción.",
-  },
-  {
-    title: "Facturación, pagos y financiamiento",
-    description:
-      "Controla cuentas por cobrar, registra pagos parciales y gestiona convenios de financiamiento con trazabilidad.",
-  },
-  {
-    title: "Inventario clínico",
-    description:
-      "Monitorea insumos críticos, evita quiebres de stock y lleva control por consultorio o sede.",
-  },
-  {
-    title: "Operación multi-clínica",
-    description:
-      "Administra sucursales, usuarios, roles y permisos en un entorno seguro y escalable para crecer sin caos.",
-  },
-];
+type Lang = "es" | "en";
 
-const advantages = [
-  "Aumenta la tasa de asistencia con recordatorios y agenda inteligente.",
-  "Eleva el ticket promedio con planes de tratamiento, promociones y financiamiento.",
-  "Reduce errores administrativos centralizando pacientes, equipo y operación.",
-  "Toma decisiones con métricas clínicas y financieras en tiempo real.",
-];
-
-const businessPillars = [
-  {
-    title: "Gestión de pacientes sin fricción",
-    detail:
-      "Historial, citas, consultas y seguimiento en un solo flujo para mejorar la experiencia y la retención.",
+const landingByLang = {
+  es: {
+    services: [
+      {
+        title: "Agenda inteligente de citas",
+        description:
+          "Confirma, reprograma y visualiza disponibilidad médica en segundos para reducir ausencias y maximizar la productividad.",
+      },
+      {
+        title: "Historia clínica centralizada",
+        description:
+          "Accede al perfil completo del paciente, evoluciones y antecedentes clínicos desde cualquier módulo autorizado.",
+      },
+      {
+        title: "Planes de tratamiento y cotizaciones",
+        description:
+          "Crea propuestas profesionales, ordénalas por etapas y conviértelas en tratamientos aprobados sin fricción.",
+      },
+      {
+        title: "Facturación, pagos y financiamiento",
+        description:
+          "Controla cuentas por cobrar, registra pagos parciales y gestiona convenios de financiamiento con trazabilidad.",
+      },
+      {
+        title: "Inventario clínico",
+        description:
+          "Monitorea insumos críticos, evita quiebres de stock y lleva control por consultorio o sede.",
+      },
+      {
+        title: "Operación multi-clínica",
+        description:
+          "Administra sucursales, usuarios, roles y permisos en un entorno seguro y escalable para crecer sin caos.",
+      },
+    ],
+    advantages: [
+      "Aumenta la tasa de asistencia con recordatorios y agenda inteligente.",
+      "Eleva el ticket promedio con planes de tratamiento, promociones y financiamiento.",
+      "Reduce errores administrativos centralizando pacientes, equipo y operación.",
+      "Toma decisiones con métricas clínicas y financieras en tiempo real.",
+    ],
+    businessPillars: [
+      {
+        title: "Gestión de pacientes sin fricción",
+        detail:
+          "Historial, citas, consultas y seguimiento en un solo flujo para mejorar la experiencia y la retención.",
+      },
+      {
+        title: "Control comercial y financiero",
+        detail:
+          "Cotizaciones, pagos parciales, órdenes de cobro y financiamiento para no perder oportunidades de ingreso.",
+      },
+      {
+        title: "Productividad de equipo",
+        detail:
+          "Roles, permisos, puestos y supervisión por módulo para operar con claridad en clínicas de cualquier tamaño.",
+      },
+      {
+        title: "Crecimiento escalable",
+        detail:
+          "Inventario, reportes y operación multi-sede para crecer sin perder control de calidad y rentabilidad.",
+      },
+    ],
+    faqs: [
+      {
+        question: "¿Este sistema sirve para clínicas pequeñas y grandes?",
+        answer:
+          "Sí. Está diseñado para operar desde consultorios individuales hasta redes con múltiples sedes, manteniendo control por roles y áreas.",
+      },
+      {
+        question: "¿Puedo controlar pagos parciales y financiamientos?",
+        answer:
+          "Claro. El módulo financiero contempla pagos, cuentas por cobrar y esquemas de financiamiento para tratamientos de mayor valor.",
+      },
+      {
+        question: "¿Qué tan rápido se puede empezar a usar?",
+        answer:
+          "La interfaz está pensada para adopción rápida. Los equipos suelen dominar los flujos principales en muy poco tiempo.",
+      },
+      {
+        question: "¿La plataforma contempla seguridad de acceso?",
+        answer:
+          "Sí. Incluye gestión de usuarios, roles y permisos para proteger la información clínica y administrativa.",
+      },
+    ],
   },
-  {
-    title: "Control comercial y financiero",
-    detail:
-      "Cotizaciones, pagos parciales, órdenes de cobro y financiamiento para no perder oportunidades de ingreso.",
+  en: {
+    services: [
+      {
+        title: "Smart appointment scheduling",
+        description:
+          "Confirm, reschedule, and view medical availability in seconds to reduce no-shows and boost productivity.",
+      },
+      {
+        title: "Centralized clinical history",
+        description:
+          "Access each patient profile, progress notes, and clinical background from any authorized module.",
+      },
+      {
+        title: "Treatment plans and quotes",
+        description:
+          "Build professional proposals, organize them by stage, and convert them into approved treatments with ease.",
+      },
+      {
+        title: "Billing, payments, and financing",
+        description:
+          "Track receivables, register partial payments, and manage financing agreements with full traceability.",
+      },
+      {
+        title: "Clinical inventory",
+        description:
+          "Monitor critical supplies, prevent stockouts, and control inventory by office or location.",
+      },
+      {
+        title: "Multi-clinic operations",
+        description:
+          "Manage branches, users, roles, and permissions in a secure, scalable environment built for growth.",
+      },
+    ],
+    advantages: [
+      "Increase attendance rates with reminders and smart scheduling.",
+      "Raise average ticket value with treatment plans, promotions, and financing.",
+      "Reduce administrative errors by centralizing patients, staff, and operations.",
+      "Make decisions with real-time clinical and financial metrics.",
+    ],
+    businessPillars: [
+      {
+        title: "Frictionless patient management",
+        detail:
+          "History, appointments, consultations, and follow-up in one flow to improve experience and retention.",
+      },
+      {
+        title: "Commercial and financial control",
+        detail:
+          "Quotes, partial payments, payment orders, and financing to avoid missing revenue opportunities.",
+      },
+      {
+        title: "Team productivity",
+        detail:
+          "Roles, permissions, positions, and module-level supervision for clinics of any size.",
+      },
+      {
+        title: "Scalable growth",
+        detail:
+          "Inventory, reports, and multi-location operations to scale without losing quality and profitability.",
+      },
+    ],
+    faqs: [
+      {
+        question: "Is this system suitable for small and large clinics?",
+        answer:
+          "Yes. It is designed for single offices and multi-location networks, keeping role-based control by area.",
+      },
+      {
+        question: "Can I manage partial payments and financing?",
+        answer:
+          "Absolutely. The financial module includes payments, receivables, and financing schemes for higher-value treatments.",
+      },
+      {
+        question: "How quickly can teams get started?",
+        answer:
+          "The interface is built for fast adoption. Teams usually master core workflows in a short time.",
+      },
+      {
+        question: "Does the platform include secure access control?",
+        answer:
+          "Yes. It includes user, role, and permission management to protect clinical and administrative data.",
+      },
+    ],
   },
-  {
-    title: "Productividad de equipo",
-    detail:
-      "Roles, permisos, puestos y supervisión por módulo para operar con claridad en clínicas de cualquier tamaño.",
-  },
-  {
-    title: "Crecimiento escalable",
-    detail:
-      "Inventario, reportes y operación multi-sede para crecer sin perder control de calidad y rentabilidad.",
-  },
-];
-
-const faqs = [
-  {
-    question: "¿Este sistema sirve para clínicas pequeñas y grandes?",
-    answer:
-      "Sí. Está diseñado para operar desde consultorios individuales hasta redes con múltiples sedes, manteniendo control por roles y áreas.",
-  },
-  {
-    question: "¿Puedo controlar pagos parciales y financiamientos?",
-    answer:
-      "Claro. El módulo financiero contempla pagos, cuentas por cobrar y esquemas de financiamiento para tratamientos de mayor valor.",
-  },
-  {
-    question: "¿Qué tan rápido se puede empezar a usar?",
-    answer:
-      "La interfaz está pensada para adopción rápida. Los equipos suelen dominar los flujos principales en muy poco tiempo.",
-  },
-  {
-    question: "¿La plataforma contempla seguridad de acceso?",
-    answer:
-      "Sí. Incluye gestión de usuarios, roles y permisos para proteger la información clínica y administrativa.",
-  },
-];
+} satisfies Record<Lang, {
+  services: Array<{ title: string; description: string }>;
+  advantages: string[];
+  businessPillars: Array<{ title: string; detail: string }>;
+  faqs: Array<{ question: string; answer: string }>;
+}>;
 
 function normalizeLogo(logoBase64: string | null): string | null {
   if (!logoBase64) return null;
@@ -110,8 +202,26 @@ function parsePackageBenefits(description: string | null): string[] {
     .filter((item) => item.length > 0);
 }
 
-export default async function LandingPage() {
-  const tenantSlug = headers().get("x-tenant-slug");
+export default async function LandingPage({
+  searchParams,
+}: {
+  searchParams?: { lang?: string };
+}) {
+  const requestHeaders = headers();
+  const tenantSlug = requestHeaders.get("x-tenant-slug");
+  const urlLang = searchParams?.lang?.toLowerCase();
+  const acceptedLanguage = requestHeaders.get("accept-language") || "";
+  const locale: Lang = urlLang === "en" || urlLang === "es"
+    ? urlLang
+    : acceptedLanguage.toLowerCase().startsWith("en")
+      ? "en"
+      : "es";
+  const content = landingByLang[locale];
+  const languageLinks = {
+    es: locale === "es" ? "#" : "?lang=es",
+    en: locale === "en" ? "#" : "?lang=en",
+  };
+
   const paquetesActivos = await prisma.paquete.findMany({
     where: { activo: true },
     select: {
@@ -176,7 +286,11 @@ export default async function LandingPage() {
   if (tenantLanding?.activo) {
     const logo = normalizeLogo(tenantLanding.logoBase64);
     const tenantCurrency = resolveCurrencyByCountry(tenantLanding.paisCodigo);
-    const moneyFormatter = new Intl.NumberFormat("es-ES", { style: "currency", currency: tenantLanding.monedaCodigo || tenantCurrency.currency, maximumFractionDigits: 2 });
+    const moneyFormatter = new Intl.NumberFormat(locale === "en" ? "en-US" : "es-ES", {
+      style: "currency",
+      currency: tenantLanding.monedaCodigo || tenantCurrency.currency,
+      maximumFractionDigits: 2,
+    });
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-background via-background to-cyan-50/20 dark:to-slate-950">
@@ -204,11 +318,15 @@ export default async function LandingPage() {
             </div>
             <div className="flex items-center gap-3">
               <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex">
-                <Link href="#servicios" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">Servicios</Link>
-                <Link href="#nosotros" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">Nosotros</Link>
-                <Link href="#promociones" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">Promociones</Link>
-                <Link href="#contacto" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">Contacto</Link>
+                <Link href="#servicios" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">{locale === "en" ? "Services" : "Servicios"}</Link>
+                <Link href="#nosotros" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">{locale === "en" ? "About" : "Nosotros"}</Link>
+                <Link href="#promociones" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">{locale === "en" ? "Promotions" : "Promociones"}</Link>
+                <Link href="#contacto" className="transition-colors hover:text-cyan-600 dark:hover:text-cyan-300">{locale === "en" ? "Contact" : "Contacto"}</Link>
               </nav>
+              <div className="hidden items-center gap-1 rounded-full border border-border p-1 sm:flex">
+                <Link href={languageLinks.es} className={`rounded-full px-2 py-0.5 text-xs ${locale === "es" ? "bg-cyan-600 text-white" : "text-muted-foreground"}`}>ES</Link>
+                <Link href={languageLinks.en} className={`rounded-full px-2 py-0.5 text-xs ${locale === "en" ? "bg-cyan-600 text-white" : "text-muted-foreground"}`}>EN</Link>
+              </div>
               <ThemeToggle />
             </div>
           </div>
@@ -219,32 +337,36 @@ export default async function LandingPage() {
           <div className="relative mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:py-16">
             <div className="space-y-6">
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-700 dark:text-cyan-300">
-                <Sparkles className="h-3.5 w-3.5" /> Atención odontológica moderna
+                <Sparkles className="h-3.5 w-3.5" /> {locale === "en" ? "Modern dental care" : "Atención odontológica moderna"}
               </div>
-              <h1 className="text-3xl font-bold leading-tight sm:text-5xl">Tu sonrisa en manos de {tenantLanding.nombre}</h1>
+              <h1 className="text-3xl font-bold leading-tight sm:text-5xl">
+                {locale === "en" ? `Your smile in ${tenantLanding.nombre}'s hands` : `Tu sonrisa en manos de ${tenantLanding.nombre}`}
+              </h1>
               <p className="max-w-2xl text-base text-muted-foreground sm:text-lg">
-                Un consultorio pensado para brindarte confianza, tecnología y cercanía en cada visita.
+                {locale === "en"
+                  ? "A dental practice designed to deliver trust, technology, and human care in every visit."
+                  : "Un consultorio pensado para brindarte confianza, tecnología y cercanía en cada visita."}
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button asChild className="transition-transform hover:scale-[1.02] bg-cyan-600 text-white hover:bg-cyan-500">
-                  <Link href="#contacto">Agendar valoración</Link>
+                  <Link href="#contacto">{locale === "en" ? "Book evaluation" : "Agendar valoración"}</Link>
                 </Button>
                 <Button asChild variant="outline" className="transition-transform hover:scale-[1.02]">
-                  <Link href="#servicios">Ver tratamientos</Link>
+                  <Link href="#servicios">{locale === "en" ? "See treatments" : "Ver tratamientos"}</Link>
                 </Button>
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-lg border border-border bg-card p-3 text-sm shadow-sm transition-transform hover:-translate-y-0.5">
                   <Stethoscope className="mb-2 h-4 w-4 text-cyan-600 dark:text-cyan-300" />
-                  Especialistas certificados
+                  {locale === "en" ? "Certified specialists" : "Especialistas certificados"}
                 </div>
                 <div className="rounded-lg border border-border bg-card p-3 text-sm shadow-sm transition-transform hover:-translate-y-0.5">
                   <HeartHandshake className="mb-2 h-4 w-4 text-cyan-600 dark:text-cyan-300" />
-                  Atención cálida y humana
+                  {locale === "en" ? "Warm, human-centered care" : "Atención cálida y humana"}
                 </div>
                 <div className="rounded-lg border border-border bg-card p-3 text-sm shadow-sm transition-transform hover:-translate-y-0.5">
                   <CalendarClock className="mb-2 h-4 w-4 text-cyan-600 dark:text-cyan-300" />
-                  Horarios flexibles
+                  {locale === "en" ? "Flexible hours" : "Horarios flexibles"}
                 </div>
               </div>
             </div>
@@ -253,7 +375,7 @@ export default async function LandingPage() {
               <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
                 <Image
                   src="https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1400&q=80"
-                  alt="Consultorio odontológico moderno"
+                  alt={locale === "en" ? "Modern dental clinic" : "Consultorio odontológico moderno"}
                   width={1400}
                   height={900}
                   className="h-64 w-full object-cover transition-transform duration-500 hover:scale-105 sm:h-80"
@@ -262,12 +384,12 @@ export default async function LandingPage() {
               </div>
               <Card className="border-border bg-card/90 shadow-sm">
                 <CardHeader>
-                  <CardTitle>Horario y atención</CardTitle>
+                  <CardTitle>{locale === "en" ? "Hours and care" : "Horario y atención"}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm text-muted-foreground whitespace-pre-line">
-                  <p><span className="font-medium text-foreground">Horarios:</span> {tenantLanding.horariosInfo || "No definidos aún."}</p>
-                  <p><span className="font-medium text-foreground">Correo:</span> {tenantLanding.contactoCorreo || "No especificado"}</p>
-                  <p><span className="font-medium text-foreground">Teléfono:</span> {tenantLanding.telefono || "No especificado"}</p>
+                  <p><span className="font-medium text-foreground">{locale === "en" ? "Hours:" : "Horarios:"}</span> {tenantLanding.horariosInfo || (locale === "en" ? "Not defined yet." : "No definidos aún.")}</p>
+                  <p><span className="font-medium text-foreground">{locale === "en" ? "Email:" : "Correo:"}</span> {tenantLanding.contactoCorreo || (locale === "en" ? "Not specified" : "No especificado")}</p>
+                  <p><span className="font-medium text-foreground">{locale === "en" ? "Phone:" : "Teléfono:"}</span> {tenantLanding.telefono || (locale === "en" ? "Not specified" : "No especificado")}</p>
                 </CardContent>
               </Card>
             </div>
@@ -276,8 +398,8 @@ export default async function LandingPage() {
 
         <section id="servicios" className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
           <div className="mb-6 text-center">
-            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Nuestros servicios</p>
-            <h2 className="text-2xl font-bold sm:text-3xl">Tratamientos diseñados para tu sonrisa</h2>
+            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">{locale === "en" ? "Our services" : "Nuestros servicios"}</p>
+            <h2 className="text-2xl font-bold sm:text-3xl">{locale === "en" ? "Treatments designed for your smile" : "Tratamientos diseñados para tu sonrisa"}</h2>
           </div>
 
           {tenantLanding.servicios.length > 0 ? (
@@ -291,7 +413,7 @@ export default async function LandingPage() {
                   <CardHeader className="space-y-3 pb-2">
                     <div className="flex items-center justify-between gap-2">
                       <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">
-                        Servicio
+                        {locale === "en" ? "Service" : "Servicio"}
                       </span>
                       <span className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                         {servicio.duracionMin} min
@@ -301,10 +423,10 @@ export default async function LandingPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <p className="line-clamp-3 min-h-[60px] text-sm text-muted-foreground">
-                      {servicio.descripcion || "Sin descripción disponible."}
+                      {servicio.descripcion || (locale === "en" ? "No description available." : "Sin descripción disponible.")}
                     </p>
                     <div className="flex items-center justify-between rounded-xl border border-border/70 bg-muted/40 px-3 py-2">
-                      <p className="text-xs text-muted-foreground">Precio desde</p>
+                      <p className="text-xs text-muted-foreground">{locale === "en" ? "Starting at" : "Precio desde"}</p>
                       <p className="text-base font-bold text-foreground">{moneyFormatter.format(Number(servicio.precioBase))}</p>
                     </div>
                   </CardContent>
@@ -314,7 +436,7 @@ export default async function LandingPage() {
           ) : (
             <Card className="border-border bg-card shadow-sm">
               <CardContent className="pt-6 text-sm text-muted-foreground whitespace-pre-line">
-                {tenantLanding.serviciosInfo || "Estamos preparando el detalle de servicios para ti."}
+                {tenantLanding.serviciosInfo || (locale === "en" ? "We are preparing the service details for you." : "Estamos preparando el detalle de servicios para ti.")}
               </CardContent>
             </Card>
           )}
@@ -323,8 +445,8 @@ export default async function LandingPage() {
         <section id="promociones" className="border-y border-border/60 bg-muted/30">
           <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
             <div className="mb-6 text-center">
-              <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Promociones</p>
-              <h2 className="text-2xl font-bold sm:text-3xl">Ofertas vigentes para tu tratamiento</h2>
+              <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">{locale === "en" ? "Promotions" : "Promociones"}</p>
+              <h2 className="text-2xl font-bold sm:text-3xl">{locale === "en" ? "Current treatment offers" : "Ofertas vigentes para tu tratamiento"}</h2>
             </div>
             {tenantLanding.promociones.length > 0 ? (
               <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -340,11 +462,11 @@ export default async function LandingPage() {
                       <CardHeader className="space-y-3 pb-2">
                         <div className="flex items-center justify-between gap-2">
                           <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                            Promoción
+                            {locale === "en" ? "Promotion" : "Promoción"}
                           </span>
                           {ahorro > 0 ? (
                             <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
-                              Ahorra {moneyFormatter.format(ahorro)}
+                              {locale === "en" ? "Save" : "Ahorra"} {moneyFormatter.format(ahorro)}
                             </span>
                           ) : null}
                         </div>
@@ -352,10 +474,10 @@ export default async function LandingPage() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <p className="line-clamp-3 min-h-[60px] text-sm text-muted-foreground">
-                          {promo.descripcion || "Promoción especial por tiempo limitado."}
+                          {promo.descripcion || (locale === "en" ? "Limited-time special promotion." : "Promoción especial por tiempo limitado.")}
                         </p>
                         <div className="rounded-xl border border-border/70 bg-card/80 p-3">
-                          <p className="text-xs text-muted-foreground">Precio promocional</p>
+                          <p className="text-xs text-muted-foreground">{locale === "en" ? "Promo price" : "Precio promocional"}</p>
                           <div className="mt-1 flex items-baseline gap-2">
                             <span className="text-xl font-extrabold text-cyan-700 dark:text-cyan-300">
                               {moneyFormatter.format(Number(promo.precioPromocional))}
@@ -373,7 +495,7 @@ export default async function LandingPage() {
             ) : (
               <Card className="border-border bg-card shadow-sm">
                 <CardContent className="pt-6 text-sm text-muted-foreground">
-                  No hay promociones públicas disponibles en este momento.
+                  {locale === "en" ? "There are no public promotions available right now." : "No hay promociones públicas disponibles en este momento."}
                 </CardContent>
               </Card>
             )}
@@ -384,18 +506,18 @@ export default async function LandingPage() {
           <div className="mx-auto grid w-full max-w-6xl gap-4 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:py-16">
             <Card className="border-border bg-card shadow-sm transition-transform hover:-translate-y-0.5">
               <CardHeader>
-                <CardTitle>Misión</CardTitle>
+                <CardTitle>{locale === "en" ? "Mission" : "Misión"}</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground whitespace-pre-line">
-                {tenantLanding.mision || "No definida aún."}
+                {tenantLanding.mision || (locale === "en" ? "Not defined yet." : "No definida aún.")}
               </CardContent>
             </Card>
             <Card className="border-border bg-card shadow-sm transition-transform hover:-translate-y-0.5">
               <CardHeader>
-                <CardTitle>Visión</CardTitle>
+                <CardTitle>{locale === "en" ? "Vision" : "Visión"}</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground whitespace-pre-line">
-                {tenantLanding.vision || "No definida aún."}
+                {tenantLanding.vision || (locale === "en" ? "Not defined yet." : "No definida aún.")}
               </CardContent>
             </Card>
           </div>
@@ -405,17 +527,17 @@ export default async function LandingPage() {
           <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
             <Card className="border-border bg-card shadow-sm">
               <CardHeader>
-                <CardTitle>Redes y contacto</CardTitle>
+                <CardTitle>{locale === "en" ? "Social and contact" : "Redes y contacto"}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 text-sm text-muted-foreground whitespace-pre-line">
-                <p>{tenantLanding.redesSociales || "Sin redes sociales configuradas."}</p>
+                <p>{tenantLanding.redesSociales || (locale === "en" ? "No social media configured." : "Sin redes sociales configuradas.")}</p>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
-                    <p className="flex items-center gap-2"><Mail className="h-4 w-4" /> {tenantLanding.contactoCorreo || "No especificado"}</p>
-                    <p className="flex items-center gap-2"><PhoneCall className="h-4 w-4" /> {tenantLanding.telefono || "No especificado"}</p>
+                    <p className="flex items-center gap-2"><Mail className="h-4 w-4" /> {tenantLanding.contactoCorreo || (locale === "en" ? "Not specified" : "No especificado")}</p>
+                    <p className="flex items-center gap-2"><PhoneCall className="h-4 w-4" /> {tenantLanding.telefono || (locale === "en" ? "Not specified" : "No especificado")}</p>
                   </div>
                   <Button asChild className="bg-cyan-600 text-white hover:bg-cyan-500 transition-transform hover:scale-[1.02]">
-                    <Link href="/login">Portal de pacientes / staff</Link>
+                    <Link href="/login">{locale === "en" ? "Patients / staff portal" : "Portal de pacientes / staff"}</Link>
                   </Button>
                 </div>
               </CardContent>
@@ -423,7 +545,7 @@ export default async function LandingPage() {
 
             <Card className="border-border bg-card shadow-sm">
               <CardHeader>
-                <CardTitle>Agenda tu cita</CardTitle>
+                <CardTitle>{locale === "en" ? "Book your appointment" : "Agenda tu cita"}</CardTitle>
               </CardHeader>
               <CardContent>
                 <TenantAppointmentForm />
@@ -440,24 +562,31 @@ export default async function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors">
       <div className="fixed right-4 top-4 z-50 flex items-center gap-2 rounded-full border border-border bg-background/80 px-3 py-1.5 text-xs text-foreground backdrop-blur">
-        <span>Theme light/dark</span>
+        <div className="flex items-center gap-1 rounded-full border border-border p-1">
+          <Link href={languageLinks.es} className={`rounded-full px-2 py-0.5 ${locale === "es" ? "bg-cyan-600 text-white" : "text-muted-foreground"}`}>ES</Link>
+          <Link href={languageLinks.en} className={`rounded-full px-2 py-0.5 ${locale === "en" ? "bg-cyan-600 text-white" : "text-muted-foreground"}`}>EN</Link>
+        </div>
+        <span>{locale === "en" ? "Theme light/dark" : "Tema claro/oscuro"}</span>
         <ThemeToggle />
       </div>
       <section className="relative overflow-hidden border-b border-border/60">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.2),_transparent_45%)]" />
         <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-14 sm:px-6 lg:py-20">
           <div className="space-y-6 text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-300">Plataforma odontológica todo en uno</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-300">{locale === "en" ? "All-in-one dental platform" : "Plataforma odontológica todo en uno"}</p>
             <h1 className="mx-auto max-w-4xl text-3xl font-bold leading-tight sm:text-5xl">
-              Convierte tu clínica en una operación moderna, rentable y centrada en el paciente
+              {locale === "en"
+                ? "Turn your clinic into a modern, profitable, patient-centered operation"
+                : "Convierte tu clínica en una operación moderna, rentable y centrada en el paciente"}
             </h1>
             <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
-              Desde la primera cita hasta el cierre de pagos: organiza equipos, mejora la atención y toma el control total
-              de tu crecimiento con una experiencia profesional de alto nivel.
+              {locale === "en"
+                ? "From first appointment to payment closure: organize teams, improve care, and take full control of your growth with a premium professional experience."
+                : "Desde la primera cita hasta el cierre de pagos: organiza equipos, mejora la atención y toma el control total de tu crecimiento con una experiencia profesional de alto nivel."}
             </p>
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Button asChild size="lg" className="w-full bg-cyan-600 text-white hover:bg-cyan-500 sm:w-auto">
-                <Link href="/login">Iniciar sesión / usar prueba gratuita</Link>
+                <Link href="/login">{locale === "en" ? "Sign in / start free trial" : "Iniciar sesión / usar prueba gratuita"}</Link>
               </Button>
               <Button
                 asChild
@@ -465,7 +594,7 @@ export default async function LandingPage() {
                 variant="outline"
                 className="w-full border-cyan-500 bg-transparent text-cyan-600 hover:bg-cyan-500/10 dark:text-cyan-300 dark:hover:bg-cyan-500/15 sm:w-auto"
               >
-                <Link href="#precios">Ver paquetes</Link>
+                <Link href="#precios">{locale === "en" ? "View plans" : "Ver paquetes"}</Link>
               </Button>
               <Button
                 asChild
@@ -473,7 +602,7 @@ export default async function LandingPage() {
                 variant="outline"
                 className="w-full border-border bg-transparent text-foreground hover:bg-muted sm:w-auto"
               >
-                <Link href="#servicios">Ver servicios</Link>
+                <Link href="#servicios">{locale === "en" ? "View services" : "Ver servicios"}</Link>
               </Button>
             </div>
           </div>
@@ -482,19 +611,19 @@ export default async function LandingPage() {
             <Card className="border-border bg-card/80">
               <CardContent className="pt-6">
                 <p className="text-3xl font-bold text-cyan-600 dark:text-cyan-300">+30%</p>
-                <p className="text-sm text-muted-foreground">Más orden operativo en clínicas con alta demanda</p>
+                <p className="text-sm text-muted-foreground">{locale === "en" ? "More operational order for high-demand clinics" : "Más orden operativo en clínicas con alta demanda"}</p>
               </CardContent>
             </Card>
             <Card className="border-border bg-card/80">
               <CardContent className="pt-6">
                 <p className="text-3xl font-bold text-cyan-600 dark:text-cyan-300">360°</p>
-                <p className="text-sm text-muted-foreground">Visión completa de pacientes, finanzas y equipo</p>
+                <p className="text-sm text-muted-foreground">{locale === "en" ? "Complete view of patients, finances, and team" : "Visión completa de pacientes, finanzas y equipo"}</p>
               </CardContent>
             </Card>
             <Card className="border-border bg-card/80">
               <CardContent className="pt-6">
                 <p className="text-3xl font-bold text-cyan-600 dark:text-cyan-300">24/7</p>
-                <p className="text-sm text-muted-foreground">Información disponible para decisiones estratégicas</p>
+                <p className="text-sm text-muted-foreground">{locale === "en" ? "Information available for strategic decisions" : "Información disponible para decisiones estratégicas"}</p>
               </CardContent>
             </Card>
           </div>
@@ -503,11 +632,11 @@ export default async function LandingPage() {
 
       <section id="servicios" className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:py-16">
         <div className="mb-8 space-y-2 text-center">
-          <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Servicios clave</p>
-          <h2 className="text-2xl font-bold sm:text-3xl">Todo lo que tu clínica necesita para escalar</h2>
+          <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">{locale === "en" ? "Key services" : "Servicios clave"}</p>
+          <h2 className="text-2xl font-bold sm:text-3xl">{locale === "en" ? "Everything your clinic needs to scale" : "Todo lo que tu clínica necesita para escalar"}</h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {services.map((service) => (
+          {content.services.map((service) => (
             <Card key={service.title} className="border-border bg-card/80">
               <CardHeader>
                 <CardTitle className="text-lg text-foreground">{service.title}</CardTitle>
@@ -523,10 +652,12 @@ export default async function LandingPage() {
       <section id="precios" className="border-y border-border/60 bg-muted/25">
         <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:py-16">
           <div className="mb-8 space-y-2 text-center">
-            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Paquetes y precios</p>
-            <h3 className="text-2xl font-bold sm:text-3xl">Elige el plan ideal para el tamaño de tu clínica</h3>
+            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">{locale === "en" ? "Plans and pricing" : "Paquetes y precios"}</p>
+            <h3 className="text-2xl font-bold sm:text-3xl">{locale === "en" ? "Choose the ideal plan for your clinic size" : "Elige el plan ideal para el tamaño de tu clínica"}</h3>
             <p className="mx-auto max-w-3xl text-sm text-muted-foreground">
-              Ahorra más al contratar anual: te mostramos de forma transparente cuánto conservas en caja comparado con pagar mes a mes.
+              {locale === "en"
+                ? "Save more with annual billing: we transparently show how much cash you keep compared to monthly payments."
+                : "Ahorra más al contratar anual: te mostramos de forma transparente cuánto conservas en caja comparado con pagar mes a mes."}
             </p>
           </div>
 
@@ -553,39 +684,41 @@ export default async function LandingPage() {
                     <CardHeader className="space-y-3">
                       <div className="flex items-center justify-between gap-2">
                         <span className="rounded-full border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">
-                          {index === 1 ? "Más elegido" : "Plan"}
+                          {index === 1 ? (locale === "en" ? "Most chosen" : "Más elegido") : (locale === "en" ? "Plan" : "Plan")}
                         </span>
                         <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                           <Users className="h-3.5 w-3.5" />
-                          Hasta {paquete.maxUsuarios} usuarios
+                          {locale === "en" ? "Up to" : "Hasta"} {paquete.maxUsuarios} {locale === "en" ? "users" : "usuarios"}
                         </span>
                       </div>
                       <CardTitle className="text-2xl">{paquete.nombre}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
-                        <p className="text-xs text-muted-foreground">Pago mensual</p>
+                        <p className="text-xs text-muted-foreground">{locale === "en" ? "Monthly payment" : "Pago mensual"}</p>
                         <p className="text-2xl font-extrabold text-foreground">${monthlyPrice.toFixed(2)}</p>
                       </div>
 
                       <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-3">
-                        <p className="text-xs text-muted-foreground">Pago anual</p>
+                        <p className="text-xs text-muted-foreground">{locale === "en" ? "Annual payment" : "Pago anual"}</p>
                         <p className="text-2xl font-extrabold text-cyan-700 dark:text-cyan-300">
-                          {yearlyPrice > 0 ? `$${yearlyPrice.toFixed(2)}` : "Consultar"}
+                          {yearlyPrice > 0 ? `$${yearlyPrice.toFixed(2)}` : (locale === "en" ? "Contact us" : "Consultar")}
                         </p>
                         {annualSavings > 0 ? (
                           <p className="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                            Ahorras ${annualSavings.toFixed(2)} al año ({savingsPercent}% vs mensual)
+                            {locale === "en"
+                              ? `You save $${annualSavings.toFixed(2)} per year (${savingsPercent}% vs monthly)`
+                              : `Ahorras $${annualSavings.toFixed(2)} al año (${savingsPercent}% vs mensual)`}
                           </p>
                         ) : (
                           <p className="mt-1 text-xs text-muted-foreground">
-                            Ahorro anual disponible bajo cotización.
+                            {locale === "en" ? "Annual savings available upon quote." : "Ahorro anual disponible bajo cotización."}
                           </p>
                         )}
                       </div>
 
                       <div className="space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Incluye</p>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{locale === "en" ? "Includes" : "Incluye"}</p>
                         {benefits.length > 0 ? (
                           <ul className="space-y-2 text-sm text-muted-foreground">
                             {benefits.map((benefit) => (
@@ -596,7 +729,7 @@ export default async function LandingPage() {
                             ))}
                           </ul>
                         ) : (
-                          <p className="text-sm text-muted-foreground">Implementación base, soporte y acceso a módulos clínicos.</p>
+                          <p className="text-sm text-muted-foreground">{locale === "en" ? "Base implementation, support, and access to clinical modules." : "Implementación base, soporte y acceso a módulos clínicos."}</p>
                         )}
                       </div>
                     </CardContent>
@@ -607,7 +740,9 @@ export default async function LandingPage() {
           ) : (
             <Card className="border-border bg-card shadow-sm">
               <CardContent className="pt-6 text-sm text-muted-foreground">
-                Aún no hay paquetes publicados. Configúralos desde el panel de administración para mostrarlos aquí.
+                {locale === "en"
+                  ? "There are no published plans yet. Configure them in the admin panel to show them here."
+                  : "Aún no hay paquetes publicados. Configúralos desde el panel de administración para mostrarlos aquí."}
               </CardContent>
             </Card>
           )}
@@ -617,15 +752,16 @@ export default async function LandingPage() {
       <section id="impacto" className="border-y border-border/60 bg-muted/30">
         <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-2 lg:py-16">
           <div className="space-y-3">
-            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Ventajas competitivas</p>
-            <h3 className="text-2xl font-bold">¿Por qué elegir esta solución?</h3>
+            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">{locale === "en" ? "Competitive advantages" : "Ventajas competitivas"}</p>
+            <h3 className="text-2xl font-bold">{locale === "en" ? "Why choose this solution?" : "¿Por qué elegir esta solución?"}</h3>
             <p className="text-sm text-muted-foreground">
-              Diseñada con enfoque UX/UI para que tu equipo trabaje mejor desde el día uno y tu negocio tenga una base
-              tecnológica sólida para crecer.
+              {locale === "en"
+                ? "Designed with a UX/UI approach so your team works better from day one and your business has a solid technology base to grow."
+                : "Diseñada con enfoque UX/UI para que tu equipo trabaje mejor desde el día uno y tu negocio tenga una base tecnológica sólida para crecer."}
             </p>
           </div>
           <div className="grid gap-3">
-            {advantages.map((advantage) => (
+            {content.advantages.map((advantage) => (
               <div key={advantage} className="rounded-xl border border-border bg-card/70 p-4 text-sm text-foreground">
                 ✓ {advantage}
               </div>
@@ -636,14 +772,16 @@ export default async function LandingPage() {
 
       <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:py-16">
         <div className="mb-8 space-y-2 text-center">
-          <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Resultados de negocio</p>
-          <h3 className="text-2xl font-bold sm:text-3xl">Un sistema clínico que también impulsa ventas</h3>
+          <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">{locale === "en" ? "Business outcomes" : "Resultados de negocio"}</p>
+          <h3 className="text-2xl font-bold sm:text-3xl">{locale === "en" ? "A clinical system that also drives sales" : "Un sistema clínico que también impulsa ventas"}</h3>
           <p className="mx-auto max-w-3xl text-sm text-muted-foreground">
-            No es solo software administrativo: es una plataforma para vender mejor, atender mejor y retener más pacientes.
+            {locale === "en"
+              ? "It is not only administrative software: it is a platform to sell better, care better, and retain more patients."
+              : "No es solo software administrativo: es una plataforma para vender mejor, atender mejor y retener más pacientes."}
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {businessPillars.map((pillar) => (
+          {content.businessPillars.map((pillar) => (
             <Card key={pillar.title} className="border-border bg-card/80">
               <CardHeader>
                 <CardTitle className="text-lg text-foreground">{pillar.title}</CardTitle>
@@ -659,10 +797,10 @@ export default async function LandingPage() {
       <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:py-16">
         <div className="mb-8 space-y-2 text-center">
           <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">FAQ</p>
-          <h3 className="text-2xl font-bold sm:text-3xl">Preguntas frecuentes</h3>
+          <h3 className="text-2xl font-bold sm:text-3xl">{locale === "en" ? "Frequently asked questions" : "Preguntas frecuentes"}</h3>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {faqs.map((faq) => (
+          {content.faqs.map((faq) => (
             <Card key={faq.question} className="border-border bg-card/80">
               <CardHeader>
                 <CardTitle className="text-base text-foreground">{faq.question}</CardTitle>
@@ -678,15 +816,17 @@ export default async function LandingPage() {
       <section className="border-t border-border/60 bg-muted/20">
         <div className="mx-auto w-full max-w-6xl px-4 py-14 text-center sm:px-6 lg:py-16">
           <div className="mb-8 space-y-2">
-            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">Siguiente paso</p>
-            <h3 className="text-2xl font-bold sm:text-3xl">Conoce cómo escalar tu clínica con un plan claro</h3>
+            <p className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">{locale === "en" ? "Next step" : "Siguiente paso"}</p>
+            <h3 className="text-2xl font-bold sm:text-3xl">{locale === "en" ? "Learn how to scale your clinic with a clear plan" : "Conoce cómo escalar tu clínica con un plan claro"}</h3>
             <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
-              Te mostramos cómo implementar la plataforma por fases para aumentar productividad, cierres y satisfacción del paciente.
+              {locale === "en"
+                ? "We show you how to implement the platform in phases to increase productivity, close rate, and patient satisfaction."
+                : "Te mostramos cómo implementar la plataforma por fases para aumentar productividad, cierres y satisfacción del paciente."}
             </p>
           </div>
           <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg" className="w-full bg-cyan-600 text-white hover:bg-cyan-500 sm:w-auto">
-              <Link href="/login">Entrar al sistema</Link>
+              <Link href="/login">{locale === "en" ? "Enter platform" : "Entrar al sistema"}</Link>
             </Button>
             <Button
               asChild
@@ -694,7 +834,7 @@ export default async function LandingPage() {
               variant="outline"
               className="w-full border-border bg-transparent text-foreground hover:bg-muted sm:w-auto"
             >
-              <Link href="#servicios">Explorar módulos</Link>
+              <Link href="#servicios">{locale === "en" ? "Explore modules" : "Explorar módulos"}</Link>
             </Button>
           </div>
         </div>
@@ -702,13 +842,14 @@ export default async function LandingPage() {
 
       <section className="border-t border-border/60 bg-muted/30">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-4 py-12 text-center sm:px-6">
-          <h3 className="text-2xl font-bold">Tu clínica puede vender más, atender mejor y operar con menos estrés</h3>
+          <h3 className="text-2xl font-bold">{locale === "en" ? "Your clinic can sell more, care better, and operate with less stress" : "Tu clínica puede vender más, atender mejor y operar con menos estrés"}</h3>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            Da el siguiente paso con una plataforma creada para líderes del sector odontológico que quieren resultados
-            medibles y una experiencia premium para sus pacientes.
+            {locale === "en"
+              ? "Take the next step with a platform built for dental leaders who want measurable results and a premium patient experience."
+              : "Da el siguiente paso con una plataforma creada para líderes del sector odontológico que quieren resultados medibles y una experiencia premium para sus pacientes."}
           </p>
           <Button asChild size="lg" className="bg-cyan-600 text-white hover:bg-cyan-500">
-            <Link href="/login">Quiero impulsar mi clínica ahora</Link>
+            <Link href="/login">{locale === "en" ? "I want to boost my clinic now" : "Quiero impulsar mi clínica ahora"}</Link>
           </Button>
         </div>
       </section>
