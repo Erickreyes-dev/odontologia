@@ -195,6 +195,7 @@ export async function middleware(req: NextRequest) {
     "/promociones",
     "/profile",
     "/mi-clinica",
+    "/configuracion-inicial",
     "/billing",
     "/suscripcion",
     "/protected",

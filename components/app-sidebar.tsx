@@ -231,7 +231,7 @@ export async function AppSidebar() {
               {filteredItems.map((item) => (
                 <SidebarMenuItem key={item.titleKey}>
                   <SidebarMenuButton asChild>
-                    <Link href={item.url}>
+                    <Link href={item.url} prefetch={false}>
                       <item.icon size={16} className="p-0" />
                       <span>{t(item.titleKey)}</span>
                     </Link>
@@ -255,7 +255,7 @@ export async function AppSidebar() {
                         {filteredMantenimientoItems.map((item) => (
                           <SidebarMenuSubItem key={item.titleKey}>
                             <SidebarMenuSubButton asChild>
-                              <Link href={item.url}>
+                              <Link href={item.url} prefetch={false}>
                                 {t(item.titleKey)}
                               </Link>
                             </SidebarMenuSubButton>

@@ -1,13 +1,37 @@
-import { getSessionPermisos } from "@/auth";
+import { getSession, getSessionPermisos } from "@/auth";
 import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import { UserPlus } from "lucide-react";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import { getEmpleados } from "../../empleados/actions";
 import { getProfesionesActivas } from "../../profesiones/actions";
 import { MedicoFormulario } from "../components/Form";
 
-export default async function CreateMedico() {
+export default async function CreateMedico({
+  searchParams,
+}: {
+  searchParams?: { fromSetup?: string };
+}) {
   const permisos = await getSessionPermisos();
+
+  const session = await getSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+  if (!session.TenantId) {
+    redirect("/configuracion-inicial");
+  }
+
+  const [empleadosCount, profesionesCount] = await Promise.all([
+    prisma.empleados.count({ where: { tenantId: session.TenantId } }),
+    prisma.profesion.count({ where: { tenantId: session.TenantId } }),
+  ]);
+
+  if (empleadosCount === 0 || profesionesCount === 0) {
+    redirect("/configuracion-inicial");
+  }
 
   // Verifica permisos para crear médicos
   if (!permisos?.includes("crear_medicos")) {
@@ -36,6 +60,7 @@ export default async function CreateMedico() {
         initialData={initialData}
         empleados={empleados}
         profesiones={profesiones}
+        redirectAfterSave={searchParams?.fromSetup ? "/configuracion-inicial" : "/medicos"}
       />
     </div>
   );
