@@ -2,6 +2,7 @@ import { getSession, getSessionPermisos } from "@/auth";
 import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import {  Stethoscope } from "lucide-react";
+import { redirect } from "next/navigation";
 import { getMedicos } from "./actions";
 import { columns } from "./components/columns";
 import { DataTable } from "./components/data-table";
