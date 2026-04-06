@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Rocket, Sparkles } from "lucide-react";
+import { Chrome } from "lucide-react";
 import { loginGoogleExistingTenant } from "../google-onboarding/actions";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
@@ -114,10 +114,12 @@ export default function GoogleOnboardingButton() {
         type="button"
         onClick={onGoogleClick}
         disabled={isPending}
-        className="w-full rounded-xl bg-cyan-500 font-semibold text-slate-950 hover:bg-cyan-400"
+        className="h-11 w-full rounded-xl bg-white font-semibold text-slate-900 hover:bg-slate-100"
       >
-        <Rocket className="mr-2 h-4 w-4" /> {isPending ? "Validando cuenta..." : "Iniciar sesión con Google"}
+        <Chrome className="mr-2 h-4 w-4" />
+        {isPending ? "Validando cuenta de Google..." : "Continuar con Google (solo Google)"}
       </Button>
+      <p className="text-center text-[11px] text-slate-400">No usa usuario ni contraseña local.</p>
       {error ? <p className="text-center text-xs text-rose-300">{error}</p> : null}
     </div>
   );
