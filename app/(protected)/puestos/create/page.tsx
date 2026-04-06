@@ -4,7 +4,11 @@ import NoAcceso from "@/components/noAccess";
 import { PlusCircle } from "lucide-react";
 import { PuestoFormulario } from "../components/Form";
 
-export default async function Create() {
+export default async function Create({
+  searchParams,
+}: {
+  searchParams?: { fromSetup?: string };
+}) {
   const permisos = await getSessionPermisos();
 
   // Verifica permisos para crear puestos
@@ -30,6 +34,7 @@ export default async function Create() {
       <PuestoFormulario
         isUpdate={false}
         initialData={initialData}
+        redirectAfterSave={searchParams?.fromSetup ? "/configuracion-inicial" : "/puestos"}
       />
     </div>
   );

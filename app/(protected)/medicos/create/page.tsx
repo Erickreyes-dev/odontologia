@@ -8,7 +8,11 @@ import { getEmpleados } from "../../empleados/actions";
 import { getProfesionesActivas } from "../../profesiones/actions";
 import { MedicoFormulario } from "../components/Form";
 
-export default async function CreateMedico() {
+export default async function CreateMedico({
+  searchParams,
+}: {
+  searchParams?: { fromSetup?: string };
+}) {
   const permisos = await getSessionPermisos();
 
   const session = await getSession();
@@ -53,6 +57,7 @@ export default async function CreateMedico() {
         initialData={initialData}
         empleados={empleados}
         profesiones={profesiones}
+        redirectAfterSave={searchParams?.fromSetup ? "/configuracion-inicial" : "/medicos"}
       />
     </div>
   );

@@ -6,7 +6,11 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ProfesionFormulario } from "../components/Form";
 
-export default async function Create() {
+export default async function Create({
+  searchParams,
+}: {
+  searchParams?: { fromSetup?: string };
+}) {
   const permisos = await getSessionPermisos();
 
   const session = await getSession();
@@ -43,6 +47,7 @@ export default async function Create() {
       <ProfesionFormulario
         isUpdate={false}
         initialData={initialData}
+        redirectAfterSave={searchParams?.fromSetup ? "/configuracion-inicial" : "/profesiones"}
       />
     </div>
   );

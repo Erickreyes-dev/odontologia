@@ -18,9 +18,11 @@ import { Switch } from "@/components/ui/switch";
 export function PuestoFormulario({
   isUpdate,
   initialData,
+  redirectAfterSave = "/puestos",
 }: {
   isUpdate: boolean;
   initialData: z.infer<typeof PuestoSchema>;
+  redirectAfterSave?: string;
 }) {
   const router = useRouter();
 
@@ -56,7 +58,7 @@ export function PuestoFormulario({
             : "El puesto ha sido creado correctamente.",
         });
 
-        router.push("/puestos");
+        router.push(redirectAfterSave);
         router.refresh();
       } else {
         // Notificación de error con mensaje específico

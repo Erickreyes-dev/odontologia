@@ -18,9 +18,11 @@ import { Switch } from "@/components/ui/switch";
 export function ConsultorioFormulario({
   isUpdate,
   initialData,
+  redirectAfterSave = "/consultorios",
 }: {
   isUpdate: boolean;
   initialData: z.infer<typeof ConsultorioSchema>;
+  redirectAfterSave?: string;
 }) {
   const router = useRouter();
 
@@ -56,7 +58,7 @@ export function ConsultorioFormulario({
             : "El consultorio ha sido creado correctamente.",
         });
 
-        router.push("/consultorios");
+        router.push(redirectAfterSave);
         router.refresh();
       } else {
         // Notificación de error con mensaje específico
