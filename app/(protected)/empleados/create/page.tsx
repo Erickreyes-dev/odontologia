@@ -3,6 +3,7 @@ import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import { PlusCircle } from "lucide-react";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import { getPuestosActivas } from "../../puestos/actions";
 import { EmpleadoFormulario } from "../components/Form"; // Asegúrate de que el formulario sea para Empleados
 
@@ -20,6 +21,11 @@ export default async function Create() {
     return <NoAcceso />;
   }
 
+
+  const puestosCount = await prisma.puesto.count({ where: { tenantId: sesion.TenantId } });
+  if (puestosCount === 0) {
+    redirect("/configuracion-inicial");
+  }
 
   // Determina qué lista de puestos cargar según el rol del usuario
   const puestos = await getPuestosActivas()

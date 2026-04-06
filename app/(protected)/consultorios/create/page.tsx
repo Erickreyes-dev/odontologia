@@ -1,11 +1,24 @@
-import { getSessionPermisos } from "@/auth";
+import { getSession, getSessionPermisos } from "@/auth";
 import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import {  ShieldPlus } from "lucide-react";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import { ConsultorioFormulario } from "../components/Form";
 
 export default async function Create() {
   const permisos = await getSessionPermisos();
+
+  const session = await getSession();
+
+  if (!session?.TenantId) {
+    redirect("/login");
+  }
+
+  const medicosCount = await prisma.medico.count({ where: { tenantId: session.TenantId } });
+  if (medicosCount === 0) {
+    redirect("/configuracion-inicial");
+  }
 
   // Verifica permisos para crear puestos
   if (!permisos?.includes("crear_consultorios")) {
