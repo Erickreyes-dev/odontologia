@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { finalizeGoogleOnboardingPayment, loginGoogleExistingTenant, registerTenantWithGoogle } from "../google-onboarding/actions";
@@ -77,6 +77,12 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const handledPaypalOrderRef = useRef<string | null>(null);
+  const handledEmailTokenRef = useRef<string | null>(null);
+
+  const paypalStatus = searchParams.get("paypal");
+  const paypalOrderId = searchParams.get("token");
+  const emailToken = searchParams.get("emailToken");
 
   const selectedPackage = useMemo(
     () => activePackages.find((pkg) => pkg.id === packageId) ?? activePackages[0],
@@ -114,15 +120,16 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
   }, []);
 
   useEffect(() => {
-    const paypalStatus = searchParams.get("paypal");
-    const orderId = searchParams.get("token");
-    if (paypalStatus !== "success" || !orderId || !credential) return;
+    if (paypalStatus !== "success" || !paypalOrderId || !credential) return;
+    if (handledPaypalOrderRef.current === paypalOrderId) return;
+    handledPaypalOrderRef.current = paypalOrderId;
 
     let isCancelled = false;
     startTransition(async () => {
-      const result = await finalizeGoogleOnboardingPayment(orderId, credential);
+      const result = await finalizeGoogleOnboardingPayment(paypalOrderId, credential);
       if (!result.success) {
         if (!isCancelled) setError(result.error);
+        handledPaypalOrderRef.current = null;
         return;
       }
       if (isCancelled) return;
@@ -135,11 +142,12 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
     return () => {
       isCancelled = true;
     };
-  }, [credential, router, searchParams, startTransition]);
+  }, [credential, paypalOrderId, paypalStatus, router, startTransition]);
 
   useEffect(() => {
-    const emailToken = searchParams.get("emailToken");
     if (!emailToken) return;
+    if (handledEmailTokenRef.current === emailToken) return;
+    handledEmailTokenRef.current = emailToken;
 
     let isCancelled = false;
     startTransition(async () => {
@@ -147,6 +155,7 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
       if (isCancelled) return;
       if (!validation.valid) {
         setError(validation.error);
+        handledEmailTokenRef.current = null;
         return;
       }
       setAuthMethod("email");
@@ -158,7 +167,7 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
     return () => {
       isCancelled = true;
     };
-  }, [searchParams, startTransition]);
+  }, [emailToken, startTransition]);
 
   useEffect(() => {
     if (packageIncludesTrial && periodoPlan !== "mensual") {
