@@ -9,7 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { prisma } from "@/lib/prisma";
 import { tenantWhere } from "@/lib/tenant-query";
 import { HeartPulse } from "lucide-react";
-import Link from "next/link";
 import {
   createAlergiaPacienteAction,
   createDiagnosticoAction,
@@ -75,9 +74,9 @@ export default async function MedicinaGeneralPage({ searchParams }: MedicinaGene
               <p className="text-sm text-muted-foreground">Paciente en contexto</p>
               <p className="font-medium">{pacienteSeleccionado.nombre} {pacienteSeleccionado.apellido}</p>
             </div>
-            <Link href={`/pacientes/${pacienteSeleccionado.id}/perfil`} className="text-sm font-medium text-primary underline-offset-4 hover:underline">
+            <a href={`/pacientes/${pacienteSeleccionado.id}/perfil`} className="text-sm font-medium text-primary underline-offset-4 hover:underline">
               Ver perfil completo
-            </Link>
+            </a>
           </CardContent>
         </Card>
       )}
