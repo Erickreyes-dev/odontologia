@@ -21,6 +21,43 @@ function toStringOrUndefined(value: FormDataEntryValue | null) {
   return parsed.length ? parsed : undefined;
 }
 
+async function resolveConsultaIdFromContext(rawValue: FormDataEntryValue | null, tenantId: string) {
+  const contextValue = typeof rawValue === "string" ? rawValue.trim() : "";
+  if (!contextValue) return "";
+
+  if (!contextValue.startsWith("cita::")) {
+    return contextValue;
+  }
+
+  const citaId = contextValue.replace("cita::", "");
+  if (!citaId) return "";
+
+  const existingConsulta = await prisma.consulta.findFirst({
+    where: {
+      citaId,
+      tenantId,
+    },
+    select: { id: true },
+  });
+
+  if (existingConsulta) {
+    return existingConsulta.id;
+  }
+
+  const createdConsulta = await prisma.consulta.create({
+    data: {
+      id: randomUUID(),
+      tenantId,
+      citaId,
+      fechaConsulta: new Date(),
+      total: 0,
+    },
+    select: { id: true },
+  });
+
+  return createdConsulta.id;
+}
+
 export async function createHistoriaClinicaAction(formData: FormData) {
   const { tenantId } = await getTenantContext();
   const parsed = historiaClinicaSchema.parse({
@@ -78,8 +115,9 @@ export async function createAlergiaPacienteAction(formData: FormData) {
 
 export async function createSignoVitalAction(formData: FormData) {
   const { tenantId } = await getTenantContext();
+  const consultaId = await resolveConsultaIdFromContext(formData.get("consultaId"), tenantId);
   const parsed = signoVitalSchema.parse({
-    consultaId: formData.get("consultaId"),
+    consultaId,
     tensionSistolica: toStringOrUndefined(formData.get("tensionSistolica")),
     tensionDiastolica: toStringOrUndefined(formData.get("tensionDiastolica")),
     frecuenciaCardiaca: toStringOrUndefined(formData.get("frecuenciaCardiaca")),
@@ -119,8 +157,9 @@ export async function createSignoVitalAction(formData: FormData) {
 
 export async function createDiagnosticoAction(formData: FormData) {
   const { tenantId } = await getTenantContext();
+  const consultaId = await resolveConsultaIdFromContext(formData.get("consultaId"), tenantId);
   const parsed = diagnosticoSchema.parse({
-    consultaId: formData.get("consultaId"),
+    consultaId,
     codigo: toStringOrUndefined(formData.get("codigo")),
     descripcion: formData.get("descripcion"),
     principal: formData.get("principal") === "on",
@@ -165,8 +204,9 @@ export async function createMedicamentoAction(formData: FormData) {
 
 export async function createPrescripcionAction(formData: FormData) {
   const { tenantId } = await getTenantContext();
+  const consultaId = await resolveConsultaIdFromContext(formData.get("consultaId"), tenantId);
   const parsed = prescripcionSchema.parse({
-    consultaId: formData.get("consultaId"),
+    consultaId,
     indicacionesGenerales: toStringOrUndefined(formData.get("indicacionesGenerales")),
     medicamentoId: toStringOrUndefined(formData.get("medicamentoId")),
     descripcionLibre: toStringOrUndefined(formData.get("descripcionLibre")),
@@ -205,8 +245,9 @@ export async function createPrescripcionAction(formData: FormData) {
 
 export async function createOrdenEstudioAction(formData: FormData) {
   const { tenantId } = await getTenantContext();
+  const consultaId = await resolveConsultaIdFromContext(formData.get("consultaId"), tenantId);
   const parsed = ordenEstudioSchema.parse({
-    consultaId: formData.get("consultaId"),
+    consultaId,
     tipo: formData.get("tipo"),
     estudioNombre: formData.get("estudioNombre"),
     indicacion: toStringOrUndefined(formData.get("indicacion")),
@@ -225,8 +266,9 @@ export async function createOrdenEstudioAction(formData: FormData) {
 
 export async function createInterconsultaAction(formData: FormData) {
   const { tenantId } = await getTenantContext();
+  const consultaId = await resolveConsultaIdFromContext(formData.get("consultaId"), tenantId);
   const parsed = interconsultaSchema.parse({
-    consultaId: formData.get("consultaId"),
+    consultaId,
     especialidadDestino: formData.get("especialidadDestino"),
     centroDestino: toStringOrUndefined(formData.get("centroDestino")),
     motivo: formData.get("motivo"),
