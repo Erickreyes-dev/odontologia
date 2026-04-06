@@ -1,5 +1,7 @@
 import type { Locale } from "./translations";
 
+const translationCache = new Map<string, string>();
+
 const phraseEsToEn: Record<string, string> = {
   "Iniciar sesión": "Sign in",
   "Cerrar sesión": "Sign out",
@@ -207,6 +209,12 @@ function translateByWord(input: string, direction: "es-en" | "en-es") {
 export function autoTranslateText(text: string, locale: Locale): string {
   if (!text.trim()) return text;
 
+  const cacheKey = `${locale}::${text}`;
+  const cached = translationCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const direction = locale === "en" ? "es-en" : "en-es";
   const phraseMap = direction === "es-en" ? phraseEsToEn : phraseEnToEs;
   const direct = phraseMap[text.trim()];
@@ -214,8 +222,12 @@ export function autoTranslateText(text: string, locale: Locale): string {
   if (direct) {
     const leading = text.match(/^\s*/)?.[0] ?? "";
     const trailing = text.match(/\s*$/)?.[0] ?? "";
-    return `${leading}${direct}${trailing}`;
+    const translated = `${leading}${direct}${trailing}`;
+    translationCache.set(cacheKey, translated);
+    return translated;
   }
 
-  return translateByWord(text, direction);
+  const translated = translateByWord(text, direction);
+  translationCache.set(cacheKey, translated);
+  return translated;
 }

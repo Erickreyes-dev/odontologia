@@ -25,7 +25,10 @@ function translateTextNode(node: Text, locale: "es" | "en") {
   }
 
   const source = originalTextNodeMap.get(node) ?? "";
-  node.nodeValue = autoTranslateText(source, locale);
+  const translated = autoTranslateText(source, locale);
+  if (node.nodeValue !== translated) {
+    node.nodeValue = translated;
+  }
 }
 
 function translateElementAttrs(element: Element, locale: "es" | "en") {
@@ -47,7 +50,10 @@ function translateElementAttrs(element: Element, locale: "es" | "en") {
   ATTRS_TO_TRANSLATE.forEach((attr) => {
     const source = attrStore?.[attr];
     if (typeof source === "string") {
-      element.setAttribute(attr, autoTranslateText(source, locale));
+      const translated = autoTranslateText(source, locale);
+      if (element.getAttribute(attr) !== translated) {
+        element.setAttribute(attr, translated);
+      }
     }
   });
 }
@@ -80,32 +86,75 @@ export function AutoTranslateDOM() {
 
     translateSubtree(body, locale);
 
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === "characterData" && mutation.target instanceof Text) {
-          translateTextNode(mutation.target, locale);
-        }
+    let isApplyingTranslations = false;
+    let queuedMutations: MutationRecord[] = [];
+    let flushHandle: number | null = null;
 
-        mutation.addedNodes.forEach((node) => {
-          if (node instanceof Text) {
-            translateTextNode(node, locale);
+    const flushMutations = () => {
+      if (isApplyingTranslations) return;
+      isApplyingTranslations = true;
+      try {
+        const toProcess = queuedMutations;
+        queuedMutations = [];
+
+        toProcess.forEach((mutation) => {
+          if (mutation.type === "characterData" && mutation.target instanceof Text) {
+            translateTextNode(mutation.target, locale);
           }
-          if (node instanceof Element) {
-            translateSubtree(node, locale);
-          }
+
+          mutation.addedNodes.forEach((node) => {
+            if (node instanceof Text) {
+              translateTextNode(node, locale);
+            }
+            if (node instanceof Element) {
+              translateSubtree(node, locale);
+            }
+          });
         });
-      });
+      } finally {
+        isApplyingTranslations = false;
+      }
+    };
+
+    const scheduleFlush = () => {
+      if (flushHandle !== null) return;
+      flushHandle = window.setTimeout(() => {
+        flushHandle = null;
+        flushMutations();
+      }, 50);
+    };
+
+    const observer = new MutationObserver((mutations) => {
+      if (isApplyingTranslations) return;
+
+      queuedMutations.push(...mutations);
+      scheduleFlush();
     });
+
+    // Evita trabajo extra cuando estamos en idioma base.
+    if (locale !== "en") {
+      translateSubtree(body, locale);
+      return () => {
+        if (flushHandle !== null) {
+          window.clearTimeout(flushHandle);
+        }
+      };
+    }
 
     observer.observe(body, {
       childList: true,
       characterData: true,
       subtree: true,
-      attributes: true,
-      attributeFilter: ATTRS_TO_TRANSLATE,
     });
 
-    return () => observer.disconnect();
+    translateSubtree(body, locale);
+
+    return () => {
+      if (flushHandle !== null) {
+        window.clearTimeout(flushHandle);
+      }
+      observer.disconnect();
+    };
   }, [locale]);
 
   return null;
