@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LANGUAGE_COOKIE_NAME, normalizeLocale } from "@/lib/i18n/settings";
+import { LANGUAGE_COOKIE_NAME, normalizeLocale } from "@/lib/i18n/shared";
 import { DEFAULT_LOCALE, type Locale, translate } from "@/lib/i18n/translations";
 
 type I18nContextValue = {

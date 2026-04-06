@@ -199,8 +199,8 @@ function translateToken(token: string, direction: "es-en" | "en-es") {
 
 function translateByWord(input: string, direction: "es-en" | "en-es") {
   return input
-    .split(/([^\p{L}\p{N}]+)/u)
-    .map((part) => (/^[\p{L}\p{N}]+$/u.test(part) ? translateToken(part, direction) : part))
+    .split(/([^A-Za-z0-9ÁÉÍÓÚáéíóúÑñÜü]+)/)
+    .map((part) => (/^[A-Za-z0-9ÁÉÍÓÚáéíóúÑñÜü]+$/.test(part) ? translateToken(part, direction) : part))
     .join("");
 }
 
