@@ -99,6 +99,10 @@ function shouldSkipRateLimit(pathname: string): boolean {
   );
 }
 
+function shouldApplyRateLimit(pathname: string): boolean {
+  return pathname.startsWith("/api");
+}
+
 function isRateLimited(key: string, config: RateLimitConfig) {
   const now = Date.now();
   const current = rateMap.get(key);
@@ -140,7 +144,7 @@ export async function middleware(req: NextRequest) {
     },
   });
 
-  if (!shouldSkipRateLimit(path)) {
+  if (shouldApplyRateLimit(path) && !shouldSkipRateLimit(path)) {
     const clientIp = getClientIp(req);
     const { prefix, config } = getRateLimitConfigWithPrefix(path);
     const identifier = `${clientIp}:${prefix}`;
