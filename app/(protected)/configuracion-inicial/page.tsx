@@ -128,7 +128,7 @@ export default async function ConfiguracionInicialPage() {
               </div>
 
               <Button asChild size="sm" disabled={step.locked}>
-                <Link href={step.href}>{step.completed ? "Editar" : "Ir"}</Link>
+                <Link href={step.href} prefetch={false}>{step.completed ? "Editar" : "Ir"}</Link>
               </Button>
             </div>
           ))}
