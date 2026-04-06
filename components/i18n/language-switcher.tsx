@@ -9,10 +9,10 @@ export function LanguageSwitcher() {
   const { locale, setLocale, t } = useI18n();
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex min-w-0 items-center gap-2">
       <Globe className="h-4 w-4 text-muted-foreground" />
       <Select value={locale} onValueChange={(value) => setLocale(value as Locale)}>
-        <SelectTrigger className="h-8 w-[132px] bg-background text-xs md:text-sm" aria-label={t("language.label")}>
+        <SelectTrigger className="h-8 w-[110px] bg-background text-xs md:w-[132px] md:text-sm" aria-label={t("language.label")}>
           <SelectValue placeholder={t("language.label")} />
         </SelectTrigger>
         <SelectContent>

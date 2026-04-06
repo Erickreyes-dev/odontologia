@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { formatMoneyAmount } from "@/lib/currency-format";
 import { useTenantCurrency } from "@/hooks/use-tenant-currency";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   ChartContainer,
   ChartTooltip,
@@ -65,6 +66,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     to: endOfDay(new Date()),
   });
   const currency = useTenantCurrency();
+  const isMobile = useIsMobile();
 
   const applyQuickRange = (type: "7d" | "1m" | "1y") => {
     const today = new Date();
@@ -169,7 +171,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   };
 
   return (
-    <div className="container mx-auto py-2 space-y-6">
+    <div className="container mx-auto space-y-6 py-2 overflow-x-hidden">
       <HeaderComponent
         Icon={UsersRound}
         description="Indicadores clínicos y financieros por rango de fecha."
@@ -177,7 +179,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="secondary" size="sm" onClick={() => applyQuickRange("7d")}>
             Últimos 7 días
           </Button>
@@ -193,7 +195,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
             <Button
               variant="outline"
               className={cn(
-                "w-[300px] justify-start text-left font-normal",
+                "w-full justify-start text-left font-normal sm:w-[300px]",
                 !range && "text-muted-foreground"
               )}
             >
@@ -219,7 +221,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
               defaultMonth={range?.from}
               selected={range}
               onSelect={setRange}
-              numberOfMonths={2}
+              numberOfMonths={isMobile ? 1 : 2}
             />
           </PopoverContent>
         </Popover>
@@ -315,8 +317,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         <CardContent className="space-y-2">
           {data.cuotasPendientes.length ? (
             data.cuotasPendientes.map((item) => (
-              <div key={item.cliente} className="flex justify-between items-center border rounded-md p-3">
-                <span>
+              <div key={item.cliente} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+                <span className="break-words">
                   {item.cliente} - {item.cuotasFaltantes} cuotas faltantes
                 </span>
                 <Badge variant="outline">{formatMoneyAmount(item.montoDebe, currency)}</Badge>

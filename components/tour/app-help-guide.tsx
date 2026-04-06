@@ -26,9 +26,9 @@ export function AppHelpGuide() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <BookOpen className="mr-2 h-4 w-4" />
-          Guía rápida
+        <Button size="sm" variant="outline" className="max-w-full">
+          <BookOpen className="mr-2 h-4 w-4 shrink-0" />
+          <span className="truncate">Guía rápida</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl">

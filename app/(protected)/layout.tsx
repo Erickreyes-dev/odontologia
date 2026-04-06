@@ -124,13 +124,13 @@ export default async function Layout({ children }: { children: React.ReactNode }
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main className="w-full p-2" data-tour="main-content">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      <main className="w-full overflow-x-hidden p-2" data-tour="main-content">
+        <div className="mb-2 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger data-tour="sidebar-trigger" />
             <LanguageSwitcher />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             {quickData ? <QuickActionsPopover data={quickData} /> : null}
             <div className="hidden rounded-xl border bg-card px-3 py-1.5 text-xs sm:flex sm:items-center sm:gap-2">
               <BadgeCheck className="h-3.5 w-3.5 text-cyan-500" />
