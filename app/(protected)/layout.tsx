@@ -1,6 +1,7 @@
 import { getSession } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHelpGuide } from "@/components/tour/app-help-guide";
+import { InitialSetupGuard } from "@/components/initial-setup-guard";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AlertTriangle, BadgeCheck, Route, Timer } from "lucide-react";
@@ -93,23 +94,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
 
   }
 
-  const setupAllowedPrefixes = [
-    "/configuracion-inicial",
-    "/puestos",
-    "/empleados",
-    "/profesiones",
-    "/medicos",
-    "/consultorios",
-    "/profile",
-    "/billing",
-    "/suscripcion",
-    "/dashboard-admin",
-    "/tenants",
-    "/paquetes",
-  ];
-
-  const isSetupAllowedPath = setupAllowedPrefixes.some((prefix) => pathname?.startsWith(prefix));
-  let shouldCompleteInitialSetup = false;
+  let isInitialSetupComplete = true;
 
   if (sesion.TenantId) {
     const [puestosCount, empleadosCount, profesionesCount, medicosCount, consultoriosCount] = await Promise.all([
@@ -128,7 +113,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
       consultorios: consultoriosCount,
     });
 
-    shouldCompleteInitialSetup = !isInitialSetupCompleted(initialSetup) && !isSetupAllowedPath;
+    isInitialSetupComplete = isInitialSetupCompleted(initialSetup);
   }
 
   const shouldBlockModules = Boolean(tenantPlan && requiresActiveSubscription && effectiveStatus !== "vigente");
@@ -168,44 +153,28 @@ export default async function Layout({ children }: { children: React.ReactNode }
             <AppHelpGuide />
           </div>
         </div>
-        {shouldCompleteInitialSetup ? (
-          <div className="mx-auto mt-12 max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300">
-              <Route className="h-6 w-6" />
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight">Configuración inicial pendiente</h1>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Para continuar, completa primero la configuración inicial de tu clínica.
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Módulo actual: <span className="font-medium text-foreground">{pathname ?? t("layout.unknownModule")}</span>
-            </p>
-            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-              <Button asChild>
-                <Link href="/configuracion-inicial">Ir a configuración inicial</Link>
-              </Button>
-            </div>
-          </div>
-        ) : shouldBlockModules ? (
-          <div className="mx-auto mt-12 max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
-              <AlertTriangle className="h-6 w-6" />
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight">{t("layout.subscriptionRequired")}</h1>
-            <p className="mt-3 text-sm text-muted-foreground">
-              {t("layout.subscriptionMessage", { status: effectiveStatus })}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {t("layout.currentModule")} <span className="font-medium text-foreground">{pathname ?? t("layout.unknownModule")}</span>
-            </p>
+        <InitialSetupGuard isSetupCompleted={isInitialSetupComplete}>
+          {shouldBlockModules ? (
+            <div className="mx-auto mt-12 max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <h1 className="text-2xl font-semibold tracking-tight">{t("layout.subscriptionRequired")}</h1>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {t("layout.subscriptionMessage", { status: effectiveStatus })}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("layout.currentModule")} <span className="font-medium text-foreground">{pathname ?? t("layout.unknownModule")}</span>
+              </p>
 
-            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-              <Button asChild>
-                <Link href="/billing">{t("layout.goBilling")}</Link>
-              </Button>
+              <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+                <Button asChild>
+                  <Link href="/billing">{t("layout.goBilling")}</Link>
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : children}
+          ) : children}
+        </InitialSetupGuard>
       </main>
     </SidebarProvider>
   );
