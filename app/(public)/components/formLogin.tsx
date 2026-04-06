@@ -86,7 +86,7 @@ export default function Login() {
 
   return (
     <>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="min-w-0 space-y-5 overflow-x-hidden">
         <section className="space-y-3 rounded-xl border border-cyan-500/40 bg-cyan-500/10 p-4">
           <p className="text-center text-sm font-semibold text-cyan-200">Acceso rápido</p>
           <h3 className="text-center text-base font-bold text-white">Iniciar sesión solo con Google</h3>
@@ -96,10 +96,12 @@ export default function Login() {
           <GoogleOnboardingButton />
         </section>
 
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
+        <div className="min-w-0 space-y-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <Separator className="bg-slate-700" />
-            <p className="whitespace-nowrap text-xs uppercase tracking-[0.2em] text-slate-400">o con usuario</p>
+            <p className="text-center text-[11px] uppercase tracking-[0.12em] text-slate-400 sm:whitespace-nowrap sm:text-xs sm:tracking-[0.2em]">
+              o con usuario
+            </p>
             <Separator className="bg-slate-700" />
           </div>
           <p className="text-center text-xs text-slate-400">
@@ -123,9 +125,9 @@ export default function Login() {
                 placeholder="slug de tu clínica"
                 disabled={isPending || Boolean(tenantSlugFromHost)}
                 autoComplete="organization"
-                className="h-11 rounded-xl border-slate-600 bg-slate-800/80 text-slate-100 placeholder:text-slate-400 focus-visible:border-cyan-400 focus-visible:ring-cyan-400/40"
+                className="h-11 w-full min-w-0 rounded-xl border-slate-600 bg-slate-800/80 text-slate-100 placeholder:text-slate-400 focus-visible:border-cyan-400 focus-visible:ring-cyan-400/40"
               />
-              <FieldDescription className="text-xs text-slate-400">
+              <FieldDescription className="break-all text-xs text-slate-400">
                 {tenantSlugFromHost
                   ? `Se detectó automáticamente desde el subdominio: ${tenantSlugFromHost}`
                   : "Identificador de la clínica (tenant). Si accedes por subdominio no es necesario ingresarlo."}
@@ -151,7 +153,7 @@ export default function Login() {
                 placeholder="Ingresa tu usuario"
                 disabled={isPending}
                 autoComplete="username"
-                className="h-11 rounded-xl border-slate-600 bg-slate-800/80 text-slate-100 placeholder:text-slate-400 focus-visible:border-cyan-400 focus-visible:ring-cyan-400/40"
+                className="h-11 w-full min-w-0 rounded-xl border-slate-600 bg-slate-800/80 text-slate-100 placeholder:text-slate-400 focus-visible:border-cyan-400 focus-visible:ring-cyan-400/40"
               />
               <FieldDescription className="text-xs text-slate-400">Agrega su nombre de usuario.</FieldDescription>
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -174,7 +176,7 @@ export default function Login() {
                   type={showPassword ? "text" : "password"}
                   placeholder="*******"
                   disabled={isPending}
-                  className="h-11 rounded-xl border-slate-600 bg-slate-800/80 pr-10 text-slate-100 placeholder:text-slate-400 focus-visible:border-cyan-400 focus-visible:ring-cyan-400/40"
+                  className="h-11 w-full min-w-0 rounded-xl border-slate-600 bg-slate-800/80 pr-10 text-slate-100 placeholder:text-slate-400 focus-visible:border-cyan-400 focus-visible:ring-cyan-400/40"
                 />
                 <button
                   type="button"
@@ -198,7 +200,7 @@ export default function Login() {
           {isPending ? "Iniciando..." : "Iniciar sesión"}
         </Button>
 
-        <Link href="/registro-clinica" className="block text-center text-sm font-medium text-cyan-300 hover:underline">
+        <Link href="/registro-clinica" className="block break-words text-center text-sm font-medium text-cyan-300 hover:underline">
           Crear cuenta con Google o correo
         </Link>
         <Button variant="link" type="button" onClick={() => setOpen(true)} className="mx-auto block text-slate-300">

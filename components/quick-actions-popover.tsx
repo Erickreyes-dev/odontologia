@@ -24,7 +24,10 @@ export function QuickActionsPopover({ data }: { data: CatalogData }) {
     <>
       <Popover>
         <PopoverTrigger asChild>
-          <Button size="sm" variant="outline"><Zap className="h-4 w-4 mr-2" />Accesos rápidos</Button>
+          <Button size="sm" variant="outline" className="max-w-full">
+            <Zap className="mr-2 h-4 w-4 shrink-0" />
+            <span className="truncate">Accesos rápidos</span>
+          </Button>
         </PopoverTrigger>
         <PopoverContent className="w-56 p-2 space-y-2">
           <Button variant="ghost" className="w-full justify-start" onClick={() => setDialog("cita")}>Agendar cita</Button>

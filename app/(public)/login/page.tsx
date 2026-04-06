@@ -18,8 +18,8 @@ export default async function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-8">
-      <div className="grid w-full max-w-6xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl lg:grid-cols-2">
+    <div className="flex min-h-screen w-full items-center justify-center overflow-x-hidden bg-slate-950 px-3 py-6 sm:px-4 sm:py-8">
+      <div className="grid w-full min-w-0 max-w-6xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl lg:grid-cols-2">
         <div className="relative hidden min-h-[620px] lg:block">
           <div
             className="absolute inset-0 bg-cover bg-center"
@@ -37,11 +37,11 @@ export default async function LoginPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-center p-6 sm:p-10">
-            <Card className="mx-auto w-full max-w-md border-slate-700/70 bg-slate-900/60 text-white shadow-none">
+        <div className="flex min-w-0 items-center justify-center p-4 sm:p-10">
+            <Card className="mx-auto w-full min-w-0 max-w-md border-slate-700/70 bg-slate-900/60 text-white shadow-none">
               <CardHeader className="space-y-1">
-                <CardTitle className="text-center text-3xl font-bold">Iniciar sesión</CardTitle>
-                <CardDescription className="text-center text-slate-300">
+                <CardTitle className="text-center text-2xl font-bold sm:text-3xl">Iniciar sesión</CardTitle>
+                <CardDescription className="break-words text-center text-slate-300">
                   Accede con tu clínica, usuario y contraseña para entrar a tu panel.
                 </CardDescription>
               </CardHeader>
