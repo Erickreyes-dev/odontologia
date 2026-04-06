@@ -125,7 +125,7 @@ export default function Login() {
                 autoComplete="organization"
                 className="h-11 rounded-xl border-slate-600 bg-slate-800/80 text-slate-100 placeholder:text-slate-400 focus-visible:border-cyan-400 focus-visible:ring-cyan-400/40"
               />
-              <FieldDescription className="text-xs text-slate-400">
+              <FieldDescription className="break-words text-xs text-slate-400">
                 {tenantSlugFromHost
                   ? `Se detectó automáticamente desde el subdominio: ${tenantSlugFromHost}`
                   : "Identificador de la clínica (tenant). Si accedes por subdominio no es necesario ingresarlo."}
