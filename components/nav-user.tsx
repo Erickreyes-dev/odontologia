@@ -19,6 +19,7 @@ import {
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import Link from "next/link";
 import LogoutButton from "./signOut";
+import { useI18n } from "./i18n/i18n-provider";
 
 export function NavUser({
     usuario,
@@ -35,6 +36,7 @@ export function NavUser({
 
     }
 }) {
+    const { t } = useI18n();
 
     return (<SidebarMenu>
         <SidebarMenuItem>
@@ -63,7 +65,7 @@ export function NavUser({
                     <DropdownMenuItem asChild></DropdownMenuItem>
                     <DropdownMenuItem asChild>
                         <Link href="/profile" className="flex justify-between">
-                            <span>Perfil</span>
+                            <span>{t("nav.profile")}</span>
                             <User className="ml-2 h-4 w-40 text-muted-foreground" />
                         </Link>
                     </DropdownMenuItem>

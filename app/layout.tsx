@@ -4,6 +4,9 @@ import { Toaster } from "@/components/ui/sonner"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { I18nProvider } from "@/components/i18n/i18n-provider";
+import { getLocaleFromCookieStore } from "@/lib/i18n/settings";
+import { AutoTranslateDOM } from "@/components/i18n/auto-translate-dom";
 
 const defaultSiteUrl = "https://medisoftcore.com";
 
@@ -86,16 +89,21 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = getLocaleFromCookieStore();
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
-          <Analytics/>
-          <Toaster />
-        </ThemeProvider>
+        <I18nProvider initialLocale={locale}>
+          <AutoTranslateDOM />
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            {children}
+            <Analytics/>
+            <Toaster />
+          </ThemeProvider>
+        </I18nProvider>
       </body>
     </html>
   );

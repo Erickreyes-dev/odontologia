@@ -23,47 +23,48 @@ import Link from "next/link";
 import Image from "next/image";
 import { NavUser } from "./nav-user";
 import { ModeToggle } from "./buton-theme";
+import { getServerTranslator } from "@/lib/i18n/settings";
 
 // Menú de mantenimiento
 const mantenimientoItems = [
   {
-    title: "Roles",
+    titleKey: "sidebar.roles",
     url: "/roles",
     icon: LayersIcon,
     permiso: "ver_roles",
   },
   {
-    title: "Permisos",
+    titleKey: "sidebar.permissions",
     url: "/permisos",
     icon: LayersIcon,
     permiso: "ver_permisos",
   },
   {
-    title: "Usuarios",
+    titleKey: "sidebar.users",
     url: "/usuarios",
     icon: UserIcon,
     permiso: "ver_usuarios",
   },
   {
-    title: "Empleados",
+    titleKey: "sidebar.employees",
     url: "/empleados",
     icon: UsersIcon,
     permiso: "ver_empleados",
   },
   {
-    title: "Puestos",
+    titleKey: "sidebar.positions",
     url: "/puestos",
     icon: UserRoundCheck,
     permiso: "ver_puestos",
   },
   {
-    title: "Profesiones",
+    titleKey: "sidebar.professions",
     url: "/profesiones",
     icon: IdCardIcon,
     permiso: "ver_profesiones",
   },
   {
-    title: "Facturación",
+    titleKey: "sidebar.billing",
     url: "/billing",
     icon: CreditCard,
     permiso: "ver_pagos",
@@ -78,106 +79,106 @@ const mantenimientoItems = [
 // Menu items con permisos necesarios (sin los items de mantenimiento)
 const items = [
   {
-    title: "Dashboard",
+    titleKey: "sidebar.dashboard",
     url: "/dashboard",
     icon: LayoutDashboard,
     permiso: "ver_pagos",
   },
   {
-    title: "Dashboard Admin",
+    titleKey: "sidebar.dashboardAdmin",
     url: "/dashboard-admin",
     icon: ShieldPlus,
     permiso: "ver_dashboard_admin",
   },
   {
-    title: "Tenants",
+    titleKey: "sidebar.tenants",
     url: "/tenants",
     icon: ShieldPlus,
     permiso: "ver_tenants",
   },
   {
-    title: "Paquetes",
+    titleKey: "sidebar.packages",
     url: "/paquetes",
     icon: Package,
     permiso: "ver_paquetes",
   },
 
   {
-    title: "Seguros",
+    titleKey: "sidebar.insurance",
     url: "/seguros",
     icon: ShieldPlus,
     permiso: "ver_seguros",
   },
 
   {
-    title: "Pacientes",
+    titleKey: "sidebar.patients",
     url: "/pacientes",
     icon: Users2,
     permiso: "ver_pacientes",
   },
   {
-    title: "Medicos",
+    titleKey: "sidebar.doctors",
     url: "/medicos",
     icon: Stethoscope,
     permiso: "ver_medicos",
   },
   {
-    title: "Servicios",
+    titleKey: "sidebar.services",
     url: "/servicios",
     icon: Package,
     permiso: "ver_servicios",
   },
   {
-    title: "Promociones",
+    titleKey: "sidebar.promotions",
     url: "/promociones",
     icon: Tags,
     permiso: "ver_promociones",
   },
   {
-    title: "Inventario",
+    titleKey: "sidebar.inventory",
     url: "/inventario",
     icon: Boxes,
     permiso: "ver_inventario",
   },
   {
-    title: "Consultorios",
+    titleKey: "sidebar.offices",
     url: "/consultorios",
     icon: Hospital,
     permiso: "ver_consultorios",
   },
   {
-    title: "Citas",
+    titleKey: "sidebar.appointments",
     url: "/citas",
     icon: Calendar,
     permiso: "ver_citas",
   },
   {
-    title: "cotizaciones",
+    titleKey: "sidebar.quotes",
     url: "/cotizaciones",
     icon: File,
     permiso: "ver_cotizaciones",
   },
   {
-    title: "Planes de Tratamiento",
+    titleKey: "sidebar.treatmentPlans",
     url: "/planes-tratamiento",
     icon: LayersIcon,
     permiso: "ver_planes_tratamiento",
   },
   {
-    title: "Pagos",
+    titleKey: "sidebar.payments",
     url: "/pagos",
     icon: DollarSign,
     permiso: "ver_pagos",
   },
   {
-    title: "Ordenes de Cobro",
+    titleKey: "sidebar.paymentOrders",
     url: "/ordenes-cobro",
     icon: Receipt,
     permiso: "ver_pagos",
   },
 
   {
-    title: "Mi Clínica",
+    titleKey: "sidebar.myClinic",
     url: "/mi-clinica",
     icon: Building2,
     permiso: "editar_tenant",
@@ -186,6 +187,7 @@ const items = [
 
 export async function AppSidebar() {
   const usuario = await getSession(); // Obtiene el nombre del usuario
+  const { t } = getServerTranslator();
   const tenantLogoBase64 = await getTenantLogoBase64();
   const tenantDisplayName = usuario?.TenantNombre || usuario?.TenantSlug || "la clínica";
   const permisosUsuario = usuario?.Permiso || [];
@@ -218,7 +220,7 @@ export async function AppSidebar() {
                 />
               ) : null}
               <div className="min-w-0">
-                <span className="truncate block">{usuario?.TenantSlug || "Sistema Autogestión MP"}</span>
+                <span className="truncate block">{usuario?.TenantSlug || t("sidebar.workspaceDefault")}</span>
               </div>
             </div>
             <ModeToggle></ModeToggle>
@@ -227,11 +229,11 @@ export async function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu data-tour="main-menu">
               {filteredItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.titleKey}>
                   <SidebarMenuButton asChild>
                     <Link href={item.url}>
                       <item.icon size={16} className="p-0" />
-                      <span>{item.title}</span>
+                      <span>{t(item.titleKey)}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -243,7 +245,7 @@ export async function AppSidebar() {
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton>
                         <Settings size={16} className="p-0" />
-                        <span>Mantenimiento</span>
+                        <span>{t("sidebar.maintenance")}</span>
                         <ChevronDown className="ml-auto group-data-[state=open]/collapsible:hidden" />
                         <ChevronUp className="ml-auto group-data-[state=closed]/collapsible:hidden" />
                       </SidebarMenuButton>
@@ -251,10 +253,10 @@ export async function AppSidebar() {
                     <CollapsibleContent>
                       <SidebarMenuSub>
                         {filteredMantenimientoItems.map((item) => (
-                          <SidebarMenuSubItem key={item.title}>
+                          <SidebarMenuSubItem key={item.titleKey}>
                             <SidebarMenuSubButton asChild>
                               <Link href={item.url}>
-                                {item.title}
+                                {t(item.titleKey)}
                               </Link>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
