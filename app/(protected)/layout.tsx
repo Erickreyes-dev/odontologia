@@ -4,7 +4,7 @@ import { AppHelpGuide } from "@/components/tour/app-help-guide";
 import { InitialSetupGuard } from "@/components/initial-setup-guard";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AlertTriangle, BadgeCheck, Timer } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Route, Timer } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getQuickActionCatalogs } from "./quick-actions/actions";
 import { QuickActionsPopover } from "@/components/quick-actions-popover";
