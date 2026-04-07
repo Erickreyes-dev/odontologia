@@ -8,6 +8,7 @@ import { I18nProvider } from "@/components/i18n/i18n-provider";
 import { getLocaleFromCookieStore } from "@/lib/i18n/settings";
 import { AutoTranslateDOM } from "@/components/i18n/auto-translate-dom";
 
+
 const defaultSiteUrl = "https://medisoftcore.com";
 
 const siteUrl = (() => {
