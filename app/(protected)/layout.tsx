@@ -71,9 +71,14 @@ export default async function Layout({ children }: { children: React.ReactNode }
     redirect("/");
   }
 
-  const pathname = headers().get("x-pathname");
+  const requestHeaders = headers();
+  const rawPathname = requestHeaders.get("x-pathname");
+  const rawNextUrl = requestHeaders.get("next-url");
+  const pathname = rawPathname ?? (rawNextUrl ? new URL(rawNextUrl, "http://localhost").pathname : null);
   const subscriptionExemptPrefixes = ["/billing", "/suscripcion", "/dashboard", "/tenants", "/paquetes"];
-  const requiresActiveSubscription = !subscriptionExemptPrefixes.some((prefix) => pathname?.startsWith(prefix));
+  const requiresActiveSubscription = pathname
+    ? !subscriptionExemptPrefixes.some((prefix) => pathname.startsWith(prefix))
+    : false;
 
   const tenantPlan = sesion.TenantId
     ? await prisma.tenant.findUnique({
@@ -189,28 +194,30 @@ export default async function Layout({ children }: { children: React.ReactNode }
             <AppHelpGuide />
           </div>
         </div>
-        <InitialSetupGuard isSetupCompleted={isInitialSetupComplete}>
-          {shouldBlockModules ? (
-            <div className="mx-auto mt-12 max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-              <h1 className="text-2xl font-semibold tracking-tight">{t("layout.subscriptionRequired")}</h1>
-              <p className="mt-3 text-sm text-muted-foreground">
-                {t("layout.subscriptionMessage", { status: effectiveStatus })}
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {t("layout.currentModule")} <span className="font-medium text-foreground">{pathname ?? t("layout.unknownModule")}</span>
-              </p>
-
-              <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-                <Button asChild>
-                  <Link href="/billing">{t("layout.goBilling")}</Link>
-                </Button>
-              </div>
+        {shouldBlockModules ? (
+          <div className="mx-auto mt-12 max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
+              <AlertTriangle className="h-6 w-6" />
             </div>
-          ) : children}
-        </InitialSetupGuard>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("layout.subscriptionRequired")}</h1>
+            <p className="mt-3 text-sm text-muted-foreground">
+              {t("layout.subscriptionMessage", { status: effectiveStatus })}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {t("layout.currentModule")} <span className="font-medium text-foreground">{pathname ?? t("layout.unknownModule")}</span>
+            </p>
+
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+              <Button asChild>
+                <Link href="/billing">{t("layout.goBilling")}</Link>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <InitialSetupGuard isSetupCompleted={isInitialSetupComplete}>
+            {children}
+          </InitialSetupGuard>
+        )}
       </main>
     </SidebarProvider>
   );
