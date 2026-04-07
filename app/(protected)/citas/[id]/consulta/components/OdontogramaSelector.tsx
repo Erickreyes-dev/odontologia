@@ -10,6 +10,8 @@ import {
 type ToothLike = {
   id: number;
   status?: string;
+  selected?: boolean;
+  isSelected?: boolean;
 };
 
 interface OdontogramaSelectorProps {
@@ -25,32 +27,35 @@ export function OdontogramaSelector({ value, onChange }: OdontogramaSelectorProp
 
   const selectedSet = useMemo(() => new Set(value), [value]);
 
+  const normalizeTooth = (tooth: ToothLike, isSelected: boolean) => ({
+    ...tooth,
+    status: isSelected ? "filled" : "healthy",
+    selected: isSelected,
+    isSelected,
+  });
+
   const [teeth, setTeeth] = useState<any[]>(() =>
     initialPermanentTeeth.map((tooth: ToothLike) => ({
-      ...tooth,
-      status: selectedSet.has(tooth.id) ? "filled" : "healthy",
+      ...normalizeTooth(tooth, selectedSet.has(tooth.id)),
     }))
   );
 
   const [temporaryTeeth, setTemporaryTeeth] = useState<any[]>(() =>
     initialTemporaryTeeth.map((tooth: ToothLike) => ({
-      ...tooth,
-      status: selectedSet.has(tooth.id) ? "filled" : "healthy",
+      ...normalizeTooth(tooth, selectedSet.has(tooth.id)),
     }))
   );
 
   useEffect(() => {
     setTeeth((current) =>
       current.map((tooth: ToothLike) => ({
-        ...tooth,
-        status: selectedSet.has(tooth.id) ? "filled" : "healthy",
+        ...normalizeTooth(tooth, selectedSet.has(tooth.id)),
       }))
     );
 
     setTemporaryTeeth((current) =>
       current.map((tooth: ToothLike) => ({
-        ...tooth,
-        status: selectedSet.has(tooth.id) ? "filled" : "healthy",
+        ...normalizeTooth(tooth, selectedSet.has(tooth.id)),
       }))
     );
   }, [selectedSet]);
@@ -62,7 +67,21 @@ export function OdontogramaSelector({ value, onChange }: OdontogramaSelectorProp
       ? value.filter((id) => id !== tooth.id)
       : [...value, tooth.id];
 
-    onChange(nextSelected.sort((a, b) => a - b));
+    const sortedSelection = nextSelected.sort((a, b) => a - b);
+    const nextSelectionSet = new Set(sortedSelection);
+
+    setTeeth((current) =>
+      current.map((item: ToothLike) => ({
+        ...normalizeTooth(item, nextSelectionSet.has(item.id)),
+      }))
+    );
+    setTemporaryTeeth((current) =>
+      current.map((item: ToothLike) => ({
+        ...normalizeTooth(item, nextSelectionSet.has(item.id)),
+      }))
+    );
+
+    onChange(sortedSelection);
   };
 
   const onSimulateBite = () => {
@@ -76,7 +95,15 @@ export function OdontogramaSelector({ value, onChange }: OdontogramaSelectorProp
   };
 
   return (
-    <div className="space-y-3 rounded-md border p-3">
+    <div
+      className="space-y-3 rounded-md border p-3"
+      onClickCapture={(event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest("button")) {
+          event.preventDefault();
+        }
+      }}
+    >
       <Odontogram
         teeth={teeth}
         temporaryTeeth={temporaryTeeth}
