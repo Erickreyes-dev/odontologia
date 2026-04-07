@@ -8,7 +8,16 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
 type SetupStep = {
-  key: "puesto" | "empleado" | "profesion" | "medico" | "consultorio";
+  key:
+    | "puesto"
+    | "empleado"
+    | "profesion"
+    | "medico"
+    | "consultorio"
+    | "paciente"
+    | "servicio"
+    | "cita"
+    | "consulta";
   title: string;
   description: string;
   href: string;
@@ -35,12 +44,26 @@ export default async function ConfiguracionInicialPage() {
     );
   }
 
-  const [puestosCount, empleadosCount, profesionesCount, medicosCount, consultoriosCount] = await Promise.all([
+  const [
+    puestosCount,
+    empleadosCount,
+    profesionesCount,
+    medicosCount,
+    consultoriosCount,
+    pacientesCount,
+    serviciosCount,
+    citasCount,
+    consultasCount,
+  ] = await Promise.all([
     prisma.puesto.count({ where: { tenantId: session.TenantId } }),
     prisma.empleados.count({ where: { tenantId: session.TenantId } }),
     prisma.profesion.count({ where: { tenantId: session.TenantId } }),
     prisma.medico.count({ where: { tenantId: session.TenantId } }),
     prisma.consultorio.count({ where: { tenantId: session.TenantId } }),
+    prisma.paciente.count({ where: { tenantId: session.TenantId } }),
+    prisma.servicio.count({ where: { tenantId: session.TenantId } }),
+    prisma.cita.count({ where: { tenantId: session.TenantId } }),
+    prisma.consulta.count({ where: { tenantId: session.TenantId } }),
   ]);
 
   const flags = {
@@ -49,6 +72,10 @@ export default async function ConfiguracionInicialPage() {
     profesion: profesionesCount > 0,
     medico: medicosCount > 0,
     consultorio: consultoriosCount > 0,
+    paciente: pacientesCount > 0,
+    servicio: serviciosCount > 0,
+    cita: citasCount > 0,
+    consulta: consultasCount > 0,
   };
 
   const steps: SetupStep[] = [
@@ -87,10 +114,42 @@ export default async function ConfiguracionInicialPage() {
     {
       key: "consultorio",
       title: "5. Crear consultorio",
-      description: "Define al menos un consultorio para terminar la configuración inicial.",
+      description: "Define al menos un consultorio para habilitar el flujo clínico básico.",
       href: "/consultorios/create?fromSetup=1",
       completed: flags.consultorio,
       locked: !flags.medico,
+    },
+    {
+      key: "paciente",
+      title: "6. Crear primer cliente (paciente)",
+      description: "Registra tu primer cliente para poder agendar una cita.",
+      href: "/pacientes/create",
+      completed: flags.paciente,
+      locked: !flags.consultorio,
+    },
+    {
+      key: "servicio",
+      title: "7. Crear primeros servicios",
+      description: "Crea al menos un servicio para usarlo en la consulta de prueba.",
+      href: "/servicios/create",
+      completed: flags.servicio,
+      locked: !flags.paciente,
+    },
+    {
+      key: "cita",
+      title: "8. Crear primera cita",
+      description: "Agenda una cita de prueba para tu primer cliente.",
+      href: "/citas/create",
+      completed: flags.cita,
+      locked: !flags.servicio,
+    },
+    {
+      key: "consulta",
+      title: "9. Registrar consulta de prueba",
+      description: "Abre la cita creada y completa su consulta de prueba para finalizar el onboarding.",
+      href: "/citas",
+      completed: flags.consulta,
+      locked: !flags.cita,
     },
   ];
 
@@ -109,7 +168,7 @@ export default async function ConfiguracionInicialPage() {
         <CardHeader>
           <CardTitle>Flujo guiado de inicio</CardTitle>
           <CardDescription>
-            Completa los 5 pasos. Cuando termines, podrás usar el sistema con normalidad.
+            Completa los 9 pasos. Cuando termines, podrás usar el sistema con normalidad.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
