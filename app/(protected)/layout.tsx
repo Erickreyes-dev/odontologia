@@ -1,9 +1,10 @@
 import { getSession } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHelpGuide } from "@/components/tour/app-help-guide";
+import { InitialSetupGuard } from "@/components/initial-setup-guard";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AlertTriangle, BadgeCheck, Timer } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Route, Timer } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getQuickActionCatalogs } from "./quick-actions/actions";
 import { QuickActionsPopover } from "@/components/quick-actions-popover";
@@ -13,6 +14,47 @@ import { resolveSubscriptionStatus } from "@/lib/subscription-status";
 import Link from "next/link";
 import { getServerTranslator } from "@/lib/i18n/settings";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+
+
+type InitialSetupState = {
+  puesto: boolean;
+  empleado: boolean;
+  profesion: boolean;
+  medico: boolean;
+  consultorio: boolean;
+  paciente: boolean;
+  servicio: boolean;
+  cita: boolean;
+  consulta: boolean;
+};
+
+function resolveInitialSetupState(counts: {
+  puestos: number;
+  empleados: number;
+  profesiones: number;
+  medicos: number;
+  consultorios: number;
+  pacientes: number;
+  servicios: number;
+  citas: number;
+  consultas: number;
+}): InitialSetupState {
+  return {
+    puesto: counts.puestos > 0,
+    empleado: counts.empleados > 0,
+    profesion: counts.profesiones > 0,
+    medico: counts.medicos > 0,
+    consultorio: counts.consultorios > 0,
+    paciente: counts.pacientes > 0,
+    servicio: counts.servicios > 0,
+    cita: counts.citas > 0,
+    consulta: counts.consultas > 0,
+  };
+}
+
+function isInitialSetupCompleted(state: InitialSetupState): boolean {
+  return Object.values(state).every(Boolean);
+}
 
 function calculateTrialDaysLeft(trialEndsAt?: Date | null): number {
   if (!trialEndsAt) return 0;
@@ -70,6 +112,46 @@ export default async function Layout({ children }: { children: React.ReactNode }
 
   }
 
+  let isInitialSetupComplete = true;
+
+  if (sesion.TenantId) {
+    const [
+      puestosCount,
+      empleadosCount,
+      profesionesCount,
+      medicosCount,
+      consultoriosCount,
+      pacientesCount,
+      serviciosCount,
+      citasCount,
+      consultasCount,
+    ] = await Promise.all([
+      prisma.puesto.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.empleados.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.profesion.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.medico.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.consultorio.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.paciente.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.servicio.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.cita.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.consulta.count({ where: { tenantId: sesion.TenantId } }),
+    ]);
+
+    const initialSetup = resolveInitialSetupState({
+      puestos: puestosCount,
+      empleados: empleadosCount,
+      profesiones: profesionesCount,
+      medicos: medicosCount,
+      consultorios: consultoriosCount,
+      pacientes: pacientesCount,
+      servicios: serviciosCount,
+      citas: citasCount,
+      consultas: consultasCount,
+    });
+
+    isInitialSetupComplete = isInitialSetupCompleted(initialSetup);
+  }
+
   const shouldBlockModules = Boolean(tenantPlan && requiresActiveSubscription && effectiveStatus !== "vigente");
   const quickData = shouldBlockModules ? null : await getQuickActionCatalogs();
   const packageName = tenantPlan?.paquete?.nombre ?? tenantPlan?.plan ?? t("layout.noPackage");
@@ -78,13 +160,13 @@ export default async function Layout({ children }: { children: React.ReactNode }
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main className="w-full p-2" data-tour="main-content">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      <main className="w-full overflow-x-hidden p-2" data-tour="main-content">
+        <div className="mb-2 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger data-tour="sidebar-trigger" />
             <LanguageSwitcher />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             {quickData ? <QuickActionsPopover data={quickData} /> : null}
             <div className="hidden rounded-xl border bg-card px-3 py-1.5 text-xs sm:flex sm:items-center sm:gap-2">
               <BadgeCheck className="h-3.5 w-3.5 text-cyan-500" />
@@ -107,26 +189,28 @@ export default async function Layout({ children }: { children: React.ReactNode }
             <AppHelpGuide />
           </div>
         </div>
-        {shouldBlockModules ? (
-          <div className="mx-auto mt-12 max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
-              <AlertTriangle className="h-6 w-6" />
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight">{t("layout.subscriptionRequired")}</h1>
-            <p className="mt-3 text-sm text-muted-foreground">
-              {t("layout.subscriptionMessage", { status: effectiveStatus })}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {t("layout.currentModule")} <span className="font-medium text-foreground">{pathname ?? t("layout.unknownModule")}</span>
-            </p>
+        <InitialSetupGuard isSetupCompleted={isInitialSetupComplete}>
+          {shouldBlockModules ? (
+            <div className="mx-auto mt-12 max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <h1 className="text-2xl font-semibold tracking-tight">{t("layout.subscriptionRequired")}</h1>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {t("layout.subscriptionMessage", { status: effectiveStatus })}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("layout.currentModule")} <span className="font-medium text-foreground">{pathname ?? t("layout.unknownModule")}</span>
+              </p>
 
-            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-              <Button asChild>
-                <Link href="/billing">{t("layout.goBilling")}</Link>
-              </Button>
+              <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+                <Button asChild>
+                  <Link href="/billing">{t("layout.goBilling")}</Link>
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : children}
+          ) : children}
+        </InitialSetupGuard>
       </main>
     </SidebarProvider>
   );

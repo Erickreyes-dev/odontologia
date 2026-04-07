@@ -18,9 +18,11 @@ import { Switch } from "@/components/ui/switch";
 export function ProfesionFormulario({
   isUpdate,
   initialData,
+  redirectAfterSave = "/profesiones",
 }: {
   isUpdate: boolean;
   initialData: z.infer<typeof ProfesionSchema>;
+  redirectAfterSave?: string;
 }) {
   const router = useRouter();
 
@@ -56,7 +58,7 @@ export function ProfesionFormulario({
             : "La profesion ha sido creado correctamente.",
         });
 
-        router.push("/profesiones");
+        router.push(redirectAfterSave);
         router.refresh();
       } else {
         // Notificación de error con mensaje específico

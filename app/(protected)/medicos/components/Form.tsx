@@ -23,12 +23,13 @@ export function MedicoFormulario({
   initialData,
   empleados,
   profesiones,
+  redirectAfterSave = "/medicos",
 }: {
   isUpdate: boolean;
   initialData: z.infer<typeof MedicoSchema>;
   empleados: Empleado[];
   profesiones: Profesion[];
-
+  redirectAfterSave?: string;
 }) {
   const router = useRouter();
 
@@ -64,7 +65,7 @@ export function MedicoFormulario({
             : "El medico ha sido creado correctamente.",
         });
 
-        router.push("/medicos");
+        router.push(redirectAfterSave);
         router.refresh();
       } else {
         // Notificación de error con mensaje específico
