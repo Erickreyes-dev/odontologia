@@ -20,6 +20,7 @@ interface OdontogramaSelectorProps {
 }
 
 export function OdontogramaSelector({ value, onChange }: OdontogramaSelectorProps) {
+  const [isMounted, setIsMounted] = useState(false);
   const [selectedTooth, setSelectedTooth] = useState<ToothLike | null>(null);
   const [showTemporaryTeeth, setShowTemporaryTeeth] = useState(false);
   const [showBiteEffect, setShowBiteEffect] = useState(false);
@@ -45,6 +46,10 @@ export function OdontogramaSelector({ value, onChange }: OdontogramaSelectorProp
       ...normalizeTooth(tooth, selectedSet.has(tooth.id)),
     }))
   );
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     setTeeth((current) =>
@@ -104,18 +109,22 @@ export function OdontogramaSelector({ value, onChange }: OdontogramaSelectorProp
         }
       }}
     >
-      <Odontogram
-        teeth={teeth}
-        temporaryTeeth={temporaryTeeth}
-        showTemporaryTeeth={showTemporaryTeeth}
-        onToggleTemporaryTeeth={setShowTemporaryTeeth}
-        selectedTooth={selectedTooth}
-        onToothClick={onToothClick}
-        showBiteEffect={showBiteEffect}
-        onToggleBiteEffect={setShowBiteEffect}
-        isAnimatingBite={isAnimatingBite}
-        onSimulateBite={onSimulateBite}
-      />
+      {isMounted ? (
+        <Odontogram
+          teeth={teeth}
+          temporaryTeeth={temporaryTeeth}
+          showTemporaryTeeth={showTemporaryTeeth}
+          onToggleTemporaryTeeth={setShowTemporaryTeeth}
+          selectedTooth={selectedTooth}
+          onToothClick={onToothClick}
+          showBiteEffect={showBiteEffect}
+          onToggleBiteEffect={setShowBiteEffect}
+          isAnimatingBite={isAnimatingBite}
+          onSimulateBite={onSimulateBite}
+        />
+      ) : (
+        <div className="h-[420px] w-full animate-pulse rounded-md bg-muted" />
+      )}
       <p className="text-xs text-muted-foreground">
         Piezas seleccionadas: {value.length > 0 ? value.join(", ") : "ninguna"}.
       </p>
