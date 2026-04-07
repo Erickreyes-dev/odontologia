@@ -6,8 +6,13 @@ import { Pencil } from "lucide-react";
 import { getServicios } from "../../../servicios/actions";
 import { getPromocionById } from "../../actions";
 import { PromocionForm } from "../../components/Form";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
-export default async function EditPromocionPage({ params }: { params: { id: string } }) {
+export default async function EditPromocionPage({
+ params }: { params: { id: string } }) {
+  void dynamic;
+  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("editar_promociones")) {

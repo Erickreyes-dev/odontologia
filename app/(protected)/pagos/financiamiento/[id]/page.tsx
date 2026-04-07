@@ -6,12 +6,17 @@ import { getFinanciamientoDetalle } from "../../actions";
 import { notFound } from "next/navigation";
 import { FinanciamientoDetalleClient } from "../../components/FinanciamientoDetalleClient";
 import { getOrdenesCobroPendientes } from "@/app/(protected)/ordenes-cobro/actions";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function FinanciamientoDetallePage({
+
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  void dynamic;
+  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_pagos")) {

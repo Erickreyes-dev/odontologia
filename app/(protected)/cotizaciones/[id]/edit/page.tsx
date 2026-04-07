@@ -6,12 +6,17 @@ import { redirect } from "next/navigation";
 import { getCotizacionById, getServiciosActivos } from "../../actions";
 import { CotizacionFormulario } from "../../components/Form";
 import { getPacientesActivos } from "../../../pacientes/actions";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function EditCotizacion({
+
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  void dynamic;
+  await requireActiveSubscription();
   const { id } = await params;
   const permisos = await getSessionPermisos();
 

@@ -2,16 +2,13 @@ import { getSession } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHelpGuide } from "@/components/tour/app-help-guide";
 import { InitialSetupGuard } from "@/components/initial-setup-guard";
-import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AlertTriangle, BadgeCheck, Route, Timer } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Timer } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getQuickActionCatalogs } from "./quick-actions/actions";
 import { QuickActionsPopover } from "@/components/quick-actions-popover";
 import { prisma } from "@/lib/prisma";
-import { headers } from "next/headers";
 import { resolveSubscriptionStatus } from "@/lib/subscription-status";
-import Link from "next/link";
 import { getServerTranslator } from "@/lib/i18n/settings";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 
@@ -71,14 +68,6 @@ export default async function Layout({ children }: { children: React.ReactNode }
     redirect("/");
   }
 
-  const requestHeaders = headers();
-  const rawPathname = requestHeaders.get("x-pathname");
-  const rawNextUrl = requestHeaders.get("next-url");
-  const pathname = rawPathname ?? (rawNextUrl ? new URL(rawNextUrl, "http://localhost").pathname : null);
-  const subscriptionExemptPrefixes = ["/billing", "/suscripcion", "/dashboard", "/tenants", "/paquetes"];
-  const requiresActiveSubscription = pathname
-    ? !subscriptionExemptPrefixes.some((prefix) => pathname.startsWith(prefix))
-    : false;
 
   const tenantPlan = sesion.TenantId
     ? await prisma.tenant.findUnique({
@@ -97,15 +86,12 @@ export default async function Layout({ children }: { children: React.ReactNode }
 
   let effectiveStatus = "expirado";
   if (tenantPlan) {
-    const calculatedStatus = resolveSubscriptionStatus({
+    effectiveStatus = resolveSubscriptionStatus({
       tenantActivo: tenantPlan.activo,
       trialEndsAt: tenantPlan.trialEndsAt,
       fechaExpiracion: tenantPlan.fechaExpiracion,
       proximoPago: tenantPlan.proximoPago,
     });
-    effectiveStatus = tenantPlan.estado === "cancelado" || tenantPlan.estado === "expirado"
-      ? tenantPlan.estado
-      : calculatedStatus;
 
     if (tenantPlan.estado !== effectiveStatus) {
       await prisma.tenant.update({
@@ -157,8 +143,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
     isInitialSetupComplete = isInitialSetupCompleted(initialSetup);
   }
 
-  const shouldBlockModules = Boolean(tenantPlan && requiresActiveSubscription && effectiveStatus !== "vigente");
-  const quickData = shouldBlockModules ? null : await getQuickActionCatalogs();
+  const quickData = await getQuickActionCatalogs();
   const packageName = tenantPlan?.paquete?.nombre ?? tenantPlan?.plan ?? t("layout.noPackage");
   const trialDaysLeft = calculateTrialDaysLeft(tenantPlan?.trialEndsAt);
 
@@ -194,30 +179,9 @@ export default async function Layout({ children }: { children: React.ReactNode }
             <AppHelpGuide />
           </div>
         </div>
-        {shouldBlockModules ? (
-          <div className="mx-auto mt-12 max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
-              <AlertTriangle className="h-6 w-6" />
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight">{t("layout.subscriptionRequired")}</h1>
-            <p className="mt-3 text-sm text-muted-foreground">
-              {t("layout.subscriptionMessage", { status: effectiveStatus })}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {t("layout.currentModule")} <span className="font-medium text-foreground">{pathname ?? t("layout.unknownModule")}</span>
-            </p>
-
-            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-              <Button asChild>
-                <Link href="/billing">{t("layout.goBilling")}</Link>
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <InitialSetupGuard isSetupCompleted={isInitialSetupComplete}>
-            {children}
-          </InitialSetupGuard>
-        )}
+        <InitialSetupGuard isSetupCompleted={isInitialSetupComplete}>
+          {children}
+        </InitialSetupGuard>
       </main>
     </SidebarProvider>
   );

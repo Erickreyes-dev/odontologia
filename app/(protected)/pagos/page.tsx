@@ -3,6 +3,8 @@ import { getSession, getSessionPermisos } from "@/auth";
 import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import { DollarSign } from "lucide-react";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 import {
   getPagos,
   getPacientesActivos,
@@ -17,10 +19,13 @@ import { getOrdenesCobroPendientes } from "@/app/(protected)/ordenes-cobro/actio
 import { prisma } from "@/lib/prisma";
 
 export default async function PagosPage({
+
   searchParams,
 }: {
   searchParams: Promise<{ pacienteId?: string }>;
 }) {
+  void dynamic;
+  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
   const session = await getSession();
 

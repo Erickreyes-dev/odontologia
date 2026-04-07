@@ -6,6 +6,8 @@ import { CheckCircle2, Circle, Route } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 type SetupStep = {
   key:
@@ -26,6 +28,9 @@ type SetupStep = {
 };
 
 export default async function ConfiguracionInicialPage() {
+  void dynamic;
+  await requireActiveSubscription();
+
   const session = await getSession();
 
   if (!session) {

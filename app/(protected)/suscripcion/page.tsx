@@ -4,12 +4,17 @@ import { prisma } from "@/lib/prisma";
 import { resolveSubscriptionStatus } from "@/lib/subscription-status";
 import { AlertTriangle, CreditCard } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function SuscripcionPage({
+
   searchParams,
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  void dynamic;
+  await requireActiveSubscription();
   const session = await getSession();
 
   const tenant = session?.TenantId

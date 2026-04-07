@@ -7,12 +7,17 @@ import { PlanFormulario } from "../../components/Form";
 import { getPlanById, getServiciosActivos } from "../../actions";
 import { getPacientesActivos } from "../../../pacientes/actions";
 import { getMedicosActivos } from "../../../medicos/actions";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 interface EditPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function Edit({ params }: EditPageProps) {
+export default async function Edit({
+ params }: EditPageProps) {
+  void dynamic;
+  await requireActiveSubscription();
   const { id } = await params;
   const permisos = await getSessionPermisos();
 

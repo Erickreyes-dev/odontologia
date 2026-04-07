@@ -7,8 +7,13 @@ import { getSessionPermisos } from "@/auth";
 import { getServicios } from "./actions";
 import { columns } from "./components/columns";
 import ServicioListMobile from "./components/servicio-list-mobile";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function VerServiciosPage() {
+  void dynamic;
+  await requireActiveSubscription();
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_servicios")) {

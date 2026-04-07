@@ -5,8 +5,13 @@ import { Receipt } from "lucide-react";
 import { OrdenesCobroPageClient } from "./components/OrdenesCobroPageClient";
 import { getOrdenesCobro } from "./actions";
 import { getPacientesActivos, getPlanesActivos, getFinanciamientos } from "@/app/(protected)/pagos/actions";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function OrdenesCobroPage() {
+  void dynamic;
+  await requireActiveSubscription();
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_pagos")) {
