@@ -12,6 +12,7 @@
   - Crea una `SolicitudCitaPublica` para seguimiento por recepción.
 - Soporte básico de documentos entrantes (media URLs registradas).
 - Cuando se envía información por correo (citas, planes, pagos), se intenta enviar también un aviso por WhatsApp al teléfono del paciente si existe.
+- En pacientes, el teléfono se guarda normalizado sin `+` ni espacios (ej. `50488346201`) y al enviar WhatsApp se agrega automáticamente el prefijo `+`.
 
 ## Pasos de activación
 

@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,28 @@ import { PacienteSchema } from "../schema";
 import { createPaciente, updatePaciente } from "../actions";
 import { Seguro } from "../../seguros/schema";
 
+const CODIGOS_TELEFONO = [
+  { value: "504", label: "Honduras (504)" },
+  { value: "503", label: "El Salvador (503)" },
+  { value: "52", label: "México (52)" },
+  { value: "1", label: "USA/Canadá (1)" },
+];
+
+function splitTelefono(value?: string | null): { codigo: string; numero: string } {
+  const digits = (value || "").replace(/\D/g, "");
+  if (!digits) return { codigo: "504", numero: "" };
+
+  const matched = CODIGOS_TELEFONO.find((item) => digits.startsWith(item.value));
+  if (!matched) {
+    return { codigo: "504", numero: digits };
+  }
+
+  return {
+    codigo: matched.value,
+    numero: digits.slice(matched.value.length),
+  };
+}
+
 export function PacienteFormulario({
   isUpdate,
   initialData,
@@ -44,11 +67,14 @@ export function PacienteFormulario({
   seguros: Seguro[];
 }) {
   const router = useRouter();
+  const telefonoInitial = splitTelefono(initialData.telefono);
+  const [codigoTelefono, setCodigoTelefono] = useState(telefonoInitial.codigo);
 
   const form = useForm<z.infer<typeof PacienteSchema>>({
     resolver: zodResolver(PacienteSchema),
     defaultValues: {
       ...initialData,
+      telefono: telefonoInitial.numero,
       fechaNacimiento:
         initialData.fechaNacimiento instanceof Date
           ? initialData.fechaNacimiento
@@ -60,6 +86,8 @@ export function PacienteFormulario({
 
   async function onSubmit(data: z.infer<typeof PacienteSchema>) {
     try {
+      const telefonoSoloDigitos = (data.telefono || "").replace(/\D/g, "");
+      const telefonoNormalizado = telefonoSoloDigitos ? `${codigoTelefono}${telefonoSoloDigitos}` : "";
       let result;
       if (isUpdate) {
         if (!data.id) {
@@ -68,9 +96,9 @@ export function PacienteFormulario({
           });
           return;
         }
-        result = await updatePaciente(data.id, data);
+        result = await updatePaciente(data.id, { ...data, telefono: telefonoNormalizado });
       } else {
-        result = await createPaciente(data);
+        result = await createPaciente({ ...data, telefono: telefonoNormalizado });
       }
 
       if (result.success) {
@@ -241,14 +269,29 @@ export function PacienteFormulario({
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor={field.name}>Telefono</FieldLabel>
               <FieldContent>
-                <Input
-                  {...field}
-                  value={field.value || ""}
-                  id={field.name}
-                  placeholder="Ej. 9999-9999"
-                />
+                <div className="grid grid-cols-3 gap-2">
+                  <Select value={codigoTelefono} onValueChange={setCodigoTelefono}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Código" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CODIGOS_TELEFONO.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    {...field}
+                    value={field.value || ""}
+                    id={field.name}
+                    className="col-span-2"
+                    placeholder="Ej. 88346201"
+                  />
+                </div>
               </FieldContent>
-              <FieldDescription>Numero de telefono del paciente.</FieldDescription>
+              <FieldDescription>Se guardará sin + ni espacios. Ej: 50488346201.</FieldDescription>
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}

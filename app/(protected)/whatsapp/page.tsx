@@ -26,6 +26,7 @@ export default async function WhatsappModulePage() {
         estado={data.estado}
         pacientes={data.pacientes}
         threads={data.threads}
+        messages={data.messages}
       />
     </div>
   );

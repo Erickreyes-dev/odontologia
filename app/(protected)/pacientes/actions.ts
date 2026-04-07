@@ -21,6 +21,12 @@ function normalizeOptionalSeguroId(value?: string | null): string | null {
     return normalized === "" ? null : normalized;
 }
 
+function normalizeOptionalPhone(value?: string | null): string | null {
+    if (value == null) return null;
+    const normalized = value.replace(/\D/g, "");
+    return normalized === "" ? null : normalized;
+}
+
 /**
  * Obtiene todos los pacientes
  */
@@ -180,7 +186,7 @@ export async function createPaciente(data: Paciente): Promise<{ success: true; d
                 identidad: validatedData.identidad,
                 fechaNacimiento: validatedData.fechaNacimiento ? new Date(validatedData.fechaNacimiento) : null,
                 genero: validatedData.genero,
-                telefono: validatedData.telefono,
+                telefono: normalizeOptionalPhone(validatedData.telefono),
                 correo: normalizeOptionalEmail(validatedData.correo),
                 direccion: validatedData.direccion,
                 seguroId: normalizeOptionalSeguroId(validatedData.seguroId),
@@ -242,7 +248,7 @@ export async function updatePaciente(id: string, data: Partial<Paciente>): Promi
                 ...(validatedData.identidad && { identidad: validatedData.identidad }),
                 ...(validatedData.fechaNacimiento !== undefined && { fechaNacimiento: validatedData.fechaNacimiento ? new Date(validatedData.fechaNacimiento) : null }),
                 ...(validatedData.genero !== undefined && { genero: validatedData.genero }),
-                ...(validatedData.telefono !== undefined && { telefono: validatedData.telefono }),
+                ...(validatedData.telefono !== undefined && { telefono: normalizeOptionalPhone(validatedData.telefono) }),
                 ...(validatedData.correo !== undefined && { correo: normalizeOptionalEmail(validatedData.correo) }),
                 ...(validatedData.direccion !== undefined && { direccion: validatedData.direccion }),
                 ...(validatedData.seguroId !== undefined && { seguroId: normalizeOptionalSeguroId(validatedData.seguroId) }),

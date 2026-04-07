@@ -19,15 +19,24 @@ export interface WhatsappChatThread {
   direction: string;
 }
 
+export interface WhatsappChatMessage {
+  id: string;
+  phone: string;
+  body: string;
+  direction: string;
+  createdAt: string;
+}
+
 export async function getWhatsappModuleData(): Promise<{
   enabled: boolean;
   estado: string;
   pacientes: WhatsappChatPaciente[];
   threads: WhatsappChatThread[];
+  messages: WhatsappChatMessage[];
 }> {
   const session = await getSession();
   if (!session?.TenantId) {
-    return { enabled: false, estado: "desconectado", pacientes: [], threads: [] };
+    return { enabled: false, estado: "desconectado", pacientes: [], threads: [], messages: [] };
   }
 
   const [config, pacientes, mensajes] = await Promise.all([
@@ -78,6 +87,16 @@ export async function getWhatsappModuleData(): Promise<{
         telefono: p.telefono!,
       })),
     threads: Array.from(threadsMap.values()).slice(0, 50),
+    messages: mensajes
+      .map((msg) => ({
+        id: msg.id,
+        phone: (msg.direccion === "entrante" ? msg.fromPhone : msg.toPhone) ?? "",
+        body: msg.cuerpo ?? "",
+        direction: msg.direccion,
+        createdAt: msg.createAt.toISOString(),
+      }))
+      .filter((msg) => Boolean(msg.phone))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
   };
 }
 
