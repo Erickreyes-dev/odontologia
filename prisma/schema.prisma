@@ -70,6 +70,8 @@ model Tenant {
   recibos                Recibo[]
   reciboDetalles         ReciboDetalle[]
   solicitudesCitaPublica SolicitudCitaPublica[]
+  whatsappConfig         TenantWhatsappConfig?
+  whatsappMensajes       TenantWhatsappMensaje[]
   tenantInvoices         TenantInvoice[]
   paquete                Paquete?               @relation(fields: [paqueteId], references: [id])
 
@@ -758,6 +760,49 @@ model SolicitudCitaPublica {
 
   @@index([tenantId])
   @@index([fechaSolicitada])
+}
+
+model TenantWhatsappConfig {
+  id                     String   @id @default(uuid()) @db.VarChar(36)
+  tenantId               String   @unique @db.VarChar(36)
+  provider               String   @default("twilio") @db.VarChar(30)
+  estado                 String   @default("desconectado") @db.VarChar(20)
+  twilioAccountSid       String?  @db.VarChar(80)
+  twilioAuthToken        String?  @db.VarChar(100)
+  twilioWhatsappNumber   String?  @db.VarChar(30)
+  webhookSecret          String?  @db.VarChar(100)
+  mensajeAutoRespuesta   String?  @db.VarChar(500)
+  aceptaAgendamientoChat Boolean  @default(true) @db.Bit(1)
+  activo                 Boolean  @default(true) @db.Bit(1)
+  createAt               DateTime @default(now())
+  updateAt               DateTime @updatedAt
+
+  tenant   Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  mensajes TenantWhatsappMensaje[]
+
+  @@index([estado])
+}
+
+model TenantWhatsappMensaje {
+  id             String   @id @default(uuid()) @db.VarChar(36)
+  tenantId       String   @db.VarChar(36)
+  configId       String?  @db.VarChar(36)
+  direccion      String   @db.VarChar(10)
+  mensajeSid     String?  @unique @db.VarChar(80)
+  fromPhone      String?  @db.VarChar(30)
+  toPhone        String?  @db.VarChar(30)
+  cuerpo         String?  @db.VarChar(1600)
+  mediaCount     Int      @default(0)
+  mediaUrls      String?  @db.Text
+  estadoEntrega  String?  @db.VarChar(30)
+  tipoEvento     String?  @db.VarChar(30)
+  createAt       DateTime @default(now())
+
+  tenant Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  config TenantWhatsappConfig? @relation(fields: [configId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createAt])
+  @@index([configId])
 }
 
 enum MetodoPago {
