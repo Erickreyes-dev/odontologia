@@ -6,8 +6,13 @@ import { getPlanesTratamiento } from "./actions";
 import { columns } from "./components/columns";
 import { DataTable } from "./components/data-table";
 import { PlanListMobile } from "./components/plan-list-mobile";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function PlanesTratamientoPage() {
+  void dynamic;
+  await requireActiveSubscription();
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_planes_tratamiento")) {

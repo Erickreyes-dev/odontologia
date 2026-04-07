@@ -4,8 +4,13 @@ import NoAcceso from "@/components/noAccess";
 import { UserPlus } from "lucide-react";
 import { PacienteFormulario } from "../components/Form";
 import { getSegurosActivos } from "../../seguros/actions";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function Create() {
+  void dynamic;
+  await requireActiveSubscription();
+
     const permisos = await getSessionPermisos();
 
 

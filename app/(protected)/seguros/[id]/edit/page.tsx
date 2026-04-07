@@ -6,8 +6,13 @@ import { Pencil } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getSeguroById } from "../../actions";
 import { SeguroFormulario } from "../../components/Form";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
-export default async function EditSeguro({ params }: { params: { id: string } }) {
+export default async function EditSeguro({
+ params }: { params: { id: string } }) {
+  void dynamic;
+  await requireActiveSubscription();
   // Verificar si hay una sesión activa
 
   const permisos = await getSessionPermisos();

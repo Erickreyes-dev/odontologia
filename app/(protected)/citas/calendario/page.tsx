@@ -5,8 +5,13 @@ import { CalendarDays } from "lucide-react";
 import { getCitasPorRango } from "../actions";
 import { CitasCalendar } from "../components/citas-calendar";
 import { endOfMonth, format, startOfMonth } from "date-fns";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function CitasCalendarioPage() {
+  void dynamic;
+  await requireActiveSubscription();
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_citas")) {

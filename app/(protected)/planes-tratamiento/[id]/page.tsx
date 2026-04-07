@@ -5,12 +5,17 @@ import { ClipboardList } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getPlanById } from "../actions";
 import { PlanDetailView } from "../components/PlanDetailView";
+import dynamic from "next/dynamic";
+import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 interface PlanDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function PlanDetailPage({ params }: PlanDetailPageProps) {
+export default async function PlanDetailPage({
+ params }: PlanDetailPageProps) {
+  void dynamic;
+  await requireActiveSubscription();
   const { id } = await params;
   const permisos = await getSessionPermisos();
 

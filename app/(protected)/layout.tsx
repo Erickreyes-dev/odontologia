@@ -8,7 +8,6 @@ import { redirect } from "next/navigation";
 import { getQuickActionCatalogs } from "./quick-actions/actions";
 import { QuickActionsPopover } from "@/components/quick-actions-popover";
 import { prisma } from "@/lib/prisma";
-import { headers } from "next/headers";
 import { resolveSubscriptionStatus } from "@/lib/subscription-status";
 import { getServerTranslator } from "@/lib/i18n/settings";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
@@ -69,14 +68,6 @@ export default async function Layout({ children }: { children: React.ReactNode }
     redirect("/");
   }
 
-  const requestHeaders = headers();
-  const rawPathname = requestHeaders.get("x-pathname");
-  const rawNextUrl = requestHeaders.get("next-url");
-  const pathname = rawPathname ?? (rawNextUrl ? new URL(rawNextUrl, "http://localhost").pathname : "/");
-  const subscriptionExemptPrefixes = ["/billing", "/suscripcion", "/dashboard-admin", "/tenants", "/paquetes"];
-  const requiresActiveSubscription = pathname
-    ? !subscriptionExemptPrefixes.some((prefix) => pathname.startsWith(prefix))
-    : false;
 
   const tenantPlan = sesion.TenantId
     ? await prisma.tenant.findUnique({
@@ -150,12 +141,6 @@ export default async function Layout({ children }: { children: React.ReactNode }
     });
 
     isInitialSetupComplete = isInitialSetupCompleted(initialSetup);
-  }
-
-  const shouldBlockModules = Boolean(tenantPlan && requiresActiveSubscription && effectiveStatus !== "vigente");
-
-  if (shouldBlockModules) {
-    redirect("/billing?subscription=required");
   }
 
   const quickData = await getQuickActionCatalogs();
