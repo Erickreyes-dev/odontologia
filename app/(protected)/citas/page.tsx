@@ -7,8 +7,6 @@ import { CitaTable } from "./components/cita-table";
 import CitaListMobile from "./components/cita-list-mobile";
 import { CitasFilters } from "./components/citas-filters";
 import { format } from "date-fns";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 interface CitasPageProps {
   searchParams?: { from?: string; to?: string };
@@ -16,8 +14,6 @@ interface CitasPageProps {
 
 export default async function CitasPage({
  searchParams }: CitasPageProps) {
-  void dynamic;
-  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_citas")) {

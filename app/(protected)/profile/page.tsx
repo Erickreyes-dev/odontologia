@@ -4,12 +4,8 @@ import { getProfile } from "./actions";
 import EmployeeProfile from "./components/empleado-perfil";
 import NoAcceso from "@/components/noAccess";
 import HeaderComponent from "@/components/HeaderComponent";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function EstadoServicio() {
-  void dynamic;
-  await requireActiveSubscription();
 
 
     const permisos = await getSessionPermisos();

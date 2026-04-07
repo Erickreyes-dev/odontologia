@@ -6,8 +6,6 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getPuestosActivas } from "../../puestos/actions";
 import { EmpleadoFormulario } from "../components/Form"; // Asegúrate de que el formulario sea para Empleados
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function Create({
 
@@ -15,8 +13,6 @@ export default async function Create({
 }: {
   searchParams?: { fromSetup?: string };
 }) {
-  void dynamic;
-  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
   const sesion = await getSession();
 

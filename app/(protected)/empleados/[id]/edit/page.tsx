@@ -7,13 +7,9 @@ import { Pencil } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getEmpleadoById } from "../../actions";
 import { EmpleadoFormulario } from "../../components/Form";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function Edit({
  params }: { params: { id: string } }) {
-  void dynamic;
-  await requireActiveSubscription();
   // Verificar si hay una sesión activa
 
   const permisos = await getSessionPermisos();

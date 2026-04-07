@@ -8,8 +8,6 @@ import { CitaFormulario } from "../../components/Form";
 import { getPacientesActivos } from "@/app/(protected)/pacientes/actions";
 import { getMedicosActivos } from "@/app/(protected)/medicos/actions";
 import { getConsultoriosActios } from "@/app/(protected)/consultorios/actions";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function EditCitaPage({
 
@@ -17,8 +15,6 @@ export default async function EditCitaPage({
 }: {
   params: { id: string };
 }) {
-  void dynamic;
-  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("editar_citas")) {

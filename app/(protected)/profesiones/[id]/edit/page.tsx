@@ -6,13 +6,9 @@ import { Pencil } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getProfesionById } from "../../actions";
 import { ProfesionFormulario } from "../../components/Form";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function EditProfesion({
  params }: { params: { id: string } }) {
-  void dynamic;
-  await requireActiveSubscription();
   // Verificar si hay una sesión activa
 
   const permisos = await getSessionPermisos();
