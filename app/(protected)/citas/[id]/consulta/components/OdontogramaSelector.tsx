@@ -67,8 +67,6 @@ export function OdontogramaSelector({ value, onChange }: OdontogramaSelectorProp
   }, [selectedSet]);
 
   const onToothClick = (tooth: ToothLike) => {
-    setSelectedTooth(tooth);
-
     const nextSelected = selectedSet.has(tooth.id)
       ? value.filter((id) => id !== tooth.id)
       : [...value, tooth.id];
@@ -86,6 +84,11 @@ export function OdontogramaSelector({ value, onChange }: OdontogramaSelectorProp
         ...normalizeTooth(item, nextSelectionSet.has(item.id)),
       }))
     );
+
+    setSelectedTooth({
+      ...tooth,
+      ...normalizeTooth(tooth, nextSelectionSet.has(tooth.id)),
+    });
 
     onChange(sortedSelection);
   };
