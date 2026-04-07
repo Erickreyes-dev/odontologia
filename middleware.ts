@@ -10,6 +10,10 @@ type RateLimitConfig = { limit: number; windowMs: number };
 interface SessionPayload extends JWTPayload {
   Permiso?: string[];
   SubscriptionStatus?: "vigente" | "expirado" | "cancelado";
+  TenantActivo?: boolean;
+  TrialEndsAt?: string | null;
+  FechaExpiracion?: string | null;
+  ProximoPago?: string | null;
 }
 
 const authSecret = process.env.AUTH_SECRET
@@ -38,6 +42,21 @@ async function getSessionPermissions(req: NextRequest): Promise<string[] | null>
   const payload = await getSessionPayload(req);
   if (!payload) return null;
   return Array.isArray(payload.Permiso) ? payload.Permiso : [];
+}
+
+function resolveSubscriptionStatusFromPayload(payload: SessionPayload | null): "vigente" | "expirado" | "cancelado" | null {
+  if (!payload) return null;
+  if (payload.TenantActivo === false) return "cancelado";
+
+  const nowMs = Date.now();
+  const trialMs = payload.TrialEndsAt ? new Date(payload.TrialEndsAt).getTime() : Number.NaN;
+  const expiryInput = payload.FechaExpiracion ?? payload.ProximoPago;
+  const expiryMs = expiryInput ? new Date(expiryInput).getTime() : Number.NaN;
+
+  const hasTrial = Number.isFinite(trialMs) && trialMs > nowMs;
+  const hasPaidPeriod = Number.isFinite(expiryMs) && expiryMs > nowMs;
+
+  return hasTrial || hasPaidPeriod ? "vigente" : "expirado";
 }
 
 const DEFAULT_RATE_LIMIT: RateLimitConfig = { limit: 120, windowMs: 60_000 };
@@ -215,7 +234,9 @@ export async function middleware(req: NextRequest) {
   const isProtectedRoute = protectedPrefixes.some((prefix) => path.startsWith(prefix));
 
   if (isProtectedRoute && !sessionCookie) {
-    const loginUrl = new URL("/login", req.url);
+    const loginUrl = req.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.search = "";
     loginUrl.searchParams.set("callbackUrl", path + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
@@ -227,10 +248,12 @@ export async function middleware(req: NextRequest) {
 
   if (isProtectedRoute && sessionCookie && !isSubscriptionExemptRoute) {
     const payload = await getSessionPayload(req);
-    const status = payload?.SubscriptionStatus;
+    const status = resolveSubscriptionStatusFromPayload(payload) ?? payload?.SubscriptionStatus;
 
     if (status && status !== "vigente") {
-      const billingUrl = new URL("/billing", req.url);
+      const billingUrl = req.nextUrl.clone();
+      billingUrl.pathname = "/billing";
+      billingUrl.search = "";
       billingUrl.searchParams.set("subscription", "required");
       return NextResponse.redirect(billingUrl);
     }
@@ -244,7 +267,10 @@ export async function middleware(req: NextRequest) {
         permisos.includes("ver_dashboard_admin") && permisos.includes("gestionar_tenants");
 
       if (!canAccessAdminDashboard) {
-        return NextResponse.redirect(new URL("/dashboard", req.url));
+        const dashboardUrl = req.nextUrl.clone();
+        dashboardUrl.pathname = "/dashboard";
+        dashboardUrl.search = "";
+        return NextResponse.redirect(dashboardUrl);
       }
     }
   }

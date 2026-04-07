@@ -2,9 +2,9 @@ import { getSession } from "@/auth";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHelpGuide } from "@/components/tour/app-help-guide";
 import { InitialSetupGuard } from "@/components/initial-setup-guard";
+import { SubscriptionAccessGuard } from "@/components/subscription-access-guard";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AlertTriangle, BadgeCheck, Timer } from "lucide-react";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getQuickActionCatalogs } from "./quick-actions/actions";
 import { QuickActionsPopover } from "@/components/quick-actions-popover";
@@ -61,28 +61,9 @@ function calculateTrialDaysLeft(trialEndsAt?: Date | null): number {
   return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 }
 
-function resolvePathnameFromHeaders(nextHeaders: Headers): string {
-  const raw = nextHeaders.get("x-pathname") ?? nextHeaders.get("next-url") ?? "";
-  if (!raw) return "";
-  if (raw.startsWith("/")) return raw;
-
-  try {
-    return new URL(raw).pathname;
-  } catch {
-    return raw;
-  }
-}
-
-function isSubscriptionExemptPath(pathname: string): boolean {
-  const exemptPaths = ["/billing", "/suscripcion", "/dashboard-admin", "/tenants", "/paquetes"];
-  return exemptPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
-}
-
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const sesion = await getSession();
   const { t } = getServerTranslator();
-  const nextHeaders = await headers();
-  const pathname = resolvePathnameFromHeaders(nextHeaders);
 
   if (!sesion) {
     redirect("/");
@@ -123,9 +104,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
 
   }
 
-  if (tenantPlan && effectiveStatus !== "vigente" && pathname && !isSubscriptionExemptPath(pathname)) {
-    redirect("/billing?subscription=required");
-  }
+  const hasInactiveSubscription = Boolean(tenantPlan && effectiveStatus !== "vigente");
 
   let isInitialSetupComplete = true;
 
@@ -204,7 +183,15 @@ export default async function Layout({ children }: { children: React.ReactNode }
           </div>
         </div>
         <InitialSetupGuard isSetupCompleted={isInitialSetupComplete}>
-          {children}
+          <SubscriptionAccessGuard
+            hasInactiveSubscription={hasInactiveSubscription}
+            effectiveStatus={effectiveStatus}
+            title={t("layout.subscriptionRequired")}
+            messageTemplate={t("layout.subscriptionMessage", { status: "{status}" })}
+            ctaLabel={t("layout.goBilling")}
+          >
+            {children}
+          </SubscriptionAccessGuard>
         </InitialSetupGuard>
       </main>
     </SidebarProvider>

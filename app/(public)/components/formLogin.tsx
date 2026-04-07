@@ -31,6 +31,22 @@ function getTenantSlugFromBrowserHost(): string {
   return "";
 }
 
+function resolveSafeInternalRedirect(target: string | null | undefined): string {
+  if (!target) return "/dashboard";
+  if (target.startsWith("/") && !target.startsWith("//")) return target;
+
+  try {
+    const parsed = new URL(target);
+    if (typeof window !== "undefined" && parsed.origin === window.location.origin) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch {
+    return "/dashboard";
+  }
+
+  return "/dashboard";
+}
+
 export default function Login() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -39,7 +55,9 @@ export default function Login() {
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
 
-  const redirectTo = searchParams.get("redirect") ?? "/dashboard";
+  const redirectTo = resolveSafeInternalRedirect(
+    searchParams.get("redirect") ?? searchParams.get("callbackUrl") ?? "/dashboard",
+  );
 
   const form = useForm<z.infer<typeof schemaSignIn>>({
     resolver: zodResolver(schemaSignIn),
@@ -77,7 +95,7 @@ export default function Login() {
       if (session?.DebeCambiar) {
         router.replace("/reset-password");
       } else {
-        router.replace(response.redirect!);
+        router.replace(resolveSafeInternalRedirect(response.redirect ?? redirectTo));
       }
     });
   };

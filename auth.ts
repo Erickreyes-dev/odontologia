@@ -80,6 +80,12 @@ export interface LoginResult {
   redirect?: string;
 }
 
+function sanitizeInternalRedirectPath(redirect: string | null | undefined): string {
+  if (!redirect) return "/dashboard";
+  if (!redirect.startsWith("/") || redirect.startsWith("//")) return "/dashboard";
+  return redirect;
+}
+
 const setSessionCookie = (token: string) => {
   const expires = new Date(Date.now() + 6 * 60 * 60 * 1000);
   const domain = getSessionCookieDomain();
@@ -144,7 +150,7 @@ export const login = async (credentials: TSchemaSignIn, redirect: string): Promi
   if (!result.token) return { error: result.error ?? "Clínica, usuario o contraseña inválidos" };
 
   setSessionCookie(result.token);
-  return { success: "Login OK", redirect };
+  return { success: "Login OK", redirect: sanitizeInternalRedirectPath(redirect) };
 };
 
 export const resetPassword = async (credentials: TSchemaResetPassword, username: string): Promise<LoginResult> => {

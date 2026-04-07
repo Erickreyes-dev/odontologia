@@ -25,13 +25,12 @@ export function I18nProvider({ children, initialLocale }: Props) {
   const [locale, setLocaleState] = useState<Locale>(normalizeLocale(initialLocale ?? DEFAULT_LOCALE));
 
   useEffect(() => {
-    const storedLocale = normalizeLocale(window.localStorage.getItem(LANGUAGE_COOKIE_NAME));
-    if (storedLocale !== locale) {
-      setLocaleState(storedLocale);
-      document.cookie = `${LANGUAGE_COOKIE_NAME}=${storedLocale}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}; samesite=lax`;
-      router.refresh();
+    if (typeof window !== "undefined") {
+      // Keep browser storage aligned with server-resolved locale.
+      window.localStorage.setItem(LANGUAGE_COOKIE_NAME, locale);
     }
-  }, [locale, router]);
+    document.cookie = `${LANGUAGE_COOKIE_NAME}=${locale}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}; samesite=lax`;
+  }, [locale]);
 
   const setLocale = useCallback(
     (nextLocale: Locale) => {
