@@ -52,6 +52,7 @@ import { toast } from "sonner";
 import { ConstanciaMedicaResumen, createConstanciaMedica, updateConstanciaMedica } from "@/app/(protected)/pacientes/actions";
 import { generateConstanciaMedicaPDF } from "@/lib/pdf/constancia-medica-pdf";
 import { FinanciamientoCard } from "@/app/(protected)/pagos/components/FinanciamientoCard";
+import { PacienteOdontogramaResumen } from "./PacienteOdontogramaResumen";
 
 interface PacientePerfilProps {
   paciente: Paciente;
@@ -66,6 +67,8 @@ interface PacientePerfilProps {
   pagos: PagoWithRelations[];
   financiamientos: FinanciamientoDetalle[];
   constancias: ConstanciaMedicaResumen[];
+  piezasTratadasHistoricas: number[];
+  totalConsultasConOdontograma: number;
   seguroNombre?: string;
 }
 
@@ -248,6 +251,8 @@ export function PacientePerfil({
   pagos,
   financiamientos,
   constancias,
+  piezasTratadasHistoricas,
+  totalConsultasConOdontograma,
   seguroNombre,
   clinicInfo,
 }: PacientePerfilProps) {
@@ -682,6 +687,21 @@ export function PacientePerfil({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Stethoscope className="h-5 w-5" />
+            Odontograma del paciente
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PacienteOdontogramaResumen
+            treatedTeeth={piezasTratadasHistoricas}
+            totalConsultasConOdontograma={totalConsultasConOdontograma}
+          />
+        </CardContent>
+      </Card>
 
       {/* Historial de Citas */}
       <Card>

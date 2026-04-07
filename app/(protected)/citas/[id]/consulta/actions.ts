@@ -8,6 +8,17 @@ import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { getTenantContext } from "@/lib/tenant";
 import { Prisma } from "@/lib/generated/prisma";
 
+const parsePiezasTratadas = (value: string | null | undefined): number[] => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is number => typeof item === "number");
+  } catch {
+    return [];
+  }
+};
+
 async function calcularTotalProductosVenta(
   tx: Prisma.TransactionClient | typeof prisma,
   productos: { productoId: string; cantidad: number }[]
@@ -106,6 +117,7 @@ export async function getConsultaByCitaId(citaId: string): Promise<Consulta | nu
       diagnostico: r.diagnostico,
       notas: r.notas,
       observacionesClinicas: r.observacionesClinicas,
+      piezasTratadas: parsePiezasTratadas(r.piezasTratadas),
       total: Number(r.total),
       descuento: r.descuento !== null ? Number(r.descuento) : null,
       seguimientoId: r.seguimientoId ?? null,
@@ -184,6 +196,7 @@ export async function getConsultaById(id: string): Promise<Consulta | null> {
       diagnostico: r.diagnostico,
       notas: r.notas,
       observacionesClinicas: r.observacionesClinicas,
+      piezasTratadas: parsePiezasTratadas(r.piezasTratadas),
       total: Number(r.total),
       descuento: r.descuento !== null ? Number(r.descuento) : null,
       seguimientoId: r.seguimientoId ?? null,
@@ -279,6 +292,7 @@ export async function upsertConsulta(
             diagnostico: validatedData.diagnostico,
             notas: validatedData.notas,
             observacionesClinicas: validatedData.observacionesClinicas,
+            piezasTratadas: JSON.stringify(validatedData.piezasTratadas ?? []),
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
@@ -354,6 +368,7 @@ export async function upsertConsulta(
             diagnostico: validatedData.diagnostico,
             notas: validatedData.notas,
             observacionesClinicas: validatedData.observacionesClinicas,
+            piezasTratadas: JSON.stringify(validatedData.piezasTratadas ?? []),
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
@@ -488,6 +503,7 @@ export async function finalizarConsulta(
             diagnostico: validatedData.diagnostico,
             notas: validatedData.notas,
             observacionesClinicas: validatedData.observacionesClinicas,
+            piezasTratadas: JSON.stringify(validatedData.piezasTratadas ?? []),
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
@@ -507,6 +523,7 @@ export async function finalizarConsulta(
             diagnostico: validatedData.diagnostico,
             notas: validatedData.notas,
             observacionesClinicas: validatedData.observacionesClinicas,
+            piezasTratadas: JSON.stringify(validatedData.piezasTratadas ?? []),
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,

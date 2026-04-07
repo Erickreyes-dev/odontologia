@@ -35,6 +35,36 @@ export default async function PacientePerfilPage({
     getConstanciasMedicasByPaciente(params.id),
   ]);
 
+  const consultasConOdontograma = await prisma.consulta.findMany({
+    where: {
+      cita: {
+        pacienteId: params.id,
+      },
+      piezasTratadas: {
+        not: null,
+      },
+    },
+    select: {
+      id: true,
+      piezasTratadas: true,
+    },
+  });
+
+  const piezasTratadasHistoricas = Array.from(
+    new Set(
+      consultasConOdontograma.flatMap((consulta) => {
+        if (!consulta.piezasTratadas) return [];
+        try {
+          const parsed = JSON.parse(consulta.piezasTratadas);
+          if (!Array.isArray(parsed)) return [];
+          return parsed.filter((piece): piece is number => typeof piece === "number");
+        } catch {
+          return [];
+        }
+      })
+    )
+  ).sort((a, b) => a - b);
+
   if (!paciente) {
     redirect("/pacientes");
   }
@@ -74,6 +104,8 @@ export default async function PacientePerfilPage({
         seguroNombre={seguro?.nombre}
         clinicInfo={clinicInfo}
         constancias={constancias}
+        piezasTratadasHistoricas={piezasTratadasHistoricas}
+        totalConsultasConOdontograma={consultasConOdontograma.length}
       />
     </div>
   );
