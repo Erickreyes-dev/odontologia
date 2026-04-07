@@ -7,6 +7,7 @@ export const ConsultaSchema = z.object({
   diagnostico: z.string().nullable().optional(),
   notas: z.string().nullable().optional(),
   observacionesClinicas: z.string().nullable().optional(),
+  piezasTratadas: z.array(z.number()).optional().nullable(),
   total: z.number().optional(),
   descuento: z.number().min(0, "El descuento debe ser mayor o igual a 0").max(100, "El descuento no puede superar 100%").optional().nullable(),
   servicios: z.array(

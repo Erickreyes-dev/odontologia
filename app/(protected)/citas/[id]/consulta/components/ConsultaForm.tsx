@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -41,6 +42,7 @@ import {
 
 import { ConsultaSchema, Consulta } from "../schema";
 import { finalizarConsulta, upsertConsulta } from "../actions";
+import { OdontogramaSelector } from "./OdontogramaSelector";
 
 interface CitaData {
   id: string;
@@ -125,6 +127,7 @@ export function ConsultaForm({
       diagnostico: consulta?.diagnostico || "",
       notas: consulta?.notas || "",
       observacionesClinicas: consulta?.observacionesClinicas || "",
+      piezasTratadas: consulta?.piezasTratadas ?? [],
       servicios: consulta?.servicios ?? [],
       productos: consulta?.productos ?? [],
       seguimientoId: consulta?.seguimientoId ?? null,
@@ -162,6 +165,10 @@ export function ConsultaForm({
   const financiamientoId = useWatch({ control: form.control, name: "financiamientoId" });
   const promocionId = useWatch({ control: form.control, name: "promocionId" });
   const descuentoPorcentaje = useWatch({ control: form.control, name: "descuento" }) ?? 0;
+  const piezasTratadas = useWatch({ control: form.control, name: "piezasTratadas" }) ?? [];
+  const [usarOdontograma, setUsarOdontograma] = useState(
+    (consulta?.piezasTratadas?.length ?? 0) > 0
+  );
 
   const totalServicios = useMemo(
     () =>
@@ -920,11 +927,58 @@ export function ConsultaForm({
               <FileText className="h-5 w-5" />
               Diagnostico y Observaciones
             </CardTitle>
-            <CardDescription>
+          <CardDescription>
               Registre el diagnostico y las observaciones clinicas de la consulta.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Field>
+              <div className="flex items-center justify-between gap-3 rounded-md border p-3">
+                <div>
+                  <FieldLabel>Usar odontograma en esta consulta</FieldLabel>
+                  <FieldDescription>
+                    Actívelo para marcar las piezas trabajadas durante la consulta.
+                  </FieldDescription>
+                </div>
+                <Switch
+                  checked={usarOdontograma}
+                  onCheckedChange={(checked) => {
+                    setUsarOdontograma(checked);
+                    if (!checked) {
+                      form.setValue("piezasTratadas", [], {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                    }
+                  }}
+                />
+              </div>
+            </Field>
+
+            {usarOdontograma ? (
+              <Controller
+                name="piezasTratadas"
+                control={form.control}
+                render={({ field }) => (
+                  <Field>
+                    <FieldLabel>Odontograma de piezas trabajadas</FieldLabel>
+                    <FieldContent>
+                      <OdontogramaSelector
+                        value={field.value ?? []}
+                        onChange={(nextValue) => field.onChange(nextValue)}
+                      />
+                    </FieldContent>
+                    <FieldDescription>
+                      Haga clic en una pieza para marcarla o desmarcarla.
+                      {piezasTratadas.length > 0
+                        ? ` Seleccionadas: ${piezasTratadas.join(", ")}.`
+                        : " Sin piezas seleccionadas aún."}
+                    </FieldDescription>
+                  </Field>
+                )}
+              />
+            ) : null}
+
             <Controller
               name="fechaConsulta"
               control={form.control}

@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/sonner"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css";
+import "op-odontogram/styles/odontogram.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { I18nProvider } from "@/components/i18n/i18n-provider";
 import { getLocaleFromCookieStore } from "@/lib/i18n/settings";
