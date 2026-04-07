@@ -4,12 +4,8 @@ import { Building2 } from "lucide-react";
 import { getSessionPermisos } from "@/auth";
 import MiClinicaForm from "./components/mi-clinica-form";
 import { getTenantClinicProfile } from "./actions";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function MiClinicaPage() {
-  void dynamic;
-  await requireActiveSubscription();
 
   const permisos = await getSessionPermisos();
 

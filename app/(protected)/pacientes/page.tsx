@@ -5,12 +5,8 @@ import { Users } from "lucide-react";
 import { getPacientes } from "./actions";
 import { PacienteTable } from "./components/paciente-table";
 import PacienteListMobile from "./components/seguro-list-mobile";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function PacientesPage() {
-  void dynamic;
-  await requireActiveSubscription();
 
   const permisos = await getSessionPermisos();
 

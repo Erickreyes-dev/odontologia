@@ -11,8 +11,6 @@ import { getFinanciamientosPorPaciente, getPagosByPaciente } from "@/app/(protec
 import { PacientePerfil } from "./components/paciente-perfil";
 import { getSegurosActivos } from "@/app/(protected)/seguros/actions";
 import { prisma } from "@/lib/prisma";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function PacientePerfilPage({
 
@@ -20,8 +18,6 @@ export default async function PacientePerfilPage({
 }: {
   params: { id: string };
 }) {
-  void dynamic;
-  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
   const session = await getSession();
 

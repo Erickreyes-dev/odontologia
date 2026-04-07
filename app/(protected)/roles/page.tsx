@@ -6,12 +6,8 @@ import { getRolesPermisos } from "./actions";
 import { columns } from "./components/columns";
 import { DataTable } from "./components/data-table";
 import RoleListMobile from "./components/roles-list-mobile";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function EstadoServicio() {
-  void dynamic;
-  await requireActiveSubscription();
 
 
 

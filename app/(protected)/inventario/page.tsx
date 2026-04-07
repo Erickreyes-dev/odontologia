@@ -8,8 +8,6 @@ import { columns } from "./components/columns";
 import InventarioListMobile from "./components/inventario-list-mobile";
 import InventarioHistorial from "./components/inventario-historial";
 import { HistorialDateRangeFilter } from "./components/historial-date-range-filter";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function InventarioPage({
 
@@ -17,8 +15,6 @@ export default async function InventarioPage({
 }: {
   searchParams: Promise<{ desde?: string; hasta?: string }>
 }) {
-  void dynamic;
-  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_inventario")) {

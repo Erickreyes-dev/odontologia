@@ -4,6 +4,7 @@ import { AppHelpGuide } from "@/components/tour/app-help-guide";
 import { InitialSetupGuard } from "@/components/initial-setup-guard";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AlertTriangle, BadgeCheck, Timer } from "lucide-react";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getQuickActionCatalogs } from "./quick-actions/actions";
 import { QuickActionsPopover } from "@/components/quick-actions-popover";
@@ -60,9 +61,28 @@ function calculateTrialDaysLeft(trialEndsAt?: Date | null): number {
   return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 }
 
+function resolvePathnameFromHeaders(nextHeaders: Headers): string {
+  const raw = nextHeaders.get("x-pathname") ?? nextHeaders.get("next-url") ?? "";
+  if (!raw) return "";
+  if (raw.startsWith("/")) return raw;
+
+  try {
+    return new URL(raw).pathname;
+  } catch {
+    return raw;
+  }
+}
+
+function isSubscriptionExemptPath(pathname: string): boolean {
+  const exemptPaths = ["/billing", "/suscripcion", "/dashboard-admin", "/tenants", "/paquetes"];
+  return exemptPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const sesion = await getSession();
   const { t } = getServerTranslator();
+  const nextHeaders = await headers();
+  const pathname = resolvePathnameFromHeaders(nextHeaders);
 
   if (!sesion) {
     redirect("/");
@@ -101,6 +121,10 @@ export default async function Layout({ children }: { children: React.ReactNode }
       tenantPlan.estado = effectiveStatus;
     }
 
+  }
+
+  if (tenantPlan && effectiveStatus !== "vigente" && !isSubscriptionExemptPath(pathname)) {
+    redirect("/billing?subscription=required");
   }
 
   let isInitialSetupComplete = true;

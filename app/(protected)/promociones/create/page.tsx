@@ -4,12 +4,8 @@ import NoAcceso from "@/components/noAccess";
 import { Tags } from "lucide-react";
 import { getServicios } from "../../servicios/actions";
 import { PromocionForm } from "../components/Form";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function CreatePromocionPage() {
-  void dynamic;
-  await requireActiveSubscription();
 
   const permisos = await getSessionPermisos();
 

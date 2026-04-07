@@ -7,12 +7,8 @@ import { getRolesPermisosActivos } from "../../roles/actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Formulario } from "../components/Form";
 import { getUserQuotaStatus } from "../actions";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function Create() {
-  void dynamic;
-  await requireActiveSubscription();
 
 
 

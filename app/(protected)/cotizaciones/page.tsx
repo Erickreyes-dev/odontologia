@@ -6,12 +6,8 @@ import { getCotizaciones } from "./actions";
 import { columns } from "./components/columns";
 import { DataTable } from "./components/data-table";
 import CotizacionListMobile from "./components/cotizacion-list-mobile";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function Cotizaciones() {
-  void dynamic;
-  await requireActiveSubscription();
 
   const permisos = await getSessionPermisos();
 

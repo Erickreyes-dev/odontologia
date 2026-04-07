@@ -5,8 +5,6 @@ import { FileText } from "lucide-react";
 import { CotizacionFormulario } from "../components/Form";
 import { getPacientesActivos } from "../../pacientes/actions";
 import { getServiciosActivos } from "../actions";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 interface CreatePageProps {
   searchParams: Promise<{ pacienteId?: string }>;
@@ -14,8 +12,6 @@ interface CreatePageProps {
 
 export default async function Create({
  searchParams }: CreatePageProps) {
-  void dynamic;
-  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
   const { pacienteId } = await searchParams;
 

@@ -5,8 +5,6 @@ import {  ShieldPlus } from "lucide-react";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ProfesionFormulario } from "../components/Form";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function Create({
 
@@ -14,8 +12,6 @@ export default async function Create({
 }: {
   searchParams?: { fromSetup?: string };
 }) {
-  void dynamic;
-  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
 
   const session = await getSession();
