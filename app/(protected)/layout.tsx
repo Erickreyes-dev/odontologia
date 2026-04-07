@@ -22,15 +22,33 @@ type InitialSetupState = {
   profesion: boolean;
   medico: boolean;
   consultorio: boolean;
+  paciente: boolean;
+  servicio: boolean;
+  cita: boolean;
+  consulta: boolean;
 };
 
-function resolveInitialSetupState(counts: { puestos: number; empleados: number; profesiones: number; medicos: number; consultorios: number }): InitialSetupState {
+function resolveInitialSetupState(counts: {
+  puestos: number;
+  empleados: number;
+  profesiones: number;
+  medicos: number;
+  consultorios: number;
+  pacientes: number;
+  servicios: number;
+  citas: number;
+  consultas: number;
+}): InitialSetupState {
   return {
     puesto: counts.puestos > 0,
     empleado: counts.empleados > 0,
     profesion: counts.profesiones > 0,
     medico: counts.medicos > 0,
     consultorio: counts.consultorios > 0,
+    paciente: counts.pacientes > 0,
+    servicio: counts.servicios > 0,
+    cita: counts.citas > 0,
+    consulta: counts.consultas > 0,
   };
 }
 
@@ -97,12 +115,26 @@ export default async function Layout({ children }: { children: React.ReactNode }
   let isInitialSetupComplete = true;
 
   if (sesion.TenantId) {
-    const [puestosCount, empleadosCount, profesionesCount, medicosCount, consultoriosCount] = await Promise.all([
+    const [
+      puestosCount,
+      empleadosCount,
+      profesionesCount,
+      medicosCount,
+      consultoriosCount,
+      pacientesCount,
+      serviciosCount,
+      citasCount,
+      consultasCount,
+    ] = await Promise.all([
       prisma.puesto.count({ where: { tenantId: sesion.TenantId } }),
       prisma.empleados.count({ where: { tenantId: sesion.TenantId } }),
       prisma.profesion.count({ where: { tenantId: sesion.TenantId } }),
       prisma.medico.count({ where: { tenantId: sesion.TenantId } }),
       prisma.consultorio.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.paciente.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.servicio.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.cita.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.consulta.count({ where: { tenantId: sesion.TenantId } }),
     ]);
 
     const initialSetup = resolveInitialSetupState({
@@ -111,6 +143,10 @@ export default async function Layout({ children }: { children: React.ReactNode }
       profesiones: profesionesCount,
       medicos: medicosCount,
       consultorios: consultoriosCount,
+      pacientes: pacientesCount,
+      servicios: serviciosCount,
+      citas: citasCount,
+      consultas: consultasCount,
     });
 
     isInitialSetupComplete = isInitialSetupCompleted(initialSetup);
