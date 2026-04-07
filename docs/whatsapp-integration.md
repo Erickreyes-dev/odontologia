@@ -3,7 +3,7 @@
 ## Qué incluye
 
 - Configuración multi-clínica en `/mi-clinica/whatsapp`.
-- Guardado de credenciales por tenant (`TenantWhatsappConfig`).
+- Guardado de número y estado de verificación por tenant (`TenantWhatsappConfig`).
 - Registro de mensajes entrantes y salientes (`TenantWhatsappMensaje`).
 - Webhook Twilio en `/api/whatsapp/twilio/webhook`.
 - Agendamiento por comando WhatsApp:
@@ -16,13 +16,16 @@
 1. Crear/activar número WhatsApp en Twilio.
 2. En Twilio Console, configurar el webhook de mensajes entrantes:
    - `https://TU_DOMINIO/api/whatsapp/twilio/webhook`
-3. En el SaaS ir a **Mi Clínica > Configurar WhatsApp Business**.
-4. Guardar:
-   - Account SID
-   - Auth Token
-   - Número remitente (E.164)
-   - (Opcional) Webhook Secret para validar firma
-5. Ejecutar envío de prueba.
+3. Configurar en el servidor del SaaS (una sola vez):
+   - `TWILIO_ACCOUNT_SID`
+   - `TWILIO_AUTH_TOKEN`
+   - `TWILIO_WHATSAPP_FROM`
+4. En el SaaS ir a **Mi Clínica > Configurar WhatsApp Business**.
+5. La clínica solo debe:
+   - Guardar su número WhatsApp (E.164)
+   - Solicitar código de verificación
+   - Ingresar el código recibido y verificar
+6. Ejecutar envío de prueba.
 
 ## Notas
 

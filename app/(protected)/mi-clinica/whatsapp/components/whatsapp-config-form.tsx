@@ -8,26 +8,32 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { sendWhatsappTestMessage, type TenantWhatsappConfigView, upsertTenantWhatsappConfig } from "../actions";
+import {
+  sendWhatsappTestMessage,
+  sendWhatsappVerificationCode,
+  type TenantWhatsappConfigView,
+  upsertTenantWhatsappConfig,
+  verifyWhatsappNumber,
+} from "../actions";
 
 interface Props {
   config: TenantWhatsappConfigView;
 }
 
 export function WhatsappConfigForm({ config }: Props) {
-  const [twilioAccountSid, setTwilioAccountSid] = useState(config.twilioAccountSid);
-  const [twilioAuthToken, setTwilioAuthToken] = useState(config.twilioAuthToken);
   const [twilioWhatsappNumber, setTwilioWhatsappNumber] = useState(config.twilioWhatsappNumber);
-  const [webhookSecret, setWebhookSecret] = useState(config.webhookSecret);
   const [mensajeAutoRespuesta, setMensajeAutoRespuesta] = useState(config.mensajeAutoRespuesta);
   const [aceptaAgendamientoChat, setAceptaAgendamientoChat] = useState(config.aceptaAgendamientoChat);
   const [activo, setActivo] = useState(config.activo);
+  const [verificationCode, setVerificationCode] = useState("");
 
   const [testPhone, setTestPhone] = useState("");
   const [testBody, setTestBody] = useState("Hola 👋 este es un mensaje de prueba desde tu SaaS.");
 
   const [isSaving, startSaving] = useTransition();
   const [isSending, startSending] = useTransition();
+  const [isRequestingCode, startRequestingCode] = useTransition();
+  const [isVerifying, startVerifying] = useTransition();
 
   const webhookUrl = useMemo(() => {
     if (typeof window === "undefined") return "/api/whatsapp/twilio/webhook";
@@ -39,10 +45,7 @@ export function WhatsappConfigForm({ config }: Props) {
 
     startSaving(async () => {
       const result = await upsertTenantWhatsappConfig({
-        twilioAccountSid,
-        twilioAuthToken,
         twilioWhatsappNumber,
-        webhookSecret,
         mensajeAutoRespuesta,
         aceptaAgendamientoChat,
         activo,
@@ -54,6 +57,32 @@ export function WhatsappConfigForm({ config }: Props) {
       }
 
       toast.success("Configuración WhatsApp guardada");
+    });
+  };
+
+  const onRequestCode = () => {
+    startRequestingCode(async () => {
+      const result = await sendWhatsappVerificationCode();
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+
+      toast.success("Código enviado al número de la clínica por WhatsApp");
+    });
+  };
+
+  const onVerifyCode = () => {
+    startVerifying(async () => {
+      const result = await verifyWhatsappNumber({ code: verificationCode });
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+
+      toast.success("Número verificado y conexión activa");
+      setActivo(true);
+      setVerificationCode("");
     });
   };
 
@@ -74,29 +103,14 @@ export function WhatsappConfigForm({ config }: Props) {
         <CardHeader>
           <CardTitle>Conexión con Twilio</CardTitle>
           <CardDescription>
-            Guarda credenciales por clínica para operar WhatsApp Business desde un proveedor externo.
+            Tu plataforma usa credenciales globales en variables de entorno. La clínica solo registra y verifica su número.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={onSubmit}>
             <div className="space-y-1">
-              <Label htmlFor="sid">Twilio Account SID</Label>
-              <Input id="sid" value={twilioAccountSid} onChange={(e) => setTwilioAccountSid(e.target.value)} placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="token">Twilio Auth Token</Label>
-              <Input id="token" type="password" value={twilioAuthToken} onChange={(e) => setTwilioAuthToken(e.target.value)} placeholder="Token secreto" />
-            </div>
-
-            <div className="space-y-1">
               <Label htmlFor="number">Número WhatsApp (E.164)</Label>
               <Input id="number" value={twilioWhatsappNumber} onChange={(e) => setTwilioWhatsappNumber(e.target.value)} placeholder="+50499990000" />
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="secret">Webhook Secret (opcional)</Label>
-              <Input id="secret" value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} placeholder="Se usa para validar X-Twilio-Signature" />
             </div>
 
             <div className="space-y-1">
@@ -126,10 +140,36 @@ export function WhatsappConfigForm({ config }: Props) {
               Webhook URL para Twilio: <strong>{webhookUrl}</strong>
             </p>
 
-            <Button type="submit" disabled={isSaving}>
+            <Button type="submit" disabled={isSaving || isRequestingCode || isVerifying}>
               {isSaving ? "Guardando..." : "Guardar conexión"}
             </Button>
           </form>
+
+          <div className="mt-4 space-y-2 rounded border p-3">
+            <p className="text-sm font-medium">Verificación del número de la clínica</p>
+            <p className="text-xs text-muted-foreground">
+              1) Guarda el número. 2) Envía código. 3) Ingresa el código recibido en ese WhatsApp.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={onRequestCode} disabled={isRequestingCode}>
+                {isRequestingCode ? "Enviando código..." : "Enviar código"}
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                maxLength={6}
+                placeholder="Código de 6 dígitos"
+              />
+              <Button type="button" onClick={onVerifyCode} disabled={isVerifying}>
+                {isVerifying ? "Verificando..." : "Verificar"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Estado: <strong>{config.estado}</strong>{config.verifiedAt ? " · número verificado" : ""}
+            </p>
+          </div>
         </CardContent>
       </Card>
 

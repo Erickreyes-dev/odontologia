@@ -771,6 +771,8 @@ model TenantWhatsappConfig {
   twilioAuthToken        String?  @db.VarChar(100)
   twilioWhatsappNumber   String?  @db.VarChar(30)
   webhookSecret          String?  @db.VarChar(100)
+  verificationCode       String?  @db.VarChar(10)
+  verifiedAt             DateTime?
   mensajeAutoRespuesta   String?  @db.VarChar(500)
   aceptaAgendamientoChat Boolean  @default(true) @db.Bit(1)
   activo                 Boolean  @default(true) @db.Bit(1)

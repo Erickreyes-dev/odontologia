@@ -37,8 +37,6 @@ export async function POST(request: Request) {
       select: {
         id: true,
         tenantId: true,
-        twilioAuthToken: true,
-        webhookSecret: true,
         mensajeAutoRespuesta: true,
         aceptaAgendamientoChat: true,
       },
@@ -49,9 +47,9 @@ export async function POST(request: Request) {
     }
 
     const signature = request.headers.get("x-twilio-signature");
-    const authToken = config.webhookSecret || config.twilioAuthToken;
+    const authToken = process.env.TWILIO_AUTH_TOKEN?.trim() || "";
 
-    if (authToken) {
+    if (authToken.length >= 20) {
       const isSignatureValid = validateTwilioSignature({
         authToken,
         url: request.url,
