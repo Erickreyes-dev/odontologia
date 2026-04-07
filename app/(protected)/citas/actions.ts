@@ -12,6 +12,8 @@ import { EmailService } from "@/lib/sendEmail";
 import { generateAppointmentEmailHtml } from "@/lib/templates/clinical-notifications";
 import { getTenantEmailBranding } from "@/lib/tenant-branding";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
+import { getSession } from "@/auth";
+import { sendTenantWhatsappMessage } from "@/lib/whatsapp/send-whatsapp";
 
 /**
  * Obtiene todas las citas con paginacion
@@ -406,7 +408,7 @@ export async function createCita(
         observacion: validatedData.observacion,
       }),
       include: {
-        paciente: { select: { nombre: true, apellido: true, correo: true } },
+        paciente: { select: { nombre: true, apellido: true, correo: true, telefono: true } },
         medico: { include: { empleado: { select: { nombre: true, apellido: true } } } },
         consultorio: { select: { nombre: true } },
       },
@@ -436,6 +438,18 @@ export async function createCita(
           tenantName,
         }),
       });
+
+      if (r.paciente.telefono) {
+        const session = await getSession();
+        if (session?.TenantId) {
+          await sendTenantWhatsappMessage({
+            tenantId: session.TenantId,
+            toPhone: r.paciente.telefono,
+            tipoEvento: "cita_email_copy",
+            body: `Hola ${r.paciente.nombre}, tu cita con Dr(a). ${doctorName} fue programada para ${new Date(r.fechaHora).toLocaleString()}. Motivo: ${r.motivo ?? "Consulta general"}.`,
+          });
+        }
+      }
     }
 
     const result = {
@@ -602,7 +616,7 @@ export async function sendCitaEmail(
     const cita = await prisma.cita.findFirst({
       where: await tenantWhere<Prisma.CitaWhereInput>({ id }),
       include: {
-        paciente: { select: { nombre: true, apellido: true, correo: true } },
+        paciente: { select: { nombre: true, apellido: true, correo: true, telefono: true } },
         medico: { include: { empleado: { select: { nombre: true, apellido: true } } } },
         consultorio: { select: { nombre: true } },
       },
@@ -632,6 +646,18 @@ export async function sendCitaEmail(
         tenantName,
       }),
     });
+
+    if (cita.paciente.telefono) {
+      const session = await getSession();
+      if (session?.TenantId) {
+        await sendTenantWhatsappMessage({
+          tenantId: session.TenantId,
+          toPhone: cita.paciente.telefono,
+          tipoEvento: "cita_email_copy",
+          body: `Hola ${cita.paciente.nombre}, confirmamos tu cita con Dr(a). ${doctorName} para ${new Date(cita.fechaHora).toLocaleString()}.`,
+        });
+      }
+    }
 
     return { success: true };
   } catch (error) {

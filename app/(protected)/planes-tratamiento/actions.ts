@@ -17,6 +17,8 @@ import { EmailService } from "@/lib/sendEmail";
 import { generatePlanEmailHtml } from "@/lib/templates/clinical-notifications";
 import { getTenantEmailBranding } from "@/lib/tenant-branding";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
+import { getSession } from "@/auth";
+import { sendTenantWhatsappMessage } from "@/lib/whatsapp/send-whatsapp";
 
 /**
  * Genera seguimientos automáticamente para las etapas de un plan
@@ -239,6 +241,18 @@ export async function createPlanTratamiento(
           tenantName,
         }),
       });
+
+      if (plan.paciente.telefono) {
+        const session = await getSession();
+        if (session?.TenantId) {
+          await sendTenantWhatsappMessage({
+            tenantId: session.TenantId,
+            toPhone: plan.paciente.telefono,
+            tipoEvento: "plan_email_copy",
+            body: `Hola ${plan.paciente.nombre}, te hemos enviado tu plan de tratamiento \"${plan.nombre}\" al correo. Si deseas te apoyamos por este chat.`,
+          });
+        }
+      }
     }
 
     revalidatePath("/planes-tratamiento");
@@ -370,7 +384,7 @@ export async function sendPlanTratamientoEmail(
     const plan = await prisma.planTratamiento.findFirst({
       where: await tenantWhere<Prisma.PlanTratamientoWhereInput>({ id }),
       include: {
-        paciente: { select: { nombre: true, apellido: true, correo: true } },
+        paciente: { select: { nombre: true, apellido: true, correo: true, telefono: true } },
         etapas: { select: { nombre: true }, orderBy: { orden: "asc" } },
       },
     });
@@ -399,6 +413,18 @@ export async function sendPlanTratamientoEmail(
         tenantName,
       }),
     });
+
+    if (plan.paciente.telefono) {
+      const session = await getSession();
+      if (session?.TenantId) {
+        await sendTenantWhatsappMessage({
+          tenantId: session.TenantId,
+          toPhone: plan.paciente.telefono,
+          tipoEvento: "plan_email_copy",
+          body: `Hola ${plan.paciente.nombre}, tu plan de tratamiento \"${plan.nombre}\" fue enviado a tu correo.`,
+        });
+      }
+    }
 
     return { success: true };
   } catch (error) {

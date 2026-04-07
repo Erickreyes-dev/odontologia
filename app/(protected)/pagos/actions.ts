@@ -21,6 +21,7 @@ import { EmailService } from "@/lib/sendEmail";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
 import { generatePagoEmailHtml } from "@/lib/templates/clinical-notifications";
 import { getTenantEmailBranding } from "@/lib/tenant-branding";
+import { sendTenantWhatsappMessage } from "@/lib/whatsapp/send-whatsapp";
 
 const CENTRAL_AMERICA_OFFSET_MS = 6 * 60 * 60 * 1000;
 
@@ -965,7 +966,7 @@ export async function sendPagoEmail(
       include: {
         ordenCobro: {
           include: {
-            paciente: { select: { nombre: true, apellido: true, correo: true } },
+            paciente: { select: { nombre: true, apellido: true, correo: true, telefono: true } },
           },
         },
       },
@@ -996,6 +997,15 @@ export async function sendPagoEmail(
         tenantName,
       }),
     });
+
+    if (paciente.telefono && pago.tenantId) {
+      await sendTenantWhatsappMessage({
+        tenantId: pago.tenantId,
+        toPhone: paciente.telefono,
+        tipoEvento: "pago_email_copy",
+        body: `Hola ${paciente.nombre}, recibimos tu pago por ${Number(pago.monto).toFixed(2)}. También enviamos el comprobante a tu correo.`,
+      });
+    }
 
     return { success: true };
   } catch (error) {

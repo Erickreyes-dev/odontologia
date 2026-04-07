@@ -3,6 +3,7 @@
 ## Qué incluye
 
 - Configuración multi-clínica en `/mi-clinica/whatsapp`.
+- Módulo operativo de chat en `/whatsapp` para iniciar conversaciones y ver contactos recientes.
 - Guardado de número y estado de verificación por tenant (`TenantWhatsappConfig`).
 - Registro de mensajes entrantes y salientes (`TenantWhatsappMensaje`).
 - Webhook Twilio en `/api/whatsapp/twilio/webhook`.
@@ -10,6 +11,7 @@
   - `CITA|YYYY-MM-DD HH:mm|Nombre|correo@dominio.com|telefono|Motivo`
   - Crea una `SolicitudCitaPublica` para seguimiento por recepción.
 - Soporte básico de documentos entrantes (media URLs registradas).
+- Cuando se envía información por correo (citas, planes, pagos), se intenta enviar también un aviso por WhatsApp al teléfono del paciente si existe.
 
 ## Pasos de activación
 
