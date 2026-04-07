@@ -19,7 +19,7 @@ import { es } from "date-fns/locale";
 import Link from "next/link";
 import { PlanTratamiento, ESTADOS_PLAN } from "../schema";
 import { Progress } from "@/components/ui/progress";
-import { sendPlanTratamientoEmail } from "../actions";
+import { sendPlanTratamientoEmail, sendPlanTratamientoWhatsapp } from "../actions";
 
 const getEstadoBadge = (estado: string) => {
   const estadoInfo = ESTADOS_PLAN.find((e) => e.value === estado);
@@ -147,6 +147,23 @@ function ActionsCell({ plan }: { plan: PlanTratamiento }) {
     });
   };
 
+  const handleSendWhatsapp = async () => {
+    if (!plan.id) return;
+
+    const result = await sendPlanTratamientoWhatsapp(plan.id);
+    if (result.success) {
+      toast.success("Plan enviado", {
+        description: "El documento del plan fue enviado por WhatsApp.",
+      });
+      router.refresh();
+      return;
+    }
+
+    toast.error("No se pudo enviar por WhatsApp", {
+      description: result.error,
+    });
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -158,6 +175,7 @@ function ActionsCell({ plan }: { plan: PlanTratamiento }) {
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
         <DropdownMenuItem onClick={handleSendEmail}>Enviar por email</DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSendWhatsapp}>Enviar por WhatsApp</DropdownMenuItem>
         <DropdownMenuSeparator />
         <Link href={`/planes-tratamiento/${plan.id}`}>
           <DropdownMenuItem className="cursor-pointer">

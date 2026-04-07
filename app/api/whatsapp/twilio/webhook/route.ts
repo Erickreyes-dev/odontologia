@@ -24,11 +24,12 @@ export async function POST(request: Request) {
     const twilioPayload = payload as TwilioInboundPayload;
 
     const incomingTo = normalizeWhatsappPhone(twilioPayload.To);
+    const incomingFrom = normalizeWhatsappPhone(twilioPayload.From);
     if (!incomingTo) {
       return xmlResponse(twimlResponse("Número destino no recibido"), 400);
     }
 
-    const config = await prisma.tenantWhatsappConfig.findFirst({
+    let config = await prisma.tenantWhatsappConfig.findFirst({
       where: {
         twilioWhatsappNumber: incomingTo,
         estado: "conectado",
@@ -42,8 +43,35 @@ export async function POST(request: Request) {
       },
     });
 
+    if (!config && incomingFrom) {
+      const lastOutbound = await prisma.tenantWhatsappMensaje.findFirst({
+        where: {
+          direccion: "saliente",
+          toPhone: incomingFrom,
+        },
+        orderBy: { createAt: "desc" },
+        select: { tenantId: true, configId: true },
+      });
+
+      if (lastOutbound?.tenantId) {
+        config = await prisma.tenantWhatsappConfig.findFirst({
+          where: {
+            tenantId: lastOutbound.tenantId,
+            estado: "conectado",
+            activo: true,
+          },
+          select: {
+            id: true,
+            tenantId: true,
+            mensajeAutoRespuesta: true,
+            aceptaAgendamientoChat: true,
+          },
+        });
+      }
+    }
+
     if (!config) {
-      return xmlResponse(twimlResponse("Esta clínica no tiene WhatsApp activo."), 404);
+      return xmlResponse(twimlResponse("No se encontró tenant de destino para este mensaje."), 404);
     }
 
     const signature = request.headers.get("x-twilio-signature");
@@ -62,7 +90,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const fromPhone = normalizeWhatsappPhone(twilioPayload.From);
+    const fromPhone = incomingFrom;
     const rawBody = (twilioPayload.Body || "").trim();
     const mediaCount = Number.parseInt(twilioPayload.NumMedia || "0", 10);
 

@@ -62,6 +62,7 @@ export function CitaFormulario({
   const router = useRouter();
   const [pacienteSearchTerm, setPacienteSearchTerm] = useState("");
   const [sendEmailToPaciente, setSendEmailToPaciente] = useState(false);
+  const [sendWhatsappToPaciente, setSendWhatsappToPaciente] = useState(false);
 
   const pacientesFiltrados = useMemo(() => {
     const term = pacienteSearchTerm.trim().toLowerCase();
@@ -106,8 +107,12 @@ export function CitaFormulario({
           toast.error("El paciente no tiene correo registrado.");
           return;
         }
+        if (sendWhatsappToPaciente && !selectedPaciente?.telefono) {
+          toast.error("El paciente no tiene teléfono registrado.");
+          return;
+        }
 
-        result = await createCita(data, { sendEmailToPaciente });
+        result = await createCita(data, { sendEmailToPaciente, sendWhatsappToPaciente });
       }
 
       if (result.success) {
@@ -462,6 +467,21 @@ export function CitaFormulario({
             </label>
             <p className="text-xs text-muted-foreground mt-1">
               Solo se enviará si el paciente tiene correo registrado.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 mt-4">
+          <Checkbox
+            id="enviarWhatsappCita"
+            checked={sendWhatsappToPaciente}
+            onCheckedChange={(checked) => setSendWhatsappToPaciente(checked === true)}
+          />
+          <div>
+            <label htmlFor="enviarWhatsappCita" className="text-sm font-medium cursor-pointer">
+              Enviar documento de cita por WhatsApp
+            </label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Solo se enviará si el paciente tiene teléfono registrado.
             </p>
           </div>
         </div>

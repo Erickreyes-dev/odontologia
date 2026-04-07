@@ -13,6 +13,7 @@
 - Soporte básico de documentos entrantes (media URLs registradas).
 - Cuando se envía información por correo (citas, planes, pagos), se intenta enviar también un aviso por WhatsApp al teléfono del paciente si existe.
 - En pacientes, el teléfono se guarda normalizado sin `+` ni espacios (ej. `50488346201`) y al enviar WhatsApp se agrega automáticamente el prefijo `+`.
+- En las pantallas de citas/planes/pagos existen acciones separadas para enviar por correo o por WhatsApp.
 
 ## Pasos de activación
 
@@ -29,6 +30,11 @@
    - Solicitar código de verificación
    - Ingresar el código recibido y verificar
 6. Ejecutar envío de prueba.
+
+## Enrutamiento de respuestas entrantes
+
+- Prioridad 1: se enruta por el número `To` recibido en webhook.
+- Prioridad 2 (fallback): si no hay coincidencia por `To`, se enruta por el último mensaje saliente enviado a ese `From` (paciente), útil cuando se usa un solo sender Twilio compartido.
 
 ## Notas
 
