@@ -123,7 +123,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
 
   }
 
-  if (tenantPlan && effectiveStatus !== "vigente" && !isSubscriptionExemptPath(pathname)) {
+  if (tenantPlan && effectiveStatus !== "vigente" && pathname && !isSubscriptionExemptPath(pathname)) {
     redirect("/billing?subscription=required");
   }
 

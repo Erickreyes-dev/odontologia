@@ -9,28 +9,35 @@ type RateLimitConfig = { limit: number; windowMs: number };
 
 interface SessionPayload extends JWTPayload {
   Permiso?: string[];
+  SubscriptionStatus?: "vigente" | "expirado" | "cancelado";
 }
 
 const authSecret = process.env.AUTH_SECRET
   ? new TextEncoder().encode(process.env.AUTH_SECRET)
   : null;
 
-async function getSessionPermissions(req: NextRequest): Promise<string[] | null> {
+async function getSessionPayload(req: NextRequest): Promise<SessionPayload | null> {
   const token =
     req.cookies.get("session")?.value ??
     req.cookies.get("next-auth.session-token")?.value ??
     req.cookies.get("__Secure-next-auth.session-token")?.value;
 
-  if (!token) return [];
+  if (!token) return null;
 
   if (!authSecret) return null;
 
   try {
     const { payload } = await jwtVerify<SessionPayload>(token, authSecret, { algorithms: ["HS256"] });
-    return Array.isArray(payload.Permiso) ? payload.Permiso : [];
+    return payload;
   } catch {
     return null;
   }
+}
+
+async function getSessionPermissions(req: NextRequest): Promise<string[] | null> {
+  const payload = await getSessionPayload(req);
+  if (!payload) return null;
+  return Array.isArray(payload.Permiso) ? payload.Permiso : [];
 }
 
 const DEFAULT_RATE_LIMIT: RateLimitConfig = { limit: 120, windowMs: 60_000 };
@@ -211,6 +218,22 @@ export async function middleware(req: NextRequest) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", path + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
+  }
+
+  const subscriptionExemptPrefixes = ["/billing", "/suscripcion", "/dashboard-admin", "/tenants", "/paquetes"];
+  const isSubscriptionExemptRoute = subscriptionExemptPrefixes.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
+  );
+
+  if (isProtectedRoute && sessionCookie && !isSubscriptionExemptRoute) {
+    const payload = await getSessionPayload(req);
+    const status = payload?.SubscriptionStatus;
+
+    if (status && status !== "vigente") {
+      const billingUrl = new URL("/billing", req.url);
+      billingUrl.searchParams.set("subscription", "required");
+      return NextResponse.redirect(billingUrl);
+    }
   }
 
   if (path.startsWith("/dashboard-admin")) {
