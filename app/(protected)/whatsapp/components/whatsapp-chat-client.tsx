@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -57,8 +57,24 @@ export default function WhatsappChatClient({ enabled, estado, pacientes, threads
     return messages.filter((message) => message.phone === activePhone);
   }, [activePhone, messages]);
 
+  useEffect(() => {
+    if (!activePhone && threads.length > 0) {
+      setActivePhone(threads[0].phone);
+    }
+  }, [activePhone, threads]);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const interval = setInterval(() => {
+      router.refresh();
+    }, 7000);
+
+    return () => clearInterval(interval);
+  }, [enabled, router]);
+
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-3">
       <Card>
         <CardHeader>
           <CardTitle>Nuevo chat</CardTitle>
@@ -114,13 +130,13 @@ export default function WhatsappChatClient({ enabled, estado, pacientes, threads
         </CardContent>
       </Card>
 
-      <Card className="lg:col-span-2">
+      <Card className="lg:col-span-2 overflow-hidden">
         <CardHeader>
           <CardTitle>Conversaciones</CardTitle>
-          <CardDescription>Selecciona un chat para ver la conversación completa.</CardDescription>
+          <CardDescription>Actualización automática cada 7 segundos.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 lg:grid-cols-3">
-          <div className="space-y-2">
+        <CardContent className="grid gap-3 lg:grid-cols-5 bg-muted/20 p-3">
+          <div className="space-y-2 lg:col-span-2">
             {threads.length === 0 ? (
               <p className="text-sm text-muted-foreground">No hay mensajes aún.</p>
             ) : (
@@ -128,16 +144,19 @@ export default function WhatsappChatClient({ enabled, estado, pacientes, threads
                 <button
                   key={thread.phone}
                   type="button"
-                  className={`w-full rounded border p-2 text-left ${activePhone === thread.phone ? "border-primary" : ""}`}
+                  className={`w-full rounded-xl border p-3 text-left transition ${activePhone === thread.phone ? "border-primary bg-primary/5" : "bg-background hover:bg-muted"}`}
                   onClick={() => setActivePhone(thread.phone)}
                 >
-                  <p className="text-sm font-medium">{thread.phone}</p>
-                  <p className="text-xs text-muted-foreground line-clamp-2">{thread.lastMessage}</p>
+                  <p className="text-sm font-semibold">{thread.phone}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{thread.lastMessage}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {new Date(thread.lastAt).toLocaleString()}
+                  </p>
                 </button>
               ))
             )}
           </div>
-          <div className="lg:col-span-2 rounded border p-3 max-h-[420px] overflow-y-auto space-y-2">
+          <div className="lg:col-span-3 rounded-xl border bg-background p-3 max-h-[470px] overflow-y-auto space-y-2">
             {!activePhone ? (
               <p className="text-sm text-muted-foreground">Elige un chat para ver mensajes.</p>
             ) : conversation.length === 0 ? (
@@ -146,7 +165,7 @@ export default function WhatsappChatClient({ enabled, estado, pacientes, threads
               conversation.map((message) => (
                 <div
                   key={message.id}
-                  className={`rounded px-3 py-2 text-sm max-w-[85%] ${message.direction === "saliente" ? "ml-auto bg-primary text-primary-foreground" : "bg-muted"}`}
+                  className={`rounded-2xl px-3 py-2 text-sm max-w-[85%] ${message.direction === "saliente" ? "ml-auto bg-primary text-primary-foreground" : "bg-muted border"}`}
                 >
                   <p>{message.body || "(sin texto)"}</p>
                   <p className="mt-1 text-[10px] opacity-80">{new Date(message.createdAt).toLocaleString()}</p>
