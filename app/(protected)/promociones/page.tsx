@@ -7,12 +7,8 @@ import { ExportExcelButton } from "@/components/export-excel-button";
 import { Tags } from "lucide-react";
 import Link from "next/link";
 import { getPromociones } from "./actions";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function PromocionesPage() {
-  void dynamic;
-  await requireActiveSubscription();
 
   const permisos = await getSessionPermisos();
 

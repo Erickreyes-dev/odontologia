@@ -4,12 +4,8 @@ import NoAcceso from "@/components/noAccess";
 import { PlusCircle } from "lucide-react";
 import { getPermisos } from "../../permisos/actions";
 import { FormularioRol } from "../components/Formulario"; // Asegúrate de que el formulario sea para Empleados
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function Create() {
-  void dynamic;
-  await requireActiveSubscription();
 
 
 

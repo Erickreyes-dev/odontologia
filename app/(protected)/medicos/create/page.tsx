@@ -7,8 +7,6 @@ import { prisma } from "@/lib/prisma";
 import { getEmpleados } from "../../empleados/actions";
 import { getProfesionesActivas } from "../../profesiones/actions";
 import { MedicoFormulario } from "../components/Form";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function CreateMedico({
 
@@ -16,8 +14,6 @@ export default async function CreateMedico({
 }: {
   searchParams?: { fromSetup?: string };
 }) {
-  void dynamic;
-  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
 
   const session = await getSession();

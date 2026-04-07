@@ -4,8 +4,6 @@ import NoAcceso from "@/components/noAccess";
 import { Boxes } from "lucide-react";
 import { getProductoById } from "../../actions";
 import { FormularioProducto } from "../../components/form";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 interface Props {
   params: { id: string };
@@ -13,8 +11,6 @@ interface Props {
 
 export default async function EditProductoPage({
  params }: Props) {
-  void dynamic;
-  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
   if (!permisos?.includes("editar_inventario")) {
     return <NoAcceso />;

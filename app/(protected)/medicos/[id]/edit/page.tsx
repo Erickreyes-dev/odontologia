@@ -7,14 +7,10 @@ import { getMedicoById } from "../../actions";
 import { getEmpleados } from "@/app/(protected)/empleados/actions";
 import { getProfesionesActivas } from "@/app/(protected)/profesiones/actions";
 import { MedicoFormulario } from "../../components/Form";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 
 export default async function EditMedico({
  params }: { params: { id: string } }) {
-  void dynamic;
-  await requireActiveSubscription();
   // Verificar permisos
   const permisos = await getSessionPermisos();
   if (!permisos?.includes("editar_medicos")) {

@@ -7,8 +7,6 @@ import { getSeguimientoContextoParaCita } from "../actions";
 import { getPacientesActivos } from "../../pacientes/actions";
 import { getMedicosActivos } from "../../medicos/actions";
 import { getConsultoriosActios } from "../../consultorios/actions";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function CreateCitaPage({
 
@@ -16,8 +14,6 @@ export default async function CreateCitaPage({
 }: {
   searchParams: { pacienteId?: string; seguimientoId?: string };
 }) {
-  void dynamic;
-  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("crear_citas")) {

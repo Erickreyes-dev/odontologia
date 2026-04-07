@@ -3,12 +3,8 @@ import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import {  ShieldPlus } from "lucide-react";
 import { SeguroFormulario } from "../components/Form";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function Create() {
-  void dynamic;
-  await requireActiveSubscription();
 
   const permisos = await getSessionPermisos();
 

@@ -3,8 +3,6 @@ import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import { PlusCircle } from "lucide-react";
 import { PuestoFormulario } from "../components/Form";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function Create({
 
@@ -12,8 +10,6 @@ export default async function Create({
 }: {
   searchParams?: { fromSetup?: string };
 }) {
-  void dynamic;
-  await requireActiveSubscription();
   const permisos = await getSessionPermisos();
 
   // Verifica permisos para crear puestos

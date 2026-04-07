@@ -9,13 +9,9 @@ import { Pencil } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getUsuarioById } from "../../actions";
 import { Formulario } from "../../components/Form";
-import dynamic from "next/dynamic";
-import { requireActiveSubscription } from "@/lib/require-active-subscription";
 
 export default async function Edit({
  params }: { params: { id: string } }) {
-  void dynamic;
-  await requireActiveSubscription();
 
 
 
