@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   getCitaParaConsulta,
   getConsultaByCitaId,
