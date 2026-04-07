@@ -23,6 +23,7 @@ export function OdontogramaSelector({ value, onChange }: OdontogramaSelectorProp
   const [isMounted, setIsMounted] = useState(false);
   const [selectedTooth, setSelectedTooth] = useState<ToothLike | null>(null);
   const [showTemporaryTeeth, setShowTemporaryTeeth] = useState(false);
+  const [showDemoMode, setShowDemoMode] = useState(false);
   const [showBiteEffect, setShowBiteEffect] = useState(false);
   const [isAnimatingBite, setIsAnimatingBite] = useState(false);
 
@@ -115,6 +116,8 @@ export function OdontogramaSelector({ value, onChange }: OdontogramaSelectorProp
           temporaryTeeth={temporaryTeeth}
           showTemporaryTeeth={showTemporaryTeeth}
           onToggleTemporaryTeeth={setShowTemporaryTeeth}
+          showDemoMode={showDemoMode}
+          onToggleDemoMode={setShowDemoMode}
           selectedTooth={selectedTooth}
           onToothClick={onToothClick}
           showBiteEffect={showBiteEffect}

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   getCitaParaConsulta,
   getConsultaByCitaId,
@@ -7,7 +8,6 @@ import {
   getServiciosActivos,
 } from "./actions";
 import HeaderComponent from "@/components/HeaderComponent";
-import { ConsultaForm } from "./components/ConsultaForm";
 import { Calendar } from "lucide-react";
 import { getSeguimientosPendientes } from "@/app/(protected)/planes-tratamiento/actions";
 import { getFinanciamientosPorPaciente } from "@/app/(protected)/pagos/actions";
@@ -15,6 +15,14 @@ import { getFinanciamientosPorPaciente } from "@/app/(protected)/pagos/actions";
 interface ConsultaPageProps {
   params: Promise<{ id: string }>;
 }
+
+const ConsultaForm = dynamic(
+  () => import("./components/ConsultaForm").then((mod) => mod.ConsultaForm),
+  {
+    ssr: false,
+    loading: () => <div className="rounded-md border bg-card p-6 text-sm text-muted-foreground">Cargando formulario de consulta...</div>,
+  }
+);
 
 export default async function ConsultaPage({ params }: ConsultaPageProps) {
   const { id } = await params;
