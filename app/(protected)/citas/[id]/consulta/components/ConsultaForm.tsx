@@ -10,6 +10,8 @@ import { differenceInYears, format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   Calendar,
+  ChevronDown,
+  ChevronUp,
   FileText,
   Loader2,
   Plus,
@@ -169,6 +171,9 @@ export function ConsultaForm({
   const [usarOdontograma, setUsarOdontograma] = useState(
     (consulta?.piezasTratadas?.length ?? 0) > 0
   );
+  const [mostrarProductos, setMostrarProductos] = useState(
+    (consulta?.productos?.length ?? 0) > 0
+  );
 
   const totalServicios = useMemo(
     () =>
@@ -257,6 +262,18 @@ export function ConsultaForm({
       seguimientosPorPlan.find((plan) => plan.planNombre === planSeleccionado)?.seguimientos ?? []
     );
   }, [planSeleccionado, seguimientosPorPlan]);
+  const hasSeguimientos = seguimientosPorPlan.length > 0;
+  const hasPromociones = promociones.length > 0;
+  const hasFinanciamientos = financiamientos.length > 0;
+  const hasOpcionesAvanzadas = hasSeguimientos || hasPromociones || hasFinanciamientos;
+  const [mostrarOpcionesAvanzadas, setMostrarOpcionesAvanzadas] = useState(
+    Boolean(
+      consulta?.seguimientoId ||
+        consulta?.promocionId ||
+        consulta?.financiamientoId ||
+        (consulta?.descuento ?? 0) > 0
+    )
+  );
 
   const applySeguimientoServicios = useCallback(
     (seguimientoId: string | null) => {
@@ -626,17 +643,36 @@ export function ConsultaForm({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <FieldLabel>Productos consumidos</FieldLabel>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => appendProducto({ productoId: "", cantidad: 1 })}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Agregar producto
-                </Button>
+                <div className="flex items-center gap-2">
+                  {!mostrarProductos ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMostrarProductos(true)}
+                    >
+                      Agregar productos
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setMostrarProductos(true);
+                      appendProducto({ productoId: "", cantidad: 1 });
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Agregar producto
+                  </Button>
+                </div>
               </div>
-              {productosFields.length === 0 ? (
+              {!mostrarProductos ? (
+                <p className="text-sm text-muted-foreground">
+                  Oculto para agilizar la consulta. Actívelo solo si consumió inventario.
+                </p>
+              ) : productosFields.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   Aún no hay productos registrados en esta consulta.
                 </p>
@@ -734,123 +770,156 @@ export function ConsultaForm({
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Field>
-                <FieldLabel>Plan de seguimiento (opcional)</FieldLabel>
-                <FieldContent>
-                  <Select
-                    value={planSeleccionado}
-                    onValueChange={(value) => {
-                      setPlanSeleccionado(value);
+            {hasOpcionesAvanzadas ? (
+              <div className="space-y-4 rounded-md border p-4">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between text-left"
+                  onClick={() => setMostrarOpcionesAvanzadas((prev) => !prev)}
+                >
+                  <div>
+                    <p className="font-medium text-sm">Opciones de plan y cobro</p>
+                    <p className="text-xs text-muted-foreground">
+                      Muestre esta sección solo si aplica plan, promoción o financiamiento.
+                    </p>
+                  </div>
+                  {mostrarOpcionesAvanzadas ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
 
-                      if (value === "none") {
-                        form.setValue("seguimientoId", null);
-                        return;
-                      }
+                {mostrarOpcionesAvanzadas ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {hasSeguimientos ? (
+                      <Field>
+                        <FieldLabel>Plan de seguimiento (opcional)</FieldLabel>
+                        <FieldContent>
+                          <Select
+                            value={planSeleccionado}
+                            onValueChange={(value) => {
+                              setPlanSeleccionado(value);
 
-                      const etapaEnOrden =
-                        seguimientosPorPlan.find((plan) => plan.planNombre === value)?.seguimientos[0] ??
-                        null;
+                              if (value === "none") {
+                                form.setValue("seguimientoId", null);
+                                return;
+                              }
 
-                      form.setValue("seguimientoId", etapaEnOrden?.id ?? null);
-                      applySeguimientoServicios(etapaEnOrden?.id ?? null);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccione un plan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sin plan</SelectItem>
-                      {seguimientosPorPlan.map((plan) => (
-                        <SelectItem key={plan.planNombre} value={plan.planNombre}>
-                          {plan.planNombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldContent>
-                {seguimientoSeleccionado ? (
-                  <FieldDescription>
-                    El plan correspondiente es {seguimientoSeleccionado.planNombre || "Plan"}. Si desea cambiarlo, puede elegir otra etapa del plan.
-                  </FieldDescription>
+                              const etapaEnOrden =
+                                seguimientosPorPlan.find((plan) => plan.planNombre === value)?.seguimientos[0] ??
+                                null;
+
+                              form.setValue("seguimientoId", etapaEnOrden?.id ?? null);
+                              applySeguimientoServicios(etapaEnOrden?.id ?? null);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccione un plan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sin plan</SelectItem>
+                              {seguimientosPorPlan.map((plan) => (
+                                <SelectItem key={plan.planNombre} value={plan.planNombre}>
+                                  {plan.planNombre}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FieldContent>
+                        {seguimientoSeleccionado ? (
+                          <FieldDescription>
+                            El plan correspondiente es {seguimientoSeleccionado.planNombre || "Plan"}.
+                          </FieldDescription>
+                        ) : null}
+                      </Field>
+                    ) : null}
+
+                    {hasSeguimientos && planSeleccionado !== "none" && etapasPlanSeleccionado.length > 0 ? (
+                      <Field>
+                        <FieldLabel>Etapa del plan</FieldLabel>
+                        <FieldContent>
+                          <Select
+                            value={form.watch("seguimientoId") || "none"}
+                            onValueChange={(value) => {
+                              const nextValue = value === "none" ? null : value;
+                              form.setValue("seguimientoId", nextValue);
+                              applySeguimientoServicios(nextValue);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccione una etapa" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Etapa automática (primera)</SelectItem>
+                              {etapasPlanSeleccionado.map((etapa, index) => (
+                                <SelectItem key={etapa.id} value={etapa.id}>
+                                  {`Etapa ${index + 1}: ${etapa.etapaNombre || "Etapa"}`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FieldContent>
+                      </Field>
+                    ) : null}
+
+                    {hasPromociones ? (
+                      <Field>
+                        <FieldLabel>Promoción / paquete (opcional)</FieldLabel>
+                        <FieldContent>
+                          <Select
+                            value={form.watch("promocionId") || "none"}
+                            onValueChange={(value) =>
+                              form.setValue("promocionId", value === "none" ? null : value)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccione una promoción" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sin promoción</SelectItem>
+                              {promociones.map((promo) => (
+                                <SelectItem key={promo.id} value={promo.id}>
+                                  {promo.nombre} · L {promo.precioPromocional.toFixed(2)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FieldContent>
+                      </Field>
+                    ) : null}
+
+                    {hasFinanciamientos ? (
+                      <Field>
+                        <FieldLabel>Financiamiento (opcional)</FieldLabel>
+                        <FieldContent>
+                          <Select
+                            value={form.watch("financiamientoId") || "none"}
+                            onValueChange={(value) =>
+                              form.setValue("financiamientoId", value === "none" ? null : value)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccione un financiamiento" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sin financiamiento</SelectItem>
+                              {financiamientos.map((fin) => (
+                                <SelectItem key={fin.id} value={fin.id}>
+                                  Fin. #{fin.id.slice(0, 8)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FieldContent>
+                      </Field>
+                    ) : null}
+                  </div>
                 ) : null}
-              </Field>
+              </div>
+            ) : null}
 
-              {planSeleccionado !== "none" && etapasPlanSeleccionado.length > 0 ? (
-                <Field>
-                  <FieldLabel>Etapa del plan</FieldLabel>
-                  <FieldContent>
-                    <Select
-                      value={form.watch("seguimientoId") || "none"}
-                      onValueChange={(value) => {
-                        const nextValue = value === "none" ? null : value;
-                        form.setValue("seguimientoId", nextValue);
-                        applySeguimientoServicios(nextValue);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione una etapa" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Etapa automática (primera)</SelectItem>
-                        {etapasPlanSeleccionado.map((etapa, index) => (
-                          <SelectItem key={etapa.id} value={etapa.id}>
-                            {`Etapa ${index + 1}: ${etapa.etapaNombre || "Etapa"}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FieldContent>
-                </Field>
-              ) : null}
-
-              <Field>
-                <FieldLabel>Promoción / paquete (opcional)</FieldLabel>
-                <FieldContent>
-                  <Select
-                    value={form.watch("promocionId") || "none"}
-                    onValueChange={(value) =>
-                      form.setValue("promocionId", value === "none" ? null : value)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccione una promoción" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sin promoción</SelectItem>
-                      {promociones.map((promo) => (
-                        <SelectItem key={promo.id} value={promo.id}>
-                          {promo.nombre} · L {promo.precioPromocional.toFixed(2)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldContent>
-              </Field>
-
-              <Field>
-                <FieldLabel>Financiamiento (opcional)</FieldLabel>
-                <FieldContent>
-                  <Select
-                    value={form.watch("financiamientoId") || "none"}
-                    onValueChange={(value) =>
-                      form.setValue("financiamientoId", value === "none" ? null : value)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccione un financiamiento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sin financiamiento</SelectItem>
-                      {financiamientos.map((fin) => (
-                        <SelectItem key={fin.id} value={fin.id}>
-                          Fin. #{fin.id.slice(0, 8)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldContent>
-              </Field>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
               <Controller
                 name="descuento"
