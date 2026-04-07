@@ -6,6 +6,7 @@ import { getServicios } from "../../servicios/actions";
 import { PromocionForm } from "../components/Form";
 
 export default async function CreatePromocionPage() {
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("crear_promociones")) {

@@ -10,6 +10,7 @@ import SeguroListMobile from "./components/seguro-list-mobile";
 
 export default async function Seguros() {
 
+
   const session = await getSession();
   const permisos = await getSessionPermisos();
 

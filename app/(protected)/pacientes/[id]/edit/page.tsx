@@ -8,7 +8,8 @@ import { getPacienteById } from "../../actions";
 import { PacienteFormulario } from "../../components/Form";
 import { getSegurosActivos } from "@/app/(protected)/seguros/actions";
 
-export default async function EditSeguro({ params }: { params: { id: string } }) {
+export default async function EditSeguro({
+ params }: { params: { id: string } }) {
     // Verificar si hay una sesión activa
 
     const permisos = await getSessionPermisos();

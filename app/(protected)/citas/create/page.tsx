@@ -9,6 +9,7 @@ import { getMedicosActivos } from "../../medicos/actions";
 import { getConsultoriosActios } from "../../consultorios/actions";
 
 export default async function CreateCitaPage({
+
   searchParams,
 }: {
   searchParams: { pacienteId?: string; seguimientoId?: string };

@@ -17,6 +17,7 @@ import { getOrdenesCobroPendientes } from "@/app/(protected)/ordenes-cobro/actio
 import { prisma } from "@/lib/prisma";
 
 export default async function PagosPage({
+
   searchParams,
 }: {
   searchParams: Promise<{ pacienteId?: string }>;

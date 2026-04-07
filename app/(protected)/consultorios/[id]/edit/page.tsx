@@ -7,7 +7,8 @@ import { redirect } from "next/navigation";
 import { getConsultorioById } from "../../actions";
 import { ConsultorioFormulario } from "../../components/Form";
 
-export default async function EditConsultorio({ params }: { params: { id: string } }) {
+export default async function EditConsultorio({
+ params }: { params: { id: string } }) {
   // Verificar si hay una sesión activa
 
   const permisos = await getSessionPermisos();

@@ -7,6 +7,7 @@ import { CitasCalendar } from "../components/citas-calendar";
 import { endOfMonth, format, startOfMonth } from "date-fns";
 
 export default async function CitasCalendarioPage() {
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_citas")) {

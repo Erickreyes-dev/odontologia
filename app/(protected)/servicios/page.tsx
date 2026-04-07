@@ -9,6 +9,7 @@ import { columns } from "./components/columns";
 import ServicioListMobile from "./components/servicio-list-mobile";
 
 export default async function VerServiciosPage() {
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_servicios")) {

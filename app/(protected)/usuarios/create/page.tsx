@@ -12,6 +12,7 @@ export default async function Create() {
 
 
 
+
   const permisos = await getSessionPermisos();
   if (!permisos?.includes("crear_usuario")) {
     return <NoAcceso />;

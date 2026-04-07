@@ -10,6 +10,7 @@ import { getMedicosActivos } from "@/app/(protected)/medicos/actions";
 import { getConsultoriosActios } from "@/app/(protected)/consultorios/actions";
 
 export default async function EditCitaPage({
+
   params,
 }: {
   params: { id: string };

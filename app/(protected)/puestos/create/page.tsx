@@ -5,6 +5,7 @@ import { PlusCircle } from "lucide-react";
 import { PuestoFormulario } from "../components/Form";
 
 export default async function Create({
+
   searchParams,
 }: {
   searchParams?: { fromSetup?: string };

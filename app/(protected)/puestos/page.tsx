@@ -9,6 +9,7 @@ import PuestoListMobile from "./components/puesto-list-mobile";
 
 export default async function Puestos() {
 
+
   const permisos = await getSessionPermisos();
 
 

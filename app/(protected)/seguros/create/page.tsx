@@ -5,6 +5,7 @@ import {  ShieldPlus } from "lucide-react";
 import { SeguroFormulario } from "../components/Form";
 
 export default async function Create() {
+
   const permisos = await getSessionPermisos();
 
   // Verifica permisos para crear puestos

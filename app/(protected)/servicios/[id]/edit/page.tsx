@@ -10,7 +10,8 @@ interface Props {
   params: { id: string };
 }
 
-export default async function EditServicioPage({ params }: Props) {
+export default async function EditServicioPage({
+ params }: Props) {
   const permisos = await getSessionPermisos();
   if (!permisos?.includes("editar_medicos") && !permisos?.includes("editar_servicios")) {
     return <NoAcceso />;

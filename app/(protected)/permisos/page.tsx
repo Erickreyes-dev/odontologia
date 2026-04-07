@@ -9,6 +9,7 @@ import PermissionListMobile from "./components/permisos-list-mobile";
 
 export default async function EstadoServicio() {
 
+
   const permisos = await getSessionPermisos();
 
 

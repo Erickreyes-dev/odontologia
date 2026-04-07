@@ -8,6 +8,7 @@ import { getPuestosActivas } from "../../puestos/actions";
 import { EmpleadoFormulario } from "../components/Form"; // Asegúrate de que el formulario sea para Empleados
 
 export default async function Create({
+
   searchParams,
 }: {
   searchParams?: { fromSetup?: string };

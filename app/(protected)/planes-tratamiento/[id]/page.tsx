@@ -10,7 +10,8 @@ interface PlanDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function PlanDetailPage({ params }: PlanDetailPageProps) {
+export default async function PlanDetailPage({
+ params }: PlanDetailPageProps) {
   const { id } = await params;
   const permisos = await getSessionPermisos();
 

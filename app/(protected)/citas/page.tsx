@@ -12,7 +12,8 @@ interface CitasPageProps {
   searchParams?: { from?: string; to?: string };
 }
 
-export default async function CitasPage({ searchParams }: CitasPageProps) {
+export default async function CitasPage({
+ searchParams }: CitasPageProps) {
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_citas")) {

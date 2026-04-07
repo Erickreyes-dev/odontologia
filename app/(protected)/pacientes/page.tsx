@@ -7,6 +7,7 @@ import { PacienteTable } from "./components/paciente-table";
 import PacienteListMobile from "./components/seguro-list-mobile";
 
 export default async function PacientesPage() {
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_pacientes")) {

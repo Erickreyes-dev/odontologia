@@ -7,6 +7,7 @@ import { getOrdenesCobro } from "./actions";
 import { getPacientesActivos, getPlanesActivos, getFinanciamientos } from "@/app/(protected)/pagos/actions";
 
 export default async function OrdenesCobroPage() {
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_pagos")) {

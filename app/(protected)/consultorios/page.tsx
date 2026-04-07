@@ -9,6 +9,7 @@ import ConsultorioListMobile from "./components/seguro-list-mobile";
 
 export default async function Consultorio() {
 
+
   const permisos = await getSessionPermisos();
 
 

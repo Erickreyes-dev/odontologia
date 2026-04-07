@@ -6,6 +6,7 @@ import { PagoEstado } from "@/lib/generated/prisma";
 import { DashboardClient } from "./components/dashboard-client";
 
 export default async function DashboardPage() {
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_pagos")) {

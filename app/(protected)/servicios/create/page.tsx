@@ -6,6 +6,7 @@ import { FormularioServicio } from "../components/form";
 import { getMedicosActivos } from "../../medicos/actions";
 
 export default async function CreateServicioPage() {
+
   const permisos = await getSessionPermisos();
   if (!permisos?.includes("crear_medicos") && !permisos?.includes("crear_servicios")) {
     return <NoAcceso />;

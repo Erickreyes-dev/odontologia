@@ -6,6 +6,7 @@ import { PacienteFormulario } from "../components/Form";
 import { getSegurosActivos } from "../../seguros/actions";
 
 export default async function Create() {
+
     const permisos = await getSessionPermisos();
 
 

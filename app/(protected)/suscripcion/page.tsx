@@ -6,6 +6,7 @@ import { AlertTriangle, CreditCard } from "lucide-react";
 import Link from "next/link";
 
 export default async function SuscripcionPage({
+
   searchParams,
 }: {
   searchParams?: Record<string, string | string[] | undefined>;

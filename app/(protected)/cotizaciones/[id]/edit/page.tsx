@@ -8,6 +8,7 @@ import { CotizacionFormulario } from "../../components/Form";
 import { getPacientesActivos } from "../../../pacientes/actions";
 
 export default async function EditCotizacion({
+
   params,
 }: {
   params: Promise<{ id: string }>;

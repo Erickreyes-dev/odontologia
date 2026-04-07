@@ -8,7 +8,8 @@ import { redirect } from "next/navigation";
 import { getRolPermisoById } from "../../actions";
 import { FormularioRol } from "../../components/Formulario";
 
-export default async function Edit({ params }: { params: { id: string } }) {
+export default async function Edit({
+ params }: { params: { id: string } }) {
   // Verificar si hay una sesión activa
 
   const permisos = await getSessionPermisos();

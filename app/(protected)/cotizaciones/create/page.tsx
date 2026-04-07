@@ -10,7 +10,8 @@ interface CreatePageProps {
   searchParams: Promise<{ pacienteId?: string }>;
 }
 
-export default async function Create({ searchParams }: CreatePageProps) {
+export default async function Create({
+ searchParams }: CreatePageProps) {
   const permisos = await getSessionPermisos();
   const { pacienteId } = await searchParams;
 

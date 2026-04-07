@@ -12,7 +12,8 @@ interface EditPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function Edit({ params }: EditPageProps) {
+export default async function Edit({
+ params }: EditPageProps) {
   const { id } = await params;
   const permisos = await getSessionPermisos();
 

@@ -9,6 +9,7 @@ import ProfesionListMobile from "./components/profesion-list-mobile";
 
 export default async function Profesion() {
 
+
   const permisos = await getSessionPermisos();
 
 

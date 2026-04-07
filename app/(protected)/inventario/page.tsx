@@ -10,6 +10,7 @@ import InventarioHistorial from "./components/inventario-historial";
 import { HistorialDateRangeFilter } from "./components/historial-date-range-filter";
 
 export default async function InventarioPage({
+
   searchParams,
 }: {
   searchParams: Promise<{ desde?: string; hasta?: string }>

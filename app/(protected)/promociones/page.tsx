@@ -9,6 +9,7 @@ import Link from "next/link";
 import { getPromociones } from "./actions";
 
 export default async function PromocionesPage() {
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_promociones")) {

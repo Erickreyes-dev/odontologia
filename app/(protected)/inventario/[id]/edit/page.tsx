@@ -9,7 +9,8 @@ interface Props {
   params: { id: string };
 }
 
-export default async function EditProductoPage({ params }: Props) {
+export default async function EditProductoPage({
+ params }: Props) {
   const permisos = await getSessionPermisos();
   if (!permisos?.includes("editar_inventario")) {
     return <NoAcceso />;

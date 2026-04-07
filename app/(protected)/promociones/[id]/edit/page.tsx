@@ -7,7 +7,8 @@ import { getServicios } from "../../../servicios/actions";
 import { getPromocionById } from "../../actions";
 import { PromocionForm } from "../../components/Form";
 
-export default async function EditPromocionPage({ params }: { params: { id: string } }) {
+export default async function EditPromocionPage({
+ params }: { params: { id: string } }) {
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("editar_promociones")) {

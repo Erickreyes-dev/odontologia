@@ -7,7 +7,8 @@ import { redirect } from "next/navigation";
 import { getSeguroById } from "../../actions";
 import { SeguroFormulario } from "../../components/Form";
 
-export default async function EditSeguro({ params }: { params: { id: string } }) {
+export default async function EditSeguro({
+ params }: { params: { id: string } }) {
   // Verificar si hay una sesión activa
 
   const permisos = await getSessionPermisos();

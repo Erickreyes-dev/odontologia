@@ -8,6 +8,7 @@ import { FinanciamientoDetalleClient } from "../../components/FinanciamientoDeta
 import { getOrdenesCobroPendientes } from "@/app/(protected)/ordenes-cobro/actions";
 
 export default async function FinanciamientoDetallePage({
+
   params,
 }: {
   params: Promise<{ id: string }>;

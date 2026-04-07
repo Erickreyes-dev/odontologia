@@ -13,6 +13,7 @@ import { getSegurosActivos } from "@/app/(protected)/seguros/actions";
 import { prisma } from "@/lib/prisma";
 
 export default async function PacientePerfilPage({
+
   params,
 }: {
   params: { id: string };

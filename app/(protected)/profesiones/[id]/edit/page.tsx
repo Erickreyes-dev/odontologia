@@ -7,7 +7,8 @@ import { redirect } from "next/navigation";
 import { getProfesionById } from "../../actions";
 import { ProfesionFormulario } from "../../components/Form";
 
-export default async function EditProfesion({ params }: { params: { id: string } }) {
+export default async function EditProfesion({
+ params }: { params: { id: string } }) {
   // Verificar si hay una sesión activa
 
   const permisos = await getSessionPermisos();

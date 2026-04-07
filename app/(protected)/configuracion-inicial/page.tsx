@@ -26,6 +26,7 @@ type SetupStep = {
 };
 
 export default async function ConfiguracionInicialPage() {
+
   const session = await getSession();
 
   if (!session) {

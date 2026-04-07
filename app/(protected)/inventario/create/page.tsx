@@ -5,6 +5,7 @@ import { Boxes } from "lucide-react";
 import { FormularioProducto } from "../components/form";
 
 export default async function CreateProductoPage() {
+
   const permisos = await getSessionPermisos();
   if (!permisos?.includes("crear_inventario")) {
     return <NoAcceso />;

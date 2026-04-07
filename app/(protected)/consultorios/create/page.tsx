@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { ConsultorioFormulario } from "../components/Form";
 
 export default async function Create({
+
   searchParams,
 }: {
   searchParams?: { fromSetup?: string };

@@ -8,6 +8,7 @@ import { DataTable } from "./components/data-table";
 import { PlanListMobile } from "./components/plan-list-mobile";
 
 export default async function PlanesTratamientoPage() {
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_planes_tratamiento")) {

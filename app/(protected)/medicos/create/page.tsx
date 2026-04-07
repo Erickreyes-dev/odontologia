@@ -9,6 +9,7 @@ import { getProfesionesActivas } from "../../profesiones/actions";
 import { MedicoFormulario } from "../components/Form";
 
 export default async function CreateMedico({
+
   searchParams,
 }: {
   searchParams?: { fromSetup?: string };

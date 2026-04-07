@@ -10,7 +10,8 @@ import { redirect } from "next/navigation";
 import { getUsuarioById } from "../../actions";
 import { Formulario } from "../../components/Form";
 
-export default async function Edit({ params }: { params: { id: string } }) {
+export default async function Edit({
+ params }: { params: { id: string } }) {
 
 
 

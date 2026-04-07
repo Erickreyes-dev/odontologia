@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import dynamic from "next/dynamic";
 import {
   getCitaParaConsulta,
   getConsultaByCitaId,
@@ -24,7 +23,8 @@ const ConsultaForm = dynamic(
   }
 );
 
-export default async function ConsultaPage({ params }: ConsultaPageProps) {
+export default async function ConsultaPage({
+ params }: ConsultaPageProps) {
   const { id } = await params;
   
   const [cita, consulta] = await Promise.all([

@@ -6,6 +6,7 @@ import MiClinicaForm from "./components/mi-clinica-form";
 import { getTenantClinicProfile } from "./actions";
 
 export default async function MiClinicaPage() {
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_profile")) {

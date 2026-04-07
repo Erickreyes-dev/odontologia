@@ -9,7 +9,8 @@ import { getProfesionesActivas } from "@/app/(protected)/profesiones/actions";
 import { MedicoFormulario } from "../../components/Form";
 
 
-export default async function EditMedico({ params }: { params: { id: string } }) {
+export default async function EditMedico({
+ params }: { params: { id: string } }) {
   // Verificar permisos
   const permisos = await getSessionPermisos();
   if (!permisos?.includes("editar_medicos")) {

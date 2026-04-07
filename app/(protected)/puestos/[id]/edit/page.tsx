@@ -7,7 +7,8 @@ import { redirect } from "next/navigation";
 import { getPuestoById } from "../../actions";
 import { PuestoFormulario } from "../../components/Form";
 
-export default async function Edit({ params }: { params: { id: string } }) {
+export default async function Edit({
+ params }: { params: { id: string } }) {
   // Verificar si hay una sesión activa
 
   const permisos = await getSessionPermisos();

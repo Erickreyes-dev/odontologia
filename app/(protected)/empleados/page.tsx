@@ -9,6 +9,7 @@ import EmployeeListMobile from "./components/employee-list-mobile";
 
 export default async function Empleados() {
 
+
   const permisos = await getSessionPermisos();
 
   const data = await getEmpleados();

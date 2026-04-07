@@ -8,6 +8,7 @@ import { DataTable } from "./components/data-table";
 import CotizacionListMobile from "./components/cotizacion-list-mobile";
 
 export default async function Cotizaciones() {
+
   const permisos = await getSessionPermisos();
 
   if (!permisos?.includes("ver_cotizaciones")) {
