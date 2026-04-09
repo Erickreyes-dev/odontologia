@@ -19,6 +19,8 @@ const SETUP_ALLOWED_PREFIXES = [
   "/pacientes",
   "/servicios",
   "/citas",
+  "/ordenes-cobro",
+  "/pagos",
   "/profile",
   "/billing",
   "/suscripcion",
