@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Receipt } from "lucide-react";
@@ -11,6 +11,7 @@ import { OrdenCobroFormModal } from "./OrdenCobroFormModal";
 import type { OrdenCobroWithRelations } from "../schema";
 import { anularOrdenCobro } from "../actions";
 import OrdenesCobroListMobile from "./ordenes-cobro-list-mobile";
+import { PagoFormModal } from "@/app/(protected)/pagos/components/PagoFormModal";
 
 interface OrdenesCobroPageClientProps {
   ordenes: OrdenCobroWithRelations[];
@@ -22,9 +23,12 @@ interface OrdenesCobroPageClientProps {
 export function OrdenesCobroPageClient({
   ordenes,
   pacientes,
+  financiamientos,
 }: OrdenesCobroPageClientProps) {
-  const router = useRouter(); 
+  const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
+  const [pagoModalOpen, setPagoModalOpen] = useState(false);
+  const [selectedOrdenId, setSelectedOrdenId] = useState<string | undefined>(undefined);
 
   const handleAnular = async (id: string) => {
     const result = await anularOrdenCobro(id);
@@ -36,7 +40,26 @@ export function OrdenesCobroPageClient({
     }
   };
 
-  const columns = getColumns({ onAnular: handleAnular });
+  const handlePagar = (ordenId: string) => {
+    setSelectedOrdenId(ordenId);
+    setPagoModalOpen(true);
+  };
+
+  const columns = getColumns({ onAnular: handleAnular, onPagar: handlePagar });
+  const pacientesById = useMemo(() => new Map(pacientes.map((paciente) => [paciente.id, paciente])), [pacientes]);
+  const ordenesPendientes = useMemo(
+    () =>
+      ordenes
+        .filter((orden) => orden.estado === "PENDIENTE")
+        .map((orden) => ({
+          id: orden.id,
+          pacienteNombre: orden.pacienteNombre ?? "Paciente",
+          monto: orden.monto,
+          financiamientoId: orden.financiamientoId ?? null,
+        })),
+    [ordenes],
+  );
+  const ordenSeleccionada = ordenesPendientes.find((orden) => orden.id === selectedOrdenId);
 
   return (
     <>
@@ -51,7 +74,7 @@ export function OrdenesCobroPageClient({
         <DataTable columns={columns} data={ordenes} />
       </div>
       <div className="block md:hidden">
-        <OrdenesCobroListMobile ordenes={ordenes} onAnular={handleAnular} />
+        <OrdenesCobroListMobile ordenes={ordenes} onAnular={handleAnular} onPagar={handlePagar} />
       </div>
 
       <OrdenCobroFormModal
@@ -60,6 +83,32 @@ export function OrdenesCobroPageClient({
         pacientes={pacientes}
         onSuccess={() => {
           setModalOpen(false);
+          router.refresh();
+        }}
+      />
+
+      <PagoFormModal
+        open={pagoModalOpen}
+        onOpenChange={(open) => {
+          setPagoModalOpen(open);
+          if (!open) {
+            setSelectedOrdenId(undefined);
+          }
+        }}
+        ordenesCobro={ordenesPendientes}
+        ordenCobroId={ordenSeleccionada?.id}
+        monto={ordenSeleccionada?.monto}
+        financiamientos={financiamientos.map((financiamiento) => {
+          const paciente = pacientesById.get(financiamiento.pacienteId);
+          return {
+            id: financiamiento.id,
+            pacienteId: financiamiento.pacienteId,
+            pacienteNombre: paciente ? `${paciente.nombre} ${paciente.apellido}`.trim() : "Paciente",
+          };
+        })}
+        onSuccess={() => {
+          setPagoModalOpen(false);
+          setSelectedOrdenId(undefined);
           router.refresh();
         }}
       />
