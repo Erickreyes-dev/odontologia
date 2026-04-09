@@ -11,8 +11,24 @@ import { TenantCreateInput, TenantPlanUpdateInput, tenantCreateSchema, tenantPla
 import { resolveCurrencyByCountry } from "@/lib/country-currency";
 import { calculateExpirationDateByPlan, resolveSubscriptionStatus } from "@/lib/subscription-status";
 
+function calculatePackageAmountByPeriod(
+  paquete: {
+    precio: unknown;
+    precioTrimestral: unknown;
+    precioSemestral: unknown;
+    precioAnual: unknown;
+  },
+  periodoPlan: string,
+) {
+  const mensual = Number(paquete.precio ?? 0);
+  if (periodoPlan === "trimestral") return Number(paquete.precioTrimestral ?? mensual * 3);
+  if (periodoPlan === "semestral") return Number(paquete.precioSemestral ?? mensual * 6);
+  if (periodoPlan === "anual") return Number(paquete.precioAnual ?? mensual * 12);
+  return mensual;
+}
+
 export async function getTenantsData() {
-  const [paquetes, tenants, paidInvoices, pendingInvoices] = await Promise.all([
+  const [paquetes, tenants, paidInvoices, pendingInvoices, pendingInvoiceTenants] = await Promise.all([
     prisma.paquete.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.tenant.findMany({
       take: 30,
@@ -32,16 +48,37 @@ export async function getTenantsData() {
       _count: { _all: true },
       where: { estado: "pendiente" },
     }),
+    prisma.tenantInvoice.findMany({
+      where: { estado: "pendiente" },
+      select: { tenantId: true },
+      distinct: ["tenantId"],
+    }),
   ]);
+
+  const pendingTenantIds = new Set(pendingInvoiceTenants.map((invoice) => invoice.tenantId));
+  const now = new Date();
+
+  const missingPendingTenants = tenants.filter((tenant) => {
+    const hasPendingInvoice = pendingTenantIds.has(tenant.id);
+    const isTrialActive = tenant.trialEndsAt ? new Date(tenant.trialEndsAt) > now : false;
+    const isDueNow = tenant.proximoPago ? new Date(tenant.proximoPago) <= now : false;
+
+    return tenant.activo && !isTrialActive && isDueNow && !hasPendingInvoice && Boolean(tenant.paquete);
+  });
+
+  const missingPendingAmount = missingPendingTenants.reduce((total, tenant) => {
+    if (!tenant.paquete) return total;
+    return total + calculatePackageAmountByPeriod(tenant.paquete, tenant.periodoPlan);
+  }, 0);
 
   return {
     paquetes,
     tenants,
     metrics: {
       paidCount: paidInvoices._count._all,
-      pendingCount: pendingInvoices._count._all,
+      pendingCount: pendingInvoices._count._all + missingPendingTenants.length,
       ingresosTotales: Number(paidInvoices._sum.total ?? paidInvoices._sum.monto ?? 0),
-      ingresosPendientes: Number(pendingInvoices._sum.total ?? pendingInvoices._sum.monto ?? 0),
+      ingresosPendientes: Number(pendingInvoices._sum.total ?? pendingInvoices._sum.monto ?? 0) + missingPendingAmount,
     },
   };
 }
