@@ -48,7 +48,7 @@ export default function TenantPlanEditor({
         paqueteId,
         periodoPlan: periodoPlan as "mensual" | "trimestral" | "semestral" | "anual",
         estado,
-        fechaExpiracion,
+        fechaExpiracion: new Date(fechaExpiracion),
       });
 
       if (!result.success) {
