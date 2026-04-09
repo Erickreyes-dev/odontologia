@@ -9,7 +9,7 @@ import {
   requestEmailRegistrationVerification,
   validateEmailRegistrationToken,
 } from "../email-onboarding/actions";
-import { BadgeCheck, Building2, Check, Globe, ShieldCheck, Sparkles, Stethoscope } from "lucide-react";
+import { BadgeCheck, Building2, Check, Globe, ShieldCheck, Sparkles, Stethoscope, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -99,6 +99,10 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
   const exceedsSelectedPackage = selectedTeamMinMembers > Number(selectedPackage?.maxUsuarios ?? 0);
 
   const slugPreview = normalizeSlug(consultorioNombre || "tu-clinica");
+  const isClinicStepComplete = consultorioNombre.trim().length > 2;
+  const isPackageStepComplete = Boolean(selectedPackage?.id);
+  const isIdentityStepComplete = authMethod === "google" ? Boolean(credential) : Boolean(verifiedEmailToken);
+  const currentStep = !isClinicStepComplete ? 1 : !isPackageStepComplete ? 2 : !isIdentityStepComplete ? 3 : 4;
 
   useEffect(() => {
     const script = document.createElement("script");
@@ -293,14 +297,59 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.05fr_1fr]">
-      <Card className="border-slate-700 bg-slate-900/80 shadow-xl">
+    <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+      <Card className="border-slate-700/80 bg-slate-900/75 shadow-xl">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-2xl text-white"><Sparkles className="h-5 w-5 text-cyan-300" /> Registro de clínica en 3 pasos</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-2xl text-white">
+            <Sparkles className="h-5 w-5 text-cyan-300" /> Crea tu clínica en minutos
+          </CardTitle>
+          <p className="text-sm text-slate-300">
+            Esta pantalla te guía paso a paso para configurar tu clínica: nombre, integrantes y paquete antes de activarla.
+          </p>
+          <div className="grid gap-2 pt-2 sm:grid-cols-3">
+            {[
+              { step: 1, label: "Datos de clínica", done: isClinicStepComplete, icon: Building2 },
+              { step: 2, label: "Paquete ideal", done: isPackageStepComplete, icon: BadgeCheck },
+              { step: 3, label: "Acceso seguro", done: isIdentityStepComplete, icon: ShieldCheck },
+            ].map((item) => {
+              const Icon = item.icon;
+              const isActive = currentStep === item.step;
+              return (
+                <div
+                  key={item.step}
+                  className={`rounded-xl border p-3 transition ${
+                    item.done
+                      ? "border-emerald-400/50 bg-emerald-500/10"
+                      : isActive
+                        ? "border-cyan-400/60 bg-cyan-500/10"
+                        : "border-slate-700 bg-slate-950/50"
+                  }`}
+                >
+                  <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">Paso {item.step}</p>
+                  <p className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <section className="space-y-4 rounded-2xl border border-slate-700 bg-slate-950/40 p-4">
-            <p className="flex items-center gap-2 text-sm font-semibold text-cyan-300"><Building2 className="h-4 w-4" /> 1) Datos de tu clínica</p>
+          <section className="space-y-4 rounded-2xl border border-slate-700 bg-slate-950/40 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="flex items-center gap-2 text-sm font-semibold text-cyan-300">
+                <Building2 className="h-4 w-4" /> Paso 1 · Datos de tu clínica
+              </p>
+              {isClinicStepComplete ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-200">
+                  <Check className="h-3 w-3" /> Completado
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs text-slate-400">
+              Como dueño de clínica, aquí defines la base de tu operación: nombre, tamaño del equipo y país de facturación.
+            </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2 sm:col-span-2">
                 <Label className="text-slate-200">Nombre comercial</Label>
@@ -329,16 +378,28 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
             </div>
           </section>
 
-          <section className="space-y-4 rounded-2xl border border-slate-700 bg-slate-950/40 p-4">
-            <p className="flex items-center gap-2 text-sm font-semibold text-cyan-300"><BadgeCheck className="h-4 w-4" /> 2) Selecciona paquete (definido por root)</p>
-            <div className="grid gap-3">
+          <section className="space-y-4 rounded-2xl border border-slate-700 bg-slate-950/40 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="flex items-center gap-2 text-sm font-semibold text-cyan-300">
+                <BadgeCheck className="h-4 w-4" /> Paso 2 · Elige tu paquete
+              </p>
+              {isPackageStepComplete ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-200">
+                  <Check className="h-3 w-3" /> Completado
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs text-slate-400">
+              Selecciona el plan que mejor se ajuste al número de integrantes y al ritmo de crecimiento de tu clínica.
+            </p>
+            <div className="grid gap-3 md:grid-cols-2">
               {activePackages.map((pkg) => {
                 const isSelected = packageId === pkg.id;
                 return (
                   <button key={pkg.id} type="button" onClick={() => setPackageId(pkg.id)} className={`rounded-xl border p-4 text-left transition ${isSelected ? "border-cyan-400 bg-cyan-500/10" : "border-slate-700 hover:border-slate-500"}`}>
                     <p className="font-semibold text-white">{pkg.nombre}</p>
                     <p className="text-xs text-slate-400">{pkg.descripcion || "Paquete disponibles"}</p>
-                    <p className="mt-1 text-xs text-slate-400">Hasta {pkg.maxUsuarios} usuarios</p>
+                    <p className="mt-1 flex items-center gap-1 text-xs text-slate-400"><Users className="h-3.5 w-3.5" /> Hasta {pkg.maxUsuarios} usuarios</p>
                   </button>
                 );
               })}
@@ -381,8 +442,20 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
             ) : null}
           </section>
 
-          <section className="space-y-3 rounded-2xl border border-slate-700 bg-slate-950/40 p-4">
-            <p className="flex items-center gap-2 text-sm font-semibold text-cyan-300"><ShieldCheck className="h-4 w-4" /> 3) Verifica tu identidad</p>
+          <section className="space-y-3 rounded-2xl border border-slate-700 bg-slate-950/40 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="flex items-center gap-2 text-sm font-semibold text-cyan-300">
+                <ShieldCheck className="h-4 w-4" /> Paso 3 · Verifica tu identidad
+              </p>
+              {isIdentityStepComplete ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-200">
+                  <Check className="h-3 w-3" /> Completado
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs text-slate-400">
+              Último paso para activar la clínica y entrar al sistema con tu equipo.
+            </p>
             <div className="grid grid-cols-2 gap-2">
               <Button type="button" variant={authMethod === "google" ? "default" : "outline"} className="w-full" onClick={() => setAuthMethod("google")}>
                 Google
@@ -441,6 +514,16 @@ export function RegistroClinicaWizard({ activePackages }: { activePackages: Pack
           <CardTitle className="text-xl text-white">Resumen de contratación</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-slate-300">
+          <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-4">
+            <p className="text-xs uppercase tracking-wide text-cyan-300">Progreso del registro</p>
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-800">
+              <div className="h-full rounded-full bg-cyan-400 transition-all" style={{ width: `${Math.min((currentStep / 3) * 100, 100)}%` }} />
+            </div>
+            <p className="mt-2 text-xs text-slate-400">
+              {currentStep <= 3 ? `Vas en el paso ${currentStep} de 3` : "Todos los pasos listos. Ya puedes activar tu clínica."}
+            </p>
+          </div>
+
           <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-4">
             <p className="flex items-center gap-2 text-base font-semibold text-white"><Stethoscope className="h-4 w-4 text-cyan-300" /> {selectedPackage?.nombre ?? "Sin paquete"}</p>
             <p className="mt-1 text-slate-400">{selectedPackage?.descripcion || "Configurado desde root del sistema"}</p>
