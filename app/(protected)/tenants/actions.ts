@@ -71,9 +71,21 @@ export async function getTenantsData() {
     return total + calculatePackageAmountByPeriod(tenant.paquete, tenant.periodoPlan);
   }, 0);
 
+  const allPendingTenantIds = new Set([...pendingTenantIds, ...missingPendingTenants.map((tenant) => tenant.id)]);
+  const tenantsConPagoPendiente = tenants
+    .filter((tenant) => allPendingTenantIds.has(tenant.id))
+    .map((tenant) => ({
+      id: tenant.id,
+      nombre: tenant.nombre,
+      slug: tenant.slug,
+      proximoPago: tenant.proximoPago,
+      contactoCorreo: tenant.contactoCorreo,
+    }));
+
   return {
     paquetes,
     tenants,
+    tenantsConPagoPendiente,
     metrics: {
       paidCount: paidInvoices._count._all,
       pendingCount: pendingInvoices._count._all + missingPendingTenants.length,
@@ -230,8 +242,8 @@ export async function updateTenantPlan(
           maxUsuarios: paquete.maxUsuarios,
           periodoPlan: data.periodoPlan,
           proximoPago: calculateExpirationDateByPlan(data.periodoPlan),
-          fechaExpiracion: calculateExpirationDateByPlan(data.periodoPlan),
-          estado: "vigente",
+          fechaExpiracion: data.fechaExpiracion,
+          estado: data.estado,
           monedaCodigo: resolveCurrencyByCountry(tenant?.paisCodigo).currency,
         },
       });
