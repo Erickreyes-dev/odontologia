@@ -17,7 +17,9 @@ type SetupStep = {
     | "paciente"
     | "servicio"
     | "cita"
-    | "consulta";
+    | "consulta"
+    | "ordenCobro"
+    | "pago";
   title: string;
   description: string;
   href: string;
@@ -55,6 +57,8 @@ export default async function ConfiguracionInicialPage() {
     serviciosCount,
     citasCount,
     consultasCount,
+    ordenesCobroCount,
+    pagosCount,
   ] = await Promise.all([
     prisma.puesto.count({ where: { tenantId: session.TenantId } }),
     prisma.empleados.count({ where: { tenantId: session.TenantId } }),
@@ -65,6 +69,8 @@ export default async function ConfiguracionInicialPage() {
     prisma.servicio.count({ where: { tenantId: session.TenantId } }),
     prisma.cita.count({ where: { tenantId: session.TenantId } }),
     prisma.consulta.count({ where: { tenantId: session.TenantId } }),
+    prisma.ordenDeCobro.count({ where: { tenantId: session.TenantId } }),
+    prisma.pago.count({ where: { tenantId: session.TenantId } }),
   ]);
 
   const flags = {
@@ -77,6 +83,8 @@ export default async function ConfiguracionInicialPage() {
     servicio: serviciosCount > 0,
     cita: citasCount > 0,
     consulta: consultasCount > 0,
+    ordenCobro: ordenesCobroCount > 0,
+    pago: pagosCount > 0,
   };
 
   const steps: SetupStep[] = [
@@ -152,6 +160,22 @@ export default async function ConfiguracionInicialPage() {
       completed: flags.consulta,
       locked: !flags.cita,
     },
+    {
+      key: "ordenCobro",
+      title: "10. Crear orden de cobro de ejemplo",
+      description: "Desde la consulta registrada, crea una orden de cobro para validar el flujo de facturación.",
+      href: "/ordenes-cobro",
+      completed: flags.ordenCobro,
+      locked: !flags.consulta,
+    },
+    {
+      key: "pago",
+      title: "11. Registrar pago de la cita/consulta",
+      description: "Registra el pago de la orden para cerrar el ciclo de prueba completo.",
+      href: "/ordenes-cobro",
+      completed: flags.pago,
+      locked: !flags.ordenCobro,
+    },
   ];
 
   const nextStep = steps.find((step) => !step.completed && !step.locked);
@@ -169,7 +193,7 @@ export default async function ConfiguracionInicialPage() {
         <CardHeader>
           <CardTitle>Flujo guiado de inicio</CardTitle>
           <CardDescription>
-            Completa los 9 pasos. Cuando termines, podrás usar el sistema con normalidad.
+            Completa los 11 pasos. Cuando termines, podrás usar el sistema con normalidad.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

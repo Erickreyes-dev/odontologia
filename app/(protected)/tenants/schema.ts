@@ -25,6 +25,11 @@ export const tenantPlanUpdateSchema = z.object({
   tenantId: z.string().uuid("Tenant inválido"),
   paqueteId: z.string().uuid("Paquete inválido"),
   periodoPlan: z.enum(periodosPlan, { message: "Seleccione un período de plan válido" }),
+  estado: z.enum(["vigente", "expirado", "cancelado"], { message: "Seleccione un estado comercial válido" }),
+  fechaExpiracion: z.coerce.date({
+    required_error: "La fecha de finalización es requerida",
+    invalid_type_error: "La fecha de finalización no es válida",
+  }),
 });
 
 export type TenantCreateInput = z.infer<typeof tenantCreateSchema>;

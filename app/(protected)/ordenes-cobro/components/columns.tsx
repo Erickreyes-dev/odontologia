@@ -41,10 +41,10 @@ const getEstadoBadge = (estado: string) => {
   }
 };
 
-type GetColumnsOptions = { onAnular?: (id: string) => void };
+type GetColumnsOptions = { onAnular?: (id: string) => void; onPagar?: (id: string) => void };
 
 export function getColumns(options?: GetColumnsOptions): ColumnDef<OrdenCobroWithRelations>[] {
-  const { onAnular } = options ?? {};
+  const { onAnular, onPagar } = options ?? {};
 
   return [
     {
@@ -80,6 +80,15 @@ export function getColumns(options?: GetColumnsOptions): ColumnDef<OrdenCobroWit
         const orden = row.original;
         return (
           <div className="flex items-center gap-2">
+            {orden.estado === "PENDIENTE" && onPagar && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPagar(orden.id)}
+              >
+                Pagar
+              </Button>
+            )}
             {orden.estado === "PENDIENTE" && onAnular && (
               <Button
                 variant="ghost"

@@ -13,6 +13,7 @@ import type { OrdenCobroWithRelations } from "../schema";
 interface OrdenesCobroListMobileProps {
   ordenes: OrdenCobroWithRelations[];
   onAnular?: (id: string) => void;
+  onPagar?: (id: string) => void;
 }
 
 const getEstadoBadge = (estado: string) => {
@@ -40,7 +41,7 @@ const getEstadoBadge = (estado: string) => {
   }
 };
 
-export default function OrdenesCobroListMobile({ ordenes, onAnular }: OrdenesCobroListMobileProps) {
+export default function OrdenesCobroListMobile({ ordenes, onAnular, onPagar }: OrdenesCobroListMobileProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredOrdenes = useMemo(() => {
@@ -86,11 +87,18 @@ export default function OrdenesCobroListMobile({ ordenes, onAnular }: OrdenesCob
                   </div>
                 </div>
 
-                {orden.estado === "PENDIENTE" && onAnular && (
-                  <div className="flex justify-end">
-                    <Button variant="ghost" size="sm" onClick={() => onAnular(orden.id)}>
-                      Anular
-                    </Button>
+                {orden.estado === "PENDIENTE" && (onAnular || onPagar) && (
+                  <div className="flex justify-end gap-2">
+                    {onPagar && (
+                      <Button variant="outline" size="sm" onClick={() => onPagar(orden.id)}>
+                        Pagar
+                      </Button>
+                    )}
+                    {onAnular && (
+                      <Button variant="ghost" size="sm" onClick={() => onAnular(orden.id)}>
+                        Anular
+                      </Button>
+                    )}
                   </div>
                 )}
               </CardContent>

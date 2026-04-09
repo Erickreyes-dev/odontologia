@@ -9,6 +9,7 @@ import {
   Building2,
   CalendarClock,
   CalendarDays,
+  CircleAlert,
   CircleDollarSign,
   Clock3,
   Globe2,
@@ -91,7 +92,7 @@ export default async function TenantsPage() {
     return <NoAcceso />;
   }
 
-  const { paquetes, tenants, metrics } = await getTenantsData();
+  const { paquetes, tenants, tenantsConPagoPendiente, metrics } = await getTenantsData();
   const now = new Date();
   const activeTrials = tenants.filter((tenant) => tenant.trialEndsAt && new Date(tenant.trialEndsAt) > now).length;
 
@@ -148,6 +149,31 @@ export default async function TenantsPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Clientes (tenants) que deben pagar</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {tenantsConPagoPendiente.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No hay tenants con pago pendiente actualmente.</p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {tenantsConPagoPendiente.map((tenantPendiente) => (
+                <div key={tenantPendiente.id} className="rounded-lg border p-3">
+                  <p className="font-medium flex items-center gap-2">
+                    <CircleAlert className="size-4 text-amber-500" />
+                    {tenantPendiente.nombre}
+                  </p>
+                  <p className="text-xs text-muted-foreground">/{tenantPendiente.slug}</p>
+                  <p className="text-xs text-muted-foreground">Próximo pago: {formatLongDate(tenantPendiente.proximoPago)}</p>
+                  <p className="text-xs text-muted-foreground">Contacto: {tenantPendiente.contactoCorreo ?? "N/D"}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Listado de tenants</CardTitle>
         </CardHeader>
         <CardContent>
@@ -169,6 +195,9 @@ export default async function TenantsPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                      {tenantsConPagoPendiente.some((tenantPendiente) => tenantPendiente.id === t.id) ? (
+                        <Badge variant="destructive">Debe pagar</Badge>
+                      ) : null}
                       {resolveSubscriptionBadge(t)}
                       <Button asChild size="sm" variant="outline">
                         <Link href={accessUrl} target="_blank" rel="noreferrer">
@@ -219,6 +248,8 @@ export default async function TenantsPage() {
                         tenantId={t.id}
                         currentPaqueteId={t.paqueteId}
                         currentPeriodoPlan={t.periodoPlan}
+                        currentEstado={(t.estado as "vigente" | "expirado" | "cancelado") ?? "vigente"}
+                        currentFechaExpiracion={t.fechaExpiracion}
                         paquetes={paquetes.map((p) => ({ id: p.id, nombre: p.nombre }))}
                       />
                       <TenantStatusToggle tenantId={t.id} activo={t.activo} />

@@ -24,6 +24,8 @@ type InitialSetupState = {
   servicio: boolean;
   cita: boolean;
   consulta: boolean;
+  ordenCobro: boolean;
+  pago: boolean;
 };
 
 function resolveInitialSetupState(counts: {
@@ -36,6 +38,8 @@ function resolveInitialSetupState(counts: {
   servicios: number;
   citas: number;
   consultas: number;
+  ordenesCobro: number;
+  pagos: number;
 }): InitialSetupState {
   return {
     puesto: counts.puestos > 0,
@@ -47,6 +51,8 @@ function resolveInitialSetupState(counts: {
     servicio: counts.servicios > 0,
     cita: counts.citas > 0,
     consulta: counts.consultas > 0,
+    ordenCobro: counts.ordenesCobro > 0,
+    pago: counts.pagos > 0,
   };
 }
 
@@ -119,6 +125,8 @@ export default async function Layout({ children }: { children: React.ReactNode }
       serviciosCount,
       citasCount,
       consultasCount,
+      ordenesCobroCount,
+      pagosCount,
     ] = await Promise.all([
       prisma.puesto.count({ where: { tenantId: sesion.TenantId } }),
       prisma.empleados.count({ where: { tenantId: sesion.TenantId } }),
@@ -129,6 +137,8 @@ export default async function Layout({ children }: { children: React.ReactNode }
       prisma.servicio.count({ where: { tenantId: sesion.TenantId } }),
       prisma.cita.count({ where: { tenantId: sesion.TenantId } }),
       prisma.consulta.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.ordenDeCobro.count({ where: { tenantId: sesion.TenantId } }),
+      prisma.pago.count({ where: { tenantId: sesion.TenantId } }),
     ]);
 
     const initialSetup = resolveInitialSetupState({
@@ -141,6 +151,8 @@ export default async function Layout({ children }: { children: React.ReactNode }
       servicios: serviciosCount,
       citas: citasCount,
       consultas: consultasCount,
+      ordenesCobro: ordenesCobroCount,
+      pagos: pagosCount,
     });
 
     isInitialSetupComplete = isInitialSetupCompleted(initialSetup);
