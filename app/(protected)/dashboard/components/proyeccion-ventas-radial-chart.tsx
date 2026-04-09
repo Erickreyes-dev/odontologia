@@ -76,8 +76,9 @@ export function ProyeccionVentasRadialChart({ data }: ProyeccionVentasRadialChar
 
     const metaRedondeada = Math.round(meta);
     const ventasActuales = Math.round(ultimoMes);
-    const ventasParaArco = Math.min(ventasActuales, metaRedondeada);
     const progresoPorcentaje = metaRedondeada > 0 ? (ventasActuales / metaRedondeada) * 100 : 0;
+    const progresoParaArco = Math.min(Math.max(progresoPorcentaje, 0), 100);
+    const restanteParaArco = 100 - progresoParaArco;
 
     return {
       promedio: Math.round(promedio),
@@ -87,9 +88,9 @@ export function ProyeccionVentasRadialChart({ data }: ProyeccionVentasRadialChar
       progresoPorcentaje,
       chartData: [
         {
-          indicador: "Ventas",
-          meta: metaRedondeada,
-          ventas: ventasParaArco,
+          indicador: "Progreso",
+          restante: restanteParaArco,
+          progreso: progresoParaArco,
         },
       ],
     };
@@ -116,7 +117,10 @@ export function ProyeccionVentasRadialChart({ data }: ProyeccionVentasRadialChar
               cursor={false}
               content={
                 <ChartTooltipContent
-                  formatter={(value, name) => [Number(value).toLocaleString(), name === "ventas" ? "Ventas" : "Meta"]}
+                    formatter={(value, name) => [
+                      `${Number(value).toFixed(1)}%`,
+                      name === "progreso" ? "Avance" : "Restante",
+                    ]}
                 />
               }
             />
@@ -139,14 +143,14 @@ export function ProyeccionVentasRadialChart({ data }: ProyeccionVentasRadialChar
               />
             </PolarRadiusAxis>
             <RadialBar
-              dataKey="meta"
+              dataKey="restante"
               stackId="a"
               cornerRadius={8}
               fill="hsl(var(--muted))"
               className="stroke-transparent stroke-2"
             />
             <RadialBar
-              dataKey="ventas"
+              dataKey="progreso"
               stackId="a"
               cornerRadius={8}
               fill="var(--color-valor)"
