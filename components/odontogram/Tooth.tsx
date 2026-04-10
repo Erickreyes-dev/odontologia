@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ToothSurface } from "./ToothSurface";
-import { getToothLabel } from "@/lib/odontogram/numbering";
+import { getToothLabel, inferDentitionById } from "@/lib/odontogram/numbering";
 import type {
   NumberingSystem,
   OdontogramStateDefinition,
@@ -19,6 +19,8 @@ interface ToothProps {
   onSurfaceClick: (toothId: number, surface: ToothSurfaceKey) => void;
   onSurfaceHover: (payload: { toothId: number; surface: ToothSurfaceKey; surfaceLabel: string } | null) => void;
   readOnly?: boolean;
+  toothSvgBasePath?: string;
+  toothSvgPatterns?: string[];
 }
 
 type ToothFamily = "incisor" | "canine" | "premolar" | "molar";
@@ -104,8 +106,34 @@ export function Tooth({
   onSurfaceClick,
   onSurfaceHover,
   readOnly,
+  toothSvgBasePath,
+  toothSvgPatterns,
 }: ToothProps) {
   const shape = TOOTH_SHAPES[getToothFamily(tooth.id)];
+  const [svgIndex, setSvgIndex] = useState(0);
+  const [allSvgFailed, setAllSvgFailed] = useState(false);
+  const family = getToothFamily(tooth.id);
+  const dentition = tooth.dentition ?? inferDentitionById(tooth.id);
+
+  const svgCandidates = useMemo(() => {
+    if (!toothSvgBasePath) return [];
+    const basePath = toothSvgBasePath.replace(/\/$/, "");
+    const patterns =
+      toothSvgPatterns && toothSvgPatterns.length > 0
+        ? toothSvgPatterns
+        : ["{id}.svg", "tooth-{id}.svg", "{dentition}-{id}.svg", "{family}.svg", "{dentition}-{family}.svg"];
+    return patterns.map((pattern) =>
+      `${basePath}/${pattern
+        .replaceAll("{id}", String(tooth.id))
+        .replaceAll("{family}", family)
+        .replaceAll("{dentition}", dentition)}`
+    );
+  }, [dentition, family, tooth.id, toothSvgBasePath, toothSvgPatterns]);
+
+  useEffect(() => {
+    setSvgIndex(0);
+    setAllSvgFailed(false);
+  }, [tooth.id, toothSvgBasePath, toothSvgPatterns]);
 
   const surfaceEntries = useMemo(
     () => (Object.keys(shape.surfaces) as ToothSurfaceKey[]).map((key) => ({ key, path: shape.surfaces[key] })),
@@ -114,18 +142,42 @@ export function Tooth({
 
   return (
     <g transform="translate(0 0)">
-      <path
-        d={shape.outer}
-        fill="hsl(var(--card))"
-        stroke="hsl(var(--border))"
-        strokeWidth={1.4}
-        className={readOnly ? "cursor-default" : "cursor-pointer"}
-        onClick={() => {
-          if (!readOnly) onToothClick(tooth.id);
-        }}
-      />
+      {svgCandidates.length > 0 && !allSvgFailed ? (
+        <image
+          href={svgCandidates[svgIndex]}
+          x={6}
+          y={3}
+          width={48}
+          height={58}
+          preserveAspectRatio="xMidYMid meet"
+          onError={() => {
+            if (svgIndex >= svgCandidates.length - 1) {
+              setAllSvgFailed(true);
+              return;
+            }
+            setSvgIndex((prev) => prev + 1);
+          }}
+          onClick={() => {
+            if (!readOnly) onToothClick(tooth.id);
+          }}
+          className={readOnly ? "cursor-default" : "cursor-pointer"}
+        />
+      ) : (
+        <>
+          <path
+            d={shape.outer}
+            fill="hsl(var(--card))"
+            stroke="hsl(var(--border))"
+            strokeWidth={1.4}
+            className={readOnly ? "cursor-default" : "cursor-pointer"}
+            onClick={() => {
+              if (!readOnly) onToothClick(tooth.id);
+            }}
+          />
 
-      <path d={shape.root} fill="none" stroke="hsl(var(--border))" strokeWidth={1.2} className="pointer-events-none" />
+          <path d={shape.root} fill="none" stroke="hsl(var(--border))" strokeWidth={1.2} className="pointer-events-none" />
+        </>
+      )}
 
       {surfaceEntries.map(({ key, path }) => (
         <ToothSurface
