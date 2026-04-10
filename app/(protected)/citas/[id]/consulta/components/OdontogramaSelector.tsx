@@ -40,6 +40,8 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
   const [selectedToothId, setSelectedToothId] = useState<number>(16);
   const [localChart, setLocalChart] = useState<OdontogramChart>(() => chartValue ?? buildChartFromSelection(value));
   const [hoverSurfaceLabel, setHoverSurfaceLabel] = useState<string | null>(null);
+  const [pitch, setPitch] = useState(12);
+  const [yaw, setYaw] = useState(-10);
 
   useEffect(() => {
     if (chartValue) {
@@ -168,6 +170,27 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
             ))}
           </div>
 
+
+          <div className="grid gap-2 rounded-md border p-2">
+            <p className="text-xs font-medium text-muted-foreground">Vista 3D (beta, rotación libre)</p>
+            <label className="text-[11px] text-muted-foreground">Inclinación vertical: {pitch}°</label>
+            <input
+              type="range"
+              min={-40}
+              max={40}
+              value={pitch}
+              onChange={(event) => setPitch(Number(event.target.value))}
+            />
+            <label className="text-[11px] text-muted-foreground">Rotación lateral: {yaw}°</label>
+            <input
+              type="range"
+              min={-50}
+              max={50}
+              value={yaw}
+              onChange={(event) => setYaw(Number(event.target.value))}
+            />
+          </div>
+
           <button
             type="button"
             className="w-full rounded-md border px-2 py-1 text-xs hover:bg-muted"
@@ -192,7 +215,11 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
             {hoverSurfaceLabel ? `Superficie activa: ${hoverSurfaceLabel}` : "Pase el mouse por una superficie para ver su nombre."}
           </p>
           {selectedTooth ? (
-            <svg viewBox="0 0 140 190" className="mx-auto h-[280px] w-full max-w-[260px]">
+            <svg
+              viewBox="0 0 140 190"
+              className="mx-auto h-[280px] w-full max-w-[260px] transition-transform duration-300"
+              style={{ transform: `perspective(900px) rotateX(${pitch}deg) rotateY(${yaw}deg)` }}
+            >
               <g transform="translate(18 8) scale(1.5)">
                 <Tooth
                   tooth={selectedTooth}
