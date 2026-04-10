@@ -11,6 +11,7 @@ import { getFinanciamientosPorPaciente, getPagosByPaciente } from "@/app/(protec
 import { PacientePerfil } from "./components/paciente-perfil";
 import { getSegurosActivos } from "@/app/(protected)/seguros/actions";
 import { prisma } from "@/lib/prisma";
+import { MedicinaGeneralResumen } from "./components/medicina-general-resumen";
 
 export default async function PacientePerfilPage({
 
@@ -108,6 +109,7 @@ export default async function PacientePerfilPage({
         piezasTratadasHistoricas={piezasTratadasHistoricas}
         totalConsultasConOdontograma={consultasConOdontograma.length}
       />
+      <MedicinaGeneralResumen pacienteId={params.id} />
     </div>
   );
 }
