@@ -36,6 +36,8 @@ interface OdontogramProps {
   onSelectionChange?: (selection: SurfaceSelection[]) => void;
   compact?: boolean;
   readOnly?: boolean;
+  toothSvgBasePath?: string;
+  toothSvgPatterns?: string[];
 }
 
 function buildEmptyChart(dentition: DentitionType | "mixed"): OdontogramChart {
@@ -68,6 +70,8 @@ interface ArcProps {
   onSurfaceHover: (payload: { toothId: number; surface: ToothSurfaceKey; surfaceLabel: string } | null) => void;
   compact?: boolean;
   readOnly?: boolean;
+  toothSvgBasePath?: string;
+  toothSvgPatterns?: string[];
 }
 
 function ToothArc({
@@ -83,6 +87,8 @@ function ToothArc({
   onSurfaceHover,
   compact,
   readOnly,
+  toothSvgBasePath,
+  toothSvgPatterns,
 }: ArcProps) {
   const width = compact ? 1000 : 1120;
   const height = compact ? 320 : 360;
@@ -123,6 +129,8 @@ function ToothArc({
               onSurfaceClick={onSurfaceClick}
               onSurfaceHover={onSurfaceHover}
               readOnly={readOnly}
+              toothSvgBasePath={toothSvgBasePath}
+              toothSvgPatterns={toothSvgPatterns}
             />
           </g>
         );
@@ -146,6 +154,8 @@ export function Odontogram({
   onSelectionChange,
   compact,
   readOnly,
+  toothSvgBasePath,
+  toothSvgPatterns,
 }: OdontogramProps) {
   const [internal, setInternal] = useState<OdontogramChart>(() => initialData ?? buildEmptyChart(dentition));
   const [surfaceSelection, setSurfaceSelection] = useState<SurfaceSelection[]>([]);
@@ -260,6 +270,8 @@ export function Odontogram({
               onSurfaceHover={setTooltip}
               compact={compact}
               readOnly={readOnly}
+              toothSvgBasePath={toothSvgBasePath}
+              toothSvgPatterns={toothSvgPatterns}
             />
             <ToothArc
               teeth={teethByDentition.permanentLower}
@@ -274,6 +286,8 @@ export function Odontogram({
               onSurfaceHover={setTooltip}
               compact={compact}
               readOnly={readOnly}
+              toothSvgBasePath={toothSvgBasePath}
+              toothSvgPatterns={toothSvgPatterns}
             />
           </>
         )}
@@ -294,6 +308,8 @@ export function Odontogram({
               onSurfaceHover={setTooltip}
               compact
               readOnly={readOnly}
+              toothSvgBasePath={toothSvgBasePath}
+              toothSvgPatterns={toothSvgPatterns}
             />
             <ToothArc
               teeth={teethByDentition.temporaryLower}
@@ -308,6 +324,8 @@ export function Odontogram({
               onSurfaceHover={setTooltip}
               compact
               readOnly={readOnly}
+              toothSvgBasePath={toothSvgBasePath}
+              toothSvgPatterns={toothSvgPatterns}
             />
           </div>
         )}
