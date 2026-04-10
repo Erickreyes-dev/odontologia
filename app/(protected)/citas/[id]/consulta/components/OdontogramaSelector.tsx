@@ -14,6 +14,7 @@ const DEFAULT_STATES: OdontogramStateDefinition[] = [
 ];
 
 const SURFACE_ORDER: ToothSurfaceKey[] = ["M", "V", "O", "L", "D"];
+const TOOTH_ASSET_BASE_PATH = "/assets/odontogram/teeth-svgs";
 
 const SURFACE_LABELS: Record<ToothSurfaceKey, string> = {
   M: "Mesial",
@@ -79,6 +80,7 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
       })),
     [selectedTooth]
   );
+  const selectedToothAssetPath = `${TOOTH_ASSET_BASE_PATH}/${selectedTooth?.id ?? 16}.svg`;
 
   const emit = (nextChart: OdontogramChart) => {
     setLocalChart(nextChart);
@@ -173,7 +175,7 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
           </div>
 
           <div className="rounded-md border bg-muted/30 p-2 text-[11px] text-muted-foreground">
-            <p>3) Vista odontograma SVG por piezas/superficies (estilo editor clínico).</p>
+            <p>3) Carga de pieza por SVG asset (formato del repo React-Odontogram-Modul).</p>
             <p>4) Haz clic en una superficie para aplicar o quitar el estado activo.</p>
           </div>
 
@@ -194,22 +196,37 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
           </p>
 
           <div className="mx-auto w-full rounded-md border p-2">
-            <Odontogram
-              value={localChart}
-              onChange={emit}
-              dentition="mixed"
-              numberingSystem="FDI"
-              secondarySystem="UNIVERSAL"
-              optionalSystem="PALMER"
-              activeState={activeState}
-              states={DEFAULT_STATES}
-              onSelectionChange={(selection) => {
-                const latest = selection.at(-1);
-                if (!latest) return;
-                setSelectedToothId(latest.toothId);
-                setHoverSurface(latest.surface);
-              }}
-            />
+            <div className="mb-3 grid gap-3 lg:grid-cols-[220px_1fr]">
+              <div className="rounded-md border bg-muted/20 p-2">
+                <p className="mb-1 text-xs text-muted-foreground">Asset SVG de la pieza seleccionada</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selectedToothAssetPath}
+                  alt={`Pieza ${selectedTooth?.id ?? "-"}`}
+                  className="mx-auto h-40 w-40 object-contain"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Ruta esperada: <code>{selectedToothAssetPath}</code>
+                </p>
+              </div>
+
+              <Odontogram
+                value={localChart}
+                onChange={emit}
+                dentition="mixed"
+                numberingSystem="FDI"
+                secondarySystem="UNIVERSAL"
+                optionalSystem="PALMER"
+                activeState={activeState}
+                states={DEFAULT_STATES}
+                onSelectionChange={(selection) => {
+                  const latest = selection.at(-1);
+                  if (!latest) return;
+                  setSelectedToothId(latest.toothId);
+                  setHoverSurface(latest.surface);
+                }}
+              />
+            </div>
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
