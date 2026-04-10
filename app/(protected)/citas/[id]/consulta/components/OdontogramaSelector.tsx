@@ -1,138 +1,245 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  Odontogram,
-  initialPermanentTeeth,
-  initialTemporaryTeeth,
-} from "op-odontogram";
+import { Odontogram } from "@/components/odontogram/Odontogram";
+import { Tooth } from "@/components/odontogram/Tooth";
+import { getToothLabel, inferDentitionById, PERMANENT_TEETH, TEMPORARY_TEETH } from "@/lib/odontogram/numbering";
+import type { OdontogramChart, OdontogramStateDefinition, ToothSurfaceKey } from "@/lib/odontogram/types";
 
-type ToothLike = {
-  id: number;
-  status?: string;
-  selected?: boolean;
-  isSelected?: boolean;
-};
+const DEFAULT_STATES: OdontogramStateDefinition[] = [
+  { key: "caries", label: "Caries", color: "#ef4444", strokeColor: "#991b1b" },
+  { key: "restauracion", label: "Restauración", color: "#3b82f6", strokeColor: "#1d4ed8" },
+  { key: "corona", label: "Corona", color: "#eab308", strokeColor: "#a16207" },
+  { key: "extraccion", label: "Extracción", color: "#6b7280", strokeColor: "#111827" },
+  { key: "sellante", label: "Sellante", color: "#14b8a6", strokeColor: "#0f766e" },
+];
 
 interface OdontogramaSelectorProps {
   value: number[];
   onChange: (value: number[]) => void;
+  chartValue?: OdontogramChart;
+  onChartChange?: (chart: OdontogramChart) => void;
 }
 
-export function OdontogramaSelector({ value, onChange }: OdontogramaSelectorProps) {
-  const [isMounted, setIsMounted] = useState(false);
-  const [selectedTooth, setSelectedTooth] = useState<ToothLike | null>(null);
-  const [showTemporaryTeeth, setShowTemporaryTeeth] = useState(false);
-  const [showDemoMode, setShowDemoMode] = useState(false);
-  const [showBiteEffect, setShowBiteEffect] = useState(false);
-  const [isAnimatingBite, setIsAnimatingBite] = useState(false);
+function buildChartFromSelection(selectedTeeth: number[]): OdontogramChart {
+  const selectedSet = new Set(selectedTeeth);
+  return {
+    teeth: [...PERMANENT_TEETH, ...TEMPORARY_TEETH].map((id) => {
+      const base = selectedSet.has(id) ? "caries" : null;
+      return {
+        id,
+        dentition: inferDentitionById(id),
+        surfaces: { M: base, D: base, V: base, L: base, O: base },
+      };
+    }),
+  };
+}
 
-  const selectedSet = useMemo(() => new Set(value), [value]);
-
-  const normalizeTooth = (tooth: ToothLike, isSelected: boolean) => ({
-    ...tooth,
-    status: isSelected ? "filled" : "healthy",
-    selected: isSelected,
-    isSelected,
-  });
-
-  const [teeth, setTeeth] = useState<any[]>(() =>
-    initialPermanentTeeth.map((tooth: ToothLike) => ({
-      ...normalizeTooth(tooth, selectedSet.has(tooth.id)),
-    }))
-  );
-
-  const [temporaryTeeth, setTemporaryTeeth] = useState<any[]>(() =>
-    initialTemporaryTeeth.map((tooth: ToothLike) => ({
-      ...normalizeTooth(tooth, selectedSet.has(tooth.id)),
-    }))
-  );
+export function OdontogramaSelector({ value, onChange, chartValue, onChartChange }: OdontogramaSelectorProps) {
+  const [activeState, setActiveState] = useState<(typeof DEFAULT_STATES)[number]["key"]>("caries");
+  const [selectedToothId, setSelectedToothId] = useState<number>(16);
+  const [localChart, setLocalChart] = useState<OdontogramChart>(() => chartValue ?? buildChartFromSelection(value));
+  const [hoverSurfaceLabel, setHoverSurfaceLabel] = useState<string | null>(null);
+  const [pitch, setPitch] = useState(12);
+  const [yaw, setYaw] = useState(-10);
 
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    if (chartValue) {
+      setLocalChart(chartValue);
+      if (!chartValue.teeth.some((tooth) => tooth.id === selectedToothId)) {
+        setSelectedToothId(chartValue.teeth[0]?.id ?? 16);
+      }
+      return;
+    }
+    setLocalChart(buildChartFromSelection(value));
+  }, [chartValue, selectedToothId, value]);
 
-  useEffect(() => {
-    setTeeth((current) =>
-      current.map((tooth: ToothLike) => ({
-        ...normalizeTooth(tooth, selectedSet.has(tooth.id)),
-      }))
-    );
+  const stateMap = useMemo(
+    () => Object.fromEntries(DEFAULT_STATES.map((state) => [state.key, state])) as Record<string, OdontogramStateDefinition>,
+    []
+  );
 
-    setTemporaryTeeth((current) =>
-      current.map((tooth: ToothLike) => ({
-        ...normalizeTooth(tooth, selectedSet.has(tooth.id)),
-      }))
-    );
-  }, [selectedSet]);
+  const selectedTooth = useMemo(
+    () => localChart.teeth.find((tooth) => tooth.id === selectedToothId) ?? localChart.teeth[0],
+    [localChart.teeth, selectedToothId]
+  );
 
-  const onToothClick = (tooth: ToothLike) => {
-    const nextSelected = selectedSet.has(tooth.id)
-      ? value.filter((id) => id !== tooth.id)
-      : [...value, tooth.id];
+  const emit = (nextChart: OdontogramChart) => {
+    setLocalChart(nextChart);
+    onChartChange?.(nextChart);
 
-    const sortedSelection = nextSelected.sort((a, b) => a - b);
-    const nextSelectionSet = new Set(sortedSelection);
+    const selectedTeeth = Array.from(
+      new Set(
+        nextChart.teeth
+          .filter((tooth) => Object.values(tooth.surfaces).some((surface) => Boolean(surface)))
+          .map((tooth) => tooth.id)
+      )
+    ).sort((a, b) => a - b);
 
-    setTeeth((current) =>
-      current.map((item: ToothLike) => ({
-        ...normalizeTooth(item, nextSelectionSet.has(item.id)),
-      }))
-    );
-    setTemporaryTeeth((current) =>
-      current.map((item: ToothLike) => ({
-        ...normalizeTooth(item, nextSelectionSet.has(item.id)),
-      }))
-    );
-
-    setSelectedTooth({
-      ...tooth,
-      ...normalizeTooth(tooth, nextSelectionSet.has(tooth.id)),
-    });
-
-    onChange(sortedSelection);
+    onChange(selectedTeeth);
   };
 
-  const onSimulateBite = () => {
-    if (isAnimatingBite) return;
-    setIsAnimatingBite(true);
-    setShowBiteEffect(false);
+  const toggleSurface = (surface: ToothSurfaceKey) => {
+    if (!selectedTooth) return;
+    const nextChart: OdontogramChart = {
+      ...localChart,
+      teeth: localChart.teeth.map((tooth) => {
+        if (tooth.id !== selectedTooth.id) return tooth;
+        const current = tooth.surfaces[surface] ?? null;
+        return {
+          ...tooth,
+          surfaces: {
+            ...tooth.surfaces,
+            [surface]: current === activeState ? null : activeState,
+          },
+        };
+      }),
+    };
 
-    setTimeout(() => setShowBiteEffect(true), 300);
-    setTimeout(() => setShowBiteEffect(false), 1000);
-    setTimeout(() => setIsAnimatingBite(false), 1500);
+    emit(nextChart);
+  };
+
+  const toggleWholeTooth = () => {
+    if (!selectedTooth) return;
+    const hasState = Object.values(selectedTooth.surfaces).some(Boolean);
+    const targetState = hasState ? null : activeState;
+
+    const nextChart: OdontogramChart = {
+      ...localChart,
+      teeth: localChart.teeth.map((tooth) =>
+        tooth.id === selectedTooth.id
+          ? {
+              ...tooth,
+              surfaces: {
+                M: targetState,
+                D: targetState,
+                V: targetState,
+                L: targetState,
+                O: targetState,
+              },
+            }
+          : tooth
+      ),
+    };
+
+    emit(nextChart);
   };
 
   return (
-    <div
-      className="space-y-3 rounded-md border p-3"
-      onClickCapture={(event) => {
-        const target = event.target as HTMLElement;
-        if (target.closest("button")) {
-          event.preventDefault();
-        }
-      }}
-    >
-      {isMounted ? (
+    <div className="space-y-4">
+      <div className="rounded-md border p-3">
+        <p className="mb-2 text-xs font-medium text-muted-foreground">Vista de arcada (solo visual)</p>
         <Odontogram
-          teeth={teeth}
-          temporaryTeeth={temporaryTeeth}
-          showTemporaryTeeth={showTemporaryTeeth}
-          onToggleTemporaryTeeth={setShowTemporaryTeeth}
-          showDemoMode={showDemoMode}
-          onToggleDemoMode={setShowDemoMode}
-          selectedTooth={selectedTooth}
-          onToothClick={onToothClick}
-          showBiteEffect={showBiteEffect}
-          onToggleBiteEffect={setShowBiteEffect}
-          isAnimatingBite={isAnimatingBite}
-          onSimulateBite={onSimulateBite}
+          value={localChart}
+          dentition="mixed"
+          numberingSystem="FDI"
+          secondarySystem="UNIVERSAL"
+          optionalSystem="PALMER"
+          className="space-y-2"
+          readOnly
         />
-      ) : (
-        <div className="h-[420px] w-full animate-pulse rounded-md bg-muted" />
-      )}
+      </div>
+
+      <div className="grid gap-4 rounded-md border p-3 lg:grid-cols-[260px_1fr]">
+        <div className="space-y-3">
+          <label className="block text-xs font-medium text-muted-foreground">Seleccionar pieza a editar</label>
+          <select
+            className="w-full rounded-md border bg-background p-2 text-sm"
+            value={selectedToothId}
+            onChange={(event) => setSelectedToothId(Number(event.target.value))}
+          >
+            {localChart.teeth.map((tooth) => (
+              <option key={tooth.id} value={tooth.id}>
+                {tooth.id} · FDI {getToothLabel(tooth.id, "FDI")} · UNI {getToothLabel(tooth.id, "UNIVERSAL")}
+              </option>
+            ))}
+          </select>
+
+          <div className="flex flex-wrap gap-2">
+            {DEFAULT_STATES.map((state) => (
+              <button
+                key={state.key}
+                type="button"
+                onClick={() => setActiveState(state.key)}
+                className={`rounded-md border px-2 py-1 text-xs transition ${
+                  activeState === state.key ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
+                }`}
+              >
+                {state.label}
+              </button>
+            ))}
+          </div>
+
+
+          <div className="grid gap-2 rounded-md border p-2">
+            <p className="text-xs font-medium text-muted-foreground">Vista 3D (beta, rotación libre)</p>
+            <label className="text-[11px] text-muted-foreground">Inclinación vertical: {pitch}°</label>
+            <input
+              type="range"
+              min={-40}
+              max={40}
+              value={pitch}
+              onChange={(event) => setPitch(Number(event.target.value))}
+            />
+            <label className="text-[11px] text-muted-foreground">Rotación lateral: {yaw}°</label>
+            <input
+              type="range"
+              min={-50}
+              max={50}
+              value={yaw}
+              onChange={(event) => setYaw(Number(event.target.value))}
+            />
+          </div>
+
+          <button
+            type="button"
+            className="w-full rounded-md border px-2 py-1 text-xs hover:bg-muted"
+            onClick={toggleWholeTooth}
+          >
+            Aplicar/quitar estado en todo el diente
+          </button>
+        </div>
+
+        <div className="rounded-md border bg-card p-3">
+          <p className="mb-2 text-xs text-muted-foreground">
+            Edición precisa de pieza {selectedTooth?.id ?? "-"}: clic en cada superficie para alternar estado.
+          </p>
+          <div className="mb-3 grid grid-cols-5 gap-1 text-center text-[11px] text-muted-foreground">
+            <span className="rounded border px-1 py-0.5">M</span>
+            <span className="rounded border px-1 py-0.5">V/B</span>
+            <span className="rounded border px-1 py-0.5">O/I</span>
+            <span className="rounded border px-1 py-0.5">L/P</span>
+            <span className="rounded border px-1 py-0.5">D</span>
+          </div>
+          <p className="mb-2 text-xs text-muted-foreground">
+            {hoverSurfaceLabel ? `Superficie activa: ${hoverSurfaceLabel}` : "Pase el mouse por una superficie para ver su nombre."}
+          </p>
+          {selectedTooth ? (
+            <svg
+              viewBox="0 0 140 190"
+              className="mx-auto h-[280px] w-full max-w-[260px] transition-transform duration-300"
+              style={{ transform: `perspective(900px) rotateX(${pitch}deg) rotateY(${yaw}deg)` }}
+            >
+              <g transform="translate(18 8) scale(1.5)">
+                <Tooth
+                  tooth={selectedTooth}
+                  numberingSystem="FDI"
+                  secondarySystem="UNIVERSAL"
+                  optionalSystem="PALMER"
+                  stateMap={stateMap}
+                  activeSelections={new Set<string>()}
+                  onToothClick={toggleWholeTooth}
+                  onSurfaceClick={(_, surface) => toggleSurface(surface)}
+                  onSurfaceHover={(payload) => setHoverSurfaceLabel(payload?.surfaceLabel ?? null)}
+                />
+              </g>
+            </svg>
+          ) : null}
+        </div>
+      </div>
+
       <p className="text-xs text-muted-foreground">
-        Piezas seleccionadas: {value.length > 0 ? value.join(", ") : "ninguna"}.
+        Piezas seleccionadas: {value.length > 0 ? [...value].sort((a, b) => a - b).join(", ") : "ninguna"}.
       </p>
     </div>
   );

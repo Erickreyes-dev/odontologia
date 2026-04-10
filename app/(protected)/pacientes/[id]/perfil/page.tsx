@@ -48,12 +48,30 @@ export default async function PacientePerfilPage({
     select: {
       id: true,
       piezasTratadas: true,
+      odontogramaClinico: true,
     },
   });
 
   const piezasTratadasHistoricas = Array.from(
     new Set(
       consultasConOdontograma.flatMap((consulta) => {
+        if (consulta.odontogramaClinico && typeof consulta.odontogramaClinico === "object" && !Array.isArray(consulta.odontogramaClinico)) {
+          const teeth = (consulta.odontogramaClinico as { teeth?: unknown }).teeth;
+          if (Array.isArray(teeth)) {
+            const fromChart = teeth
+              .map((tooth) => {
+                if (!tooth || typeof tooth !== "object" || Array.isArray(tooth)) return null;
+                const raw = tooth as { id?: unknown; surfaces?: unknown };
+                if (typeof raw.id !== "number") return null;
+                if (!raw.surfaces || typeof raw.surfaces !== "object" || Array.isArray(raw.surfaces)) return null;
+                const hasState = Object.values(raw.surfaces as Record<string, unknown>).some(Boolean);
+                return hasState ? raw.id : null;
+              })
+              .filter((id): id is number => typeof id === "number");
+            if (fromChart.length) return fromChart;
+          }
+        }
+
         if (!consulta.piezasTratadas) return [];
         try {
           const parsed = JSON.parse(consulta.piezasTratadas);
