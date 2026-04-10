@@ -51,6 +51,7 @@ type ToothBaseSelect = "none" | "tooth-base" | "milktooth" | "implant" | "tooth-
 type ToothEndoSelect = "none" | "endo-medical-filling";
 type ToothVisualState = { base: ToothBaseSelect; endo: ToothEndoSelect };
 const SVG_TEXT_CACHE = new Map<string, string>();
+const SWITCHABLE_GROUPS = ["mods", "tooth-variants", "endos", "surfaces", "restorations", "specials"] as const;
 
 function setDataActiveById(svgRoot: SVGSVGElement, id: string, active: boolean) {
   const node = svgRoot.querySelector<SVGElement>(`#${id}`);
@@ -65,6 +66,20 @@ function normalizeDisplayNoneToDataActive(svgRoot: SVGSVGElement) {
     node.setAttribute("style", style.replace(/display:\s*none;?/g, "").trim());
     node.setAttribute("data-active", "0");
   });
+}
+
+function ensureDataActiveForSwitchables(svgRoot: SVGSVGElement) {
+  SWITCHABLE_GROUPS.forEach((groupId) => {
+    const group = svgRoot.querySelector<SVGElement>(`#${groupId}`);
+    if (!group) return;
+    group.querySelectorAll<SVGElement>("[id]").forEach((node) => {
+      if (!node.hasAttribute("data-active")) node.setAttribute("data-active", "0");
+    });
+  });
+  for (const id of ["tooth-base", "tooth-healthy-pulp", "tooth-inflam-pulp", "milktooth-base", "milktooth-beauty", "milktooth-healthy-pulp", "milktooth-inflam-pulp"]) {
+    const node = svgRoot.querySelector<SVGElement>(`#${id}`);
+    if (node && !node.hasAttribute("data-active")) node.setAttribute("data-active", "0");
+  }
 }
 
 function transformFor(conf: { rot: 0 | 180; mirror: boolean }) {
@@ -141,6 +156,7 @@ function InlineToothSvg({
     if (!svg) return svgText;
 
     normalizeDisplayNoneToDataActive(svg);
+    ensureDataActiveForSwitchables(svg);
     activeIds.forEach((id) => setDataActiveById(svg, id, true));
     hiddenIds.forEach((id) => setDataActiveById(svg, id, false));
 
@@ -158,6 +174,7 @@ function ToothTile({
   readOnly,
   rootState,
   visualState,
+  cariesSurfaces,
   onClick,
 }: {
   tooth: number;
@@ -165,6 +182,7 @@ function ToothTile({
   readOnly: boolean;
   rootState?: ToothRootState;
   visualState?: ToothVisualState;
+  cariesSurfaces?: string[];
   onClick: (event: MouseEvent, tooth: number) => void;
 }) {
   const conf = TOOTH_TEMPLATE.get(tooth);
@@ -174,6 +192,7 @@ function ToothTile({
   const occl = TEMPLATES_OCCL[conf.tpl as 14 | 16];
   const style = { transform: transformFor(conf) };
   const currentVisual = visualState ?? { base: "tooth-base", endo: "none" };
+  const currentCaries = cariesSurfaces ?? [];
 
   const idsToShow: string[] = [];
   const idsToHide: string[] = [];
@@ -205,6 +224,27 @@ function ToothTile({
 
   if (currentVisual.endo === "endo-medical-filling") {
     idsToShow.push("endo-medical-filling");
+  }
+
+  const cariesMap: Record<string, string> = {
+    mesial: "caries-mesial",
+    distal: "caries-distal",
+    bucal: "caries-buccal",
+    "lingual/palatino": "caries-lingual",
+    oclusal: "caries-occlusal",
+  };
+
+  Object.values(cariesMap).forEach((id) => idsToHide.push(id));
+  currentCaries.forEach((surface) => {
+    const cariesId = cariesMap[surface];
+    if (cariesId) idsToShow.push(cariesId);
+  });
+
+  idsToHide.push("tooth-healthy-pulp", "tooth-inflam-pulp", "milktooth-healthy-pulp", "milktooth-inflam-pulp");
+  if (rootState === "pulpitis") {
+    idsToShow.push(currentVisual.base === "milktooth" ? "milktooth-inflam-pulp" : "tooth-inflam-pulp");
+  } else {
+    idsToShow.push(currentVisual.base === "milktooth" ? "milktooth-healthy-pulp" : "tooth-healthy-pulp");
   }
 
   mutuallyExclusiveBaseIds.forEach((id) => {
@@ -256,6 +296,7 @@ export function OdontogramaModul({ selectedTeeth, onSelectedTeethChange, readOnl
   const [activeTool, setActiveTool] = useState<"base" | "variante" | "restauracion" | "raiz" | "extraccion">("base");
   const [selectedCaries, setSelectedCaries] = useState<string[]>([]);
   const [visualStateByTooth, setVisualStateByTooth] = useState<Record<number, ToothVisualState>>({});
+  const [cariesByTooth, setCariesByTooth] = useState<Record<number, string[]>>({});
   const selectedSet = useMemo(() => new Set(selectedTeeth), [selectedTeeth]);
   const activeVisualState = activeTooth ? visualStateByTooth[activeTooth] ?? { base: "tooth-base", endo: "none" } : { base: "tooth-base", endo: "none" };
 
@@ -306,6 +347,11 @@ export function OdontogramaModul({ selectedTeeth, onSelectedTeethChange, readOnl
     }));
   };
 
+  useEffect(() => {
+    if (!activeTooth) return;
+    setSelectedCaries(cariesByTooth[activeTooth] ?? []);
+  }, [activeTooth, cariesByTooth]);
+
   const topRow = ALL_TEETH.slice(0, 16);
   const bottomRow = [...ALL_TEETH.slice(16)].reverse();
 
@@ -342,6 +388,7 @@ export function OdontogramaModul({ selectedTeeth, onSelectedTeethChange, readOnl
                 readOnly={readOnly}
                 rootState={rootStateByTooth[tooth]}
                 visualState={visualStateByTooth[tooth]}
+                cariesSurfaces={cariesByTooth[tooth]}
                 onClick={handleToothClick}
               />
             ))}
@@ -356,6 +403,7 @@ export function OdontogramaModul({ selectedTeeth, onSelectedTeethChange, readOnl
                 readOnly={readOnly}
                 rootState={rootStateByTooth[tooth]}
                 visualState={visualStateByTooth[tooth]}
+                cariesSurfaces={cariesByTooth[tooth]}
                 onClick={handleToothClick}
               />
             ))}
@@ -465,7 +513,14 @@ export function OdontogramaModul({ selectedTeeth, onSelectedTeethChange, readOnl
                         <button
                           key={surface}
                           type="button"
-                          onClick={() => setSelectedCaries((prev) => (prev.includes(surface) ? prev.filter((item) => item !== surface) : [...prev, surface]))}
+                          onClick={() => {
+                            if (!activeTooth) return;
+                            setSelectedCaries((prev) => {
+                              const next = prev.includes(surface) ? prev.filter((item) => item !== surface) : [...prev, surface];
+                              setCariesByTooth((current) => ({ ...current, [activeTooth]: next }));
+                              return next;
+                            });
+                          }}
                           className={cn(
                             "rounded-xl border px-3 py-2 text-left",
                             selectedCaries.includes(surface) && "border-primary bg-primary/15 text-primary"
