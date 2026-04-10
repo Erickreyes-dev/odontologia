@@ -21,11 +21,11 @@ interface ToothProps {
 }
 
 const SURFACE_PATHS: Record<ToothSurfaceKey, string> = {
-  M: "M4 4 L22 4 L14 14 L4 14 Z",
-  V: "M22 4 L40 4 L40 14 L30 14 Z",
-  O: "M14 14 L30 14 L30 30 L14 30 Z",
-  L: "M4 30 L14 30 L14 40 L4 40 Z",
-  D: "M30 30 L40 30 L40 40 L30 40 Z",
+  M: "M16 22 L30 12 L30 30 L18 38 Z",
+  V: "M30 12 L38 12 L38 30 L30 30 Z",
+  D: "M38 12 L52 22 L50 38 L38 30 Z",
+  L: "M18 38 L30 30 L30 46 L20 52 Z",
+  O: "M30 30 L38 30 L46 38 L38 46 L30 46 L22 38 Z",
 };
 
 const SURFACE_NAMES: Record<ToothSurfaceKey, string> = {
@@ -54,15 +54,21 @@ export function Tooth({
 
   return (
     <g transform="translate(0 0)">
-      <rect
-        x={2}
-        y={2}
-        width={40}
-        height={40}
-        rx={5}
+      <path
+        d="M14 18 C20 8 48 8 54 18 L52 44 C48 52 20 52 16 44 Z"
+        fill="hsl(var(--card))"
+        stroke="hsl(var(--border))"
+        strokeWidth={1.3}
         className="cursor-pointer"
-        fill="transparent"
         onClick={() => onToothClick(tooth.id)}
+      />
+
+      <path
+        d="M26 52 L22 74 C21 80 27 84 32 80 C37 84 43 80 42 74 L38 52"
+        fill="hsl(var(--muted) / 0.45)"
+        stroke="hsl(var(--border))"
+        strokeWidth={1.2}
+        className="pointer-events-none"
       />
 
       {surfaceEntries.map(({ key, path }) => (
@@ -90,18 +96,18 @@ export function Tooth({
         />
       ))}
 
-      <text x={22} y={56} textAnchor="middle" fontSize={8} fill="currentColor" className="select-none">
+      <text x={34} y={92} textAnchor="middle" fontSize={9} fill="currentColor" className="select-none font-medium">
         {getToothLabel(tooth.id, numberingSystem)}
       </text>
 
       {secondarySystem ? (
-        <text x={22} y={64} textAnchor="middle" fontSize={6} fill="hsl(var(--muted-foreground))" className="select-none">
+        <text x={34} y={101} textAnchor="middle" fontSize={7} fill="hsl(var(--muted-foreground))" className="select-none">
           {getToothLabel(tooth.id, secondarySystem)}
         </text>
       ) : null}
 
       {optionalSystem ? (
-        <text x={22} y={71} textAnchor="middle" fontSize={6} fill="hsl(var(--muted-foreground))" className="select-none">
+        <text x={34} y={109} textAnchor="middle" fontSize={7} fill="hsl(var(--muted-foreground))" className="select-none">
           {getToothLabel(tooth.id, optionalSystem)}
         </text>
       ) : null}

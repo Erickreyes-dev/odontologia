@@ -54,6 +54,79 @@ function buildEmptyChart(dentition: DentitionType | "mixed"): OdontogramChart {
   };
 }
 
+interface ArcProps {
+  teeth: ToothRecord[];
+  upper: boolean;
+  stateMap: Record<string, OdontogramStateDefinition>;
+  numberingSystem: NumberingSystem;
+  secondarySystem?: NumberingSystem;
+  optionalSystem?: NumberingSystem;
+  activeSelectionSet: Set<string>;
+  onToothClick: (toothId: number) => void;
+  onSurfaceClick: (toothId: number, surface: ToothSurfaceKey) => void;
+  onSurfaceHover: (payload: { toothId: number; surface: ToothSurfaceKey; surfaceLabel: string } | null) => void;
+  compact?: boolean;
+}
+
+function ToothArc({
+  teeth,
+  upper,
+  stateMap,
+  numberingSystem,
+  secondarySystem,
+  optionalSystem,
+  activeSelectionSet,
+  onToothClick,
+  onSurfaceClick,
+  onSurfaceHover,
+  compact,
+}: ArcProps) {
+  const width = compact ? 1000 : 1120;
+  const height = compact ? 320 : 360;
+  const centerX = width / 2;
+  const centerY = upper ? height * 0.78 : height * 0.22;
+  const radiusX = width * 0.42;
+  const radiusY = height * 0.5;
+  const start = upper ? Math.PI * 0.95 : Math.PI * 1.05;
+  const end = upper ? Math.PI * 0.05 : Math.PI * 1.95;
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full">
+      <path
+        d={`M ${centerX - radiusX} ${centerY} Q ${centerX} ${upper ? centerY - radiusY : centerY + radiusY} ${centerX + radiusX} ${centerY}`}
+        fill="none"
+        stroke="hsl(var(--border))"
+        strokeDasharray="6 6"
+        opacity={0.35}
+      />
+
+      {teeth.map((tooth, index) => {
+        const ratio = teeth.length === 1 ? 0.5 : index / (teeth.length - 1);
+        const theta = start + (end - start) * ratio;
+        const x = centerX + radiusX * Math.cos(theta) - 34;
+        const y = centerY - radiusY * Math.sin(theta) - 48;
+        const rotation = upper ? (theta * 180) / Math.PI - 90 : (theta * 180) / Math.PI - 270;
+
+        return (
+          <g key={tooth.id} transform={`translate(${x} ${y}) rotate(${rotation * 0.35} 34 48)`}>
+            <Tooth
+              tooth={tooth}
+              numberingSystem={numberingSystem}
+              secondarySystem={secondarySystem}
+              optionalSystem={optionalSystem}
+              stateMap={stateMap}
+              activeSelections={activeSelectionSet}
+              onToothClick={onToothClick}
+              onSurfaceClick={onSurfaceClick}
+              onSurfaceHover={onSurfaceHover}
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 export function Odontogram({
   value,
   onChange,
@@ -97,7 +170,12 @@ export function Odontogram({
       permanent.push(tooth);
     });
 
-    return { permanent, temporary };
+    return {
+      permanentUpper: permanent.filter((tooth) => Math.floor(tooth.id / 10) <= 2),
+      permanentLower: permanent.filter((tooth) => Math.floor(tooth.id / 10) >= 3),
+      temporaryUpper: temporary.filter((tooth) => Math.floor(tooth.id / 10) <= 6),
+      temporaryLower: temporary.filter((tooth) => Math.floor(tooth.id / 10) >= 7),
+    };
   }, [current.teeth]);
 
   const updateChart = (next: OdontogramChart) => {
@@ -152,26 +230,6 @@ export function Odontogram({
     updateChart(next);
   };
 
-  const renderRow = (items: ToothRecord[]) => (
-    <svg viewBox={`0 0 ${items.length * 52} ${compact ? 78 : 88}`} className="h-auto w-full">
-      {items.map((tooth, index) => (
-        <g key={tooth.id} transform={`translate(${index * 52} 0)`}>
-          <Tooth
-            tooth={tooth}
-            numberingSystem={numberingSystem}
-            secondarySystem={secondarySystem}
-            optionalSystem={optionalSystem}
-            stateMap={stateMap}
-            activeSelections={activeSelectionSet}
-            onToothClick={toggleWholeTooth}
-            onSurfaceClick={toggleSurface}
-            onSurfaceHover={setTooltip}
-          />
-        </g>
-      ))}
-    </svg>
-  );
-
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card p-2 text-xs text-muted-foreground">
@@ -179,11 +237,69 @@ export function Odontogram({
         {tooltip ? <span>🦷 {tooltip.toothId} · {tooltip.surfaceLabel} ({tooltip.surface})</span> : <span>Hover para detalle</span>}
       </div>
 
-      <div className="mt-3 space-y-3 rounded-md border bg-background p-3">
-        {(dentition === "permanent" || dentition === "mixed") && renderRow(teethByDentition.permanent.filter((t) => t.id < 30))}
-        {(dentition === "permanent" || dentition === "mixed") && renderRow(teethByDentition.permanent.filter((t) => t.id >= 30))}
-        {(dentition === "temporary" || dentition === "mixed") && renderRow(teethByDentition.temporary.filter((t) => t.id < 70))}
-        {(dentition === "temporary" || dentition === "mixed") && renderRow(teethByDentition.temporary.filter((t) => t.id >= 70))}
+      <div className="mt-3 space-y-4 rounded-md border bg-background p-3">
+        {(dentition === "permanent" || dentition === "mixed") && (
+          <>
+            <ToothArc
+              teeth={teethByDentition.permanentUpper}
+              upper
+              stateMap={stateMap}
+              numberingSystem={numberingSystem}
+              secondarySystem={secondarySystem}
+              optionalSystem={optionalSystem}
+              activeSelectionSet={activeSelectionSet}
+              onToothClick={toggleWholeTooth}
+              onSurfaceClick={toggleSurface}
+              onSurfaceHover={setTooltip}
+              compact={compact}
+            />
+            <ToothArc
+              teeth={teethByDentition.permanentLower}
+              upper={false}
+              stateMap={stateMap}
+              numberingSystem={numberingSystem}
+              secondarySystem={secondarySystem}
+              optionalSystem={optionalSystem}
+              activeSelectionSet={activeSelectionSet}
+              onToothClick={toggleWholeTooth}
+              onSurfaceClick={toggleSurface}
+              onSurfaceHover={setTooltip}
+              compact={compact}
+            />
+          </>
+        )}
+
+        {(dentition === "temporary" || dentition === "mixed") && (
+          <div className="rounded-md border border-dashed p-2">
+            <p className="mb-2 text-[11px] font-medium text-muted-foreground">Dentición temporal</p>
+            <ToothArc
+              teeth={teethByDentition.temporaryUpper}
+              upper
+              stateMap={stateMap}
+              numberingSystem={numberingSystem}
+              secondarySystem={secondarySystem}
+              optionalSystem={optionalSystem}
+              activeSelectionSet={activeSelectionSet}
+              onToothClick={toggleWholeTooth}
+              onSurfaceClick={toggleSurface}
+              onSurfaceHover={setTooltip}
+              compact
+            />
+            <ToothArc
+              teeth={teethByDentition.temporaryLower}
+              upper={false}
+              stateMap={stateMap}
+              numberingSystem={numberingSystem}
+              secondarySystem={secondarySystem}
+              optionalSystem={optionalSystem}
+              activeSelectionSet={activeSelectionSet}
+              onToothClick={toggleWholeTooth}
+              onSurfaceClick={toggleSurface}
+              onSurfaceHover={setTooltip}
+              compact
+            />
+          </div>
+        )}
       </div>
     </div>
   );

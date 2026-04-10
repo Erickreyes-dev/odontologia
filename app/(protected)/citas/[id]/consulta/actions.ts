@@ -74,7 +74,7 @@ const resolvePiezasTratadas = (input: Consulta): number[] => {
 
 const serializeOdontogramaClinico = (
   value: Consulta["odontogramaClinico"] | null | undefined
-): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput => {
+ ): Prisma.InputJsonValue | typeof Prisma.JsonNull => {
   if (!value) return Prisma.JsonNull;
   return value as Prisma.InputJsonValue;
 };
