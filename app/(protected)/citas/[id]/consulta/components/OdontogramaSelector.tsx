@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Odontogram } from "@/components/odontogram/Odontogram";
-import { ToothModel3D } from "@/components/odontogram/ToothModel3D";
 import { getToothLabel, inferDentitionById, PERMANENT_TEETH, TEMPORARY_TEETH } from "@/lib/odontogram/numbering";
 import type { OdontogramChart, OdontogramStateDefinition, ToothSurfaceKey } from "@/lib/odontogram/types";
 
@@ -15,6 +14,15 @@ const DEFAULT_STATES: OdontogramStateDefinition[] = [
 ];
 
 const SURFACE_ORDER: ToothSurfaceKey[] = ["M", "V", "O", "L", "D"];
+const TOOTH_ASSET_BASE_PATH = "/assets/odontogram/teeth-svgs";
+
+const SURFACE_LABELS: Record<ToothSurfaceKey, string> = {
+  M: "Mesial",
+  D: "Distal",
+  V: "Vestibular/Bucal",
+  L: "Lingual/Palatino",
+  O: "Oclusal/Incisal",
+};
 
 interface OdontogramaSelectorProps {
   value: number[];
@@ -72,6 +80,7 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
       })),
     [selectedTooth]
   );
+  const selectedToothAssetPath = `${TOOTH_ASSET_BASE_PATH}/${selectedTooth?.id ?? 16}.svg`;
 
   const emit = (nextChart: OdontogramChart) => {
     setLocalChart(nextChart);
@@ -129,19 +138,6 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border p-3">
-        <p className="mb-2 text-xs font-medium text-muted-foreground">Vista general del odontograma</p>
-        <Odontogram
-          value={localChart}
-          dentition="mixed"
-          numberingSystem="FDI"
-          secondarySystem="UNIVERSAL"
-          optionalSystem="PALMER"
-          className="space-y-2"
-          readOnly
-        />
-      </div>
-
       <div className="grid gap-4 rounded-md border p-3 lg:grid-cols-[280px_1fr]">
         <div className="space-y-3">
           <div>
@@ -179,8 +175,8 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
           </div>
 
           <div className="rounded-md border bg-muted/30 p-2 text-[11px] text-muted-foreground">
-            <p>3) Modelo 3D: haz clic sobre una cara para aplicar o quitar el estado activo.</p>
-            <p>Arrastra para rotar, rueda para zoom y Shift + arrastre para mover.</p>
+            <p>3) Carga de pieza por SVG asset (formato del repo React-Odontogram-Modul).</p>
+            <p>4) Haz clic en una superficie para aplicar o quitar el estado activo.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -195,18 +191,63 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
 
         <div className="rounded-md border bg-card p-3">
           <p className="mb-2 text-xs text-muted-foreground">
-            Pieza {selectedTooth?.id ?? "-"}. {hoverSurface ? `Superficie apuntada: ${hoverSurface}.` : "Selecciona una superficie en el modelo."}
+            Pieza {selectedTooth?.id ?? "-"}.{" "}
+            {hoverSurface ? `Superficie seleccionada: ${SURFACE_LABELS[hoverSurface]} (${hoverSurface}).` : "Selecciona una superficie para aplicar estado."}
           </p>
 
-          {selectedTooth ? (
-            <ToothModel3D
-              tooth={selectedTooth}
-              stateMap={stateMap}
-              className="mx-auto h-[360px] w-full max-w-[620px]"
-              onSurfaceClick={toggleSurface}
-              onSurfaceHover={setHoverSurface}
-            />
-          ) : null}
+          <div className="mx-auto w-full rounded-md border p-2">
+            <div className="mb-3 grid gap-3 lg:grid-cols-[220px_1fr]">
+              <div className="rounded-md border bg-muted/20 p-2">
+                <p className="mb-1 text-xs text-muted-foreground">Asset SVG de la pieza seleccionada</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selectedToothAssetPath}
+                  alt={`Pieza ${selectedTooth?.id ?? "-"}`}
+                  className="mx-auto h-40 w-40 object-contain"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Ruta esperada: <code>{selectedToothAssetPath}</code>
+                </p>
+              </div>
+
+              <Odontogram
+                value={localChart}
+                onChange={emit}
+                dentition="mixed"
+                numberingSystem="FDI"
+                secondarySystem="UNIVERSAL"
+                optionalSystem="PALMER"
+                activeState={activeState}
+                states={DEFAULT_STATES}
+                onSelectionChange={(selection) => {
+                  const latest = selection.at(-1);
+                  if (!latest) return;
+                  setSelectedToothId(latest.toothId);
+                  setHoverSurface(latest.surface);
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+            {SURFACE_ORDER.map((surface) => {
+              const active = selectedTooth?.surfaces[surface] ?? null;
+              const activeColor = active ? stateMap[active]?.color : undefined;
+              return (
+                <button
+                  key={surface}
+                  type="button"
+                  className="rounded-md border px-2 py-1 text-xs hover:bg-muted"
+                  style={activeColor ? { borderColor: activeColor, backgroundColor: `${activeColor}22` } : undefined}
+                  onMouseEnter={() => setHoverSurface(surface)}
+                  onMouseLeave={() => setHoverSurface(null)}
+                  onClick={() => toggleSurface(surface)}
+                >
+                  {surface} · {SURFACE_LABELS[surface]}
+                </button>
+              );
+            })}
+          </div>
 
           <div className="mt-3 rounded-md border p-2 text-xs">
             <p className="mb-2 font-medium text-muted-foreground">Superficies marcadas</p>
