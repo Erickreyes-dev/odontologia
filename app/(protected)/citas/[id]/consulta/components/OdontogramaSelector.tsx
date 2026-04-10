@@ -39,6 +39,7 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
   const [activeState, setActiveState] = useState<(typeof DEFAULT_STATES)[number]["key"]>("caries");
   const [selectedToothId, setSelectedToothId] = useState<number>(16);
   const [localChart, setLocalChart] = useState<OdontogramChart>(() => chartValue ?? buildChartFromSelection(value));
+  const [hoverSurfaceLabel, setHoverSurfaceLabel] = useState<string | null>(null);
 
   useEffect(() => {
     if (chartValue) {
@@ -180,6 +181,16 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
           <p className="mb-2 text-xs text-muted-foreground">
             Edición precisa de pieza {selectedTooth?.id ?? "-"}: clic en cada superficie para alternar estado.
           </p>
+          <div className="mb-3 grid grid-cols-5 gap-1 text-center text-[11px] text-muted-foreground">
+            <span className="rounded border px-1 py-0.5">M</span>
+            <span className="rounded border px-1 py-0.5">V/B</span>
+            <span className="rounded border px-1 py-0.5">O/I</span>
+            <span className="rounded border px-1 py-0.5">L/P</span>
+            <span className="rounded border px-1 py-0.5">D</span>
+          </div>
+          <p className="mb-2 text-xs text-muted-foreground">
+            {hoverSurfaceLabel ? `Superficie activa: ${hoverSurfaceLabel}` : "Pase el mouse por una superficie para ver su nombre."}
+          </p>
           {selectedTooth ? (
             <svg viewBox="0 0 140 190" className="mx-auto h-[280px] w-full max-w-[260px]">
               <g transform="translate(18 8) scale(1.5)">
@@ -192,7 +203,7 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
                   activeSelections={new Set<string>()}
                   onToothClick={toggleWholeTooth}
                   onSurfaceClick={(_, surface) => toggleSurface(surface)}
-                  onSurfaceHover={() => undefined}
+                  onSurfaceHover={(payload) => setHoverSurfaceLabel(payload?.surfaceLabel ?? null)}
                 />
               </g>
             </svg>

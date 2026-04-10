@@ -106,12 +106,12 @@ function ToothArc({
       {teeth.map((tooth, index) => {
         const ratio = teeth.length === 1 ? 0.5 : index / (teeth.length - 1);
         const theta = start + (end - start) * ratio;
-        const x = centerX + radiusX * Math.cos(theta) - 34;
-        const y = centerY - radiusY * Math.sin(theta) - 48;
+        const x = centerX + radiusX * Math.cos(theta) - 30;
+        const y = centerY - radiusY * Math.sin(theta) - 42;
         const rotation = upper ? (theta * 180) / Math.PI - 90 : (theta * 180) / Math.PI - 270;
 
         return (
-          <g key={tooth.id} transform={`translate(${x} ${y}) rotate(${rotation * 0.35} 34 48)`}>
+          <g key={tooth.id} transform={`translate(${x} ${y}) rotate(${rotation * 0.35} 30 42)`}>
             <Tooth
               tooth={tooth}
               numberingSystem={numberingSystem}

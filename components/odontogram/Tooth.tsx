@@ -22,11 +22,11 @@ interface ToothProps {
 }
 
 const SURFACE_PATHS: Record<ToothSurfaceKey, string> = {
-  M: "M16 22 L30 12 L30 30 L18 38 Z",
-  V: "M30 12 L38 12 L38 30 L30 30 Z",
-  D: "M38 12 L52 22 L50 38 L38 30 Z",
-  L: "M18 38 L30 30 L30 46 L20 52 Z",
-  O: "M30 30 L38 30 L46 38 L38 46 L30 46 L22 38 Z",
+  M: "M8 8 L26 8 L30 30 L8 30 Z",
+  V: "M26 8 L52 8 L52 30 L30 30 Z",
+  O: "M30 16 L44 30 L30 44 L16 30 Z",
+  L: "M8 30 L30 30 L26 52 L8 52 Z",
+  D: "M30 30 L52 30 L52 52 L34 52 Z",
 };
 
 const SURFACE_NAMES: Record<ToothSurfaceKey, string> = {
@@ -56,21 +56,19 @@ export function Tooth({
 
   return (
     <g transform="translate(0 0)">
-      <path
-        d="M14 18 C20 8 48 8 54 18 L52 44 C48 52 20 52 16 44 Z"
+      <rect
+        x={6}
+        y={6}
+        width={48}
+        height={48}
+        rx={8}
         fill="hsl(var(--card))"
         stroke="hsl(var(--border))"
-        strokeWidth={1.3}
+        strokeWidth={1.4}
         className={readOnly ? "cursor-default" : "cursor-pointer"}
-        onClick={() => { if (!readOnly) onToothClick(tooth.id); }}
-      />
-
-      <path
-        d="M26 52 L22 74 C21 80 27 84 32 80 C37 84 43 80 42 74 L38 52"
-        fill="hsl(var(--muted) / 0.45)"
-        stroke="hsl(var(--border))"
-        strokeWidth={1.2}
-        className="pointer-events-none"
+        onClick={() => {
+          if (!readOnly) onToothClick(tooth.id);
+        }}
       />
 
       {surfaceEntries.map(({ key, path }) => (
@@ -99,18 +97,18 @@ export function Tooth({
         />
       ))}
 
-      <text x={34} y={92} textAnchor="middle" fontSize={9} fill="currentColor" className="select-none font-medium">
+      <text x={30} y={66} textAnchor="middle" fontSize={9} fill="currentColor" className="select-none font-medium">
         {getToothLabel(tooth.id, numberingSystem)}
       </text>
 
       {secondarySystem ? (
-        <text x={34} y={101} textAnchor="middle" fontSize={7} fill="hsl(var(--muted-foreground))" className="select-none">
+        <text x={30} y={75} textAnchor="middle" fontSize={7} fill="hsl(var(--muted-foreground))" className="select-none">
           {getToothLabel(tooth.id, secondarySystem)}
         </text>
       ) : null}
 
       {optionalSystem ? (
-        <text x={34} y={109} textAnchor="middle" fontSize={7} fill="hsl(var(--muted-foreground))" className="select-none">
+        <text x={30} y={83} textAnchor="middle" fontSize={7} fill="hsl(var(--muted-foreground))" className="select-none">
           {getToothLabel(tooth.id, optionalSystem)}
         </text>
       ) : null}
