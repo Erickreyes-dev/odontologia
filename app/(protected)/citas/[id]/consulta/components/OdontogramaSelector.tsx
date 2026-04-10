@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Odontogram3D, type ToothData } from "react-odontogram-3d";
+import { Odontogram } from "@/components/odontogram/Odontogram";
 import { getToothLabel, inferDentitionById, PERMANENT_TEETH, TEMPORARY_TEETH } from "@/lib/odontogram/numbering";
 import type { OdontogramChart, OdontogramStateDefinition, ToothSurfaceKey } from "@/lib/odontogram/types";
 
@@ -44,22 +44,6 @@ function buildChartFromSelection(selectedTeeth: number[]): OdontogramChart {
   };
 }
 
-function resolveToothTypeById(id: number): "incisor" | "canine" | "premolar" | "molar" {
-  const position = id % 10;
-  if (position <= 2) return "incisor";
-  if (position === 3) return "canine";
-  if (position <= 5) return "premolar";
-  return "molar";
-}
-
-function resolveQuadrantById(id: number): 1 | 2 | 3 | 4 {
-  const quadrant = Math.floor(id / 10);
-  if (quadrant === 1) return 1;
-  if (quadrant === 2) return 2;
-  if (quadrant === 3) return 3;
-  return 4;
-}
-
 export function OdontogramaSelector({ value, onChange, chartValue, onChartChange }: OdontogramaSelectorProps) {
   const [activeState, setActiveState] = useState<(typeof DEFAULT_STATES)[number]["key"]>("caries");
   const [selectedToothId, setSelectedToothId] = useState<number>(16);
@@ -86,7 +70,6 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
     () => localChart.teeth.find((tooth) => tooth.id === selectedToothId) ?? localChart.teeth[0],
     [localChart.teeth, selectedToothId]
   );
-  const permanentTeeth = useMemo(() => localChart.teeth.filter((tooth) => inferDentitionById(tooth.id) === "permanent"), [localChart.teeth]);
 
   const activeSurfaces = useMemo(
     () =>
@@ -95,32 +78,6 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
         state: selectedTooth?.surfaces[surface] ?? null,
       })),
     [selectedTooth]
-  );
-
-  const teeth3D = useMemo<ToothData[]>(
-    () =>
-      permanentTeeth.map((tooth) => {
-        const firstActiveSurface = SURFACE_ORDER.find((surface) => Boolean(tooth.surfaces[surface]));
-        const firstState = firstActiveSurface ? tooth.surfaces[firstActiveSurface] : null;
-        const stateDef = firstState ? stateMap[firstState] : null;
-        const selectedColor = tooth.id === selectedToothId ? "#22c55e" : stateDef?.color ?? "#f4f4f5";
-
-        return {
-          number: tooth.id,
-          name: `Pieza ${tooth.id}`,
-          type: resolveToothTypeById(tooth.id),
-          quadrant: resolveQuadrantById(tooth.id),
-          conditions: [
-            {
-              id: `${tooth.id}-${firstState ?? "normal"}`,
-              type: "caries",
-              color: selectedColor,
-              description: firstState ? (stateDef?.label ?? firstState) : "Normal",
-            },
-          ],
-        };
-      }),
-    [permanentTeeth, selectedToothId, stateMap]
   );
 
   const emit = (nextChart: OdontogramChart) => {
@@ -188,7 +145,7 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
               value={selectedToothId}
               onChange={(event) => setSelectedToothId(Number(event.target.value))}
             >
-              {permanentTeeth.map((tooth) => (
+              {localChart.teeth.map((tooth) => (
                 <option key={tooth.id} value={tooth.id}>
                   {tooth.id} · FDI {getToothLabel(tooth.id, "FDI")} · UNI {getToothLabel(tooth.id, "UNIVERSAL")}
                 </option>
@@ -216,8 +173,8 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
           </div>
 
           <div className="rounded-md border bg-muted/30 p-2 text-[11px] text-muted-foreground">
-            <p>3) Usa el modelo oficial `Odontogram3D` de react-odontogram-3d (según su documentación).</p>
-            <p>4) Haz clic en una pieza del 3D para seleccionarla; aplica superficies con los botones.</p>
+            <p>3) Vista odontograma SVG por piezas/superficies (estilo editor clínico).</p>
+            <p>4) Haz clic en una superficie para aplicar o quitar el estado activo.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -236,14 +193,22 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
             {hoverSurface ? `Superficie seleccionada: ${SURFACE_LABELS[hoverSurface]} (${hoverSurface}).` : "Selecciona una superficie para aplicar estado."}
           </p>
 
-          <div className="mx-auto h-[420px] w-full max-w-[760px] overflow-hidden rounded-md border">
-            <Odontogram3D
-              teeth={teeth3D}
-              interactive
-              showLabels
-              theme="light"
-              size="medium"
-              onToothClick={(tooth) => setSelectedToothId(tooth.number)}
+          <div className="mx-auto w-full rounded-md border p-2">
+            <Odontogram
+              value={localChart}
+              onChange={emit}
+              dentition="mixed"
+              numberingSystem="FDI"
+              secondarySystem="UNIVERSAL"
+              optionalSystem="PALMER"
+              activeState={activeState}
+              states={DEFAULT_STATES}
+              onSelectionChange={(selection) => {
+                const latest = selection.at(-1);
+                if (!latest) return;
+                setSelectedToothId(latest.toothId);
+                setHoverSurface(latest.surface);
+              }}
             />
           </div>
 
