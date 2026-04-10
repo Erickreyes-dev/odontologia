@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
-import { Odontogram } from "@/components/odontogram/Odontogram";
-import { getToothGeometry } from "react-odontogram-3d";
+import { Odontogram3D, type ToothData } from "react-odontogram-3d";
 import { getToothLabel, inferDentitionById, PERMANENT_TEETH, TEMPORARY_TEETH } from "@/lib/odontogram/numbering";
 import type { OdontogramChart, OdontogramStateDefinition, ToothSurfaceKey } from "@/lib/odontogram/types";
 
@@ -55,6 +52,14 @@ function resolveToothTypeById(id: number): "incisor" | "canine" | "premolar" | "
   return "molar";
 }
 
+function resolveQuadrantById(id: number): 1 | 2 | 3 | 4 {
+  const quadrant = Math.floor(id / 10);
+  if (quadrant === 1) return 1;
+  if (quadrant === 2) return 2;
+  if (quadrant === 3) return 3;
+  return 4;
+}
+
 export function OdontogramaSelector({ value, onChange, chartValue, onChartChange }: OdontogramaSelectorProps) {
   const [activeState, setActiveState] = useState<(typeof DEFAULT_STATES)[number]["key"]>("caries");
   const [selectedToothId, setSelectedToothId] = useState<number>(16);
@@ -81,6 +86,7 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
     () => localChart.teeth.find((tooth) => tooth.id === selectedToothId) ?? localChart.teeth[0],
     [localChart.teeth, selectedToothId]
   );
+  const permanentTeeth = useMemo(() => localChart.teeth.filter((tooth) => inferDentitionById(tooth.id) === "permanent"), [localChart.teeth]);
 
   const activeSurfaces = useMemo(
     () =>
@@ -91,7 +97,31 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
     [selectedTooth]
   );
 
-  const toothGeometry = useMemo(() => getToothGeometry(resolveToothTypeById(selectedTooth?.id ?? 16), 2.5), [selectedTooth?.id]);
+  const teeth3D = useMemo<ToothData[]>(
+    () =>
+      permanentTeeth.map((tooth) => {
+        const firstActiveSurface = SURFACE_ORDER.find((surface) => Boolean(tooth.surfaces[surface]));
+        const firstState = firstActiveSurface ? tooth.surfaces[firstActiveSurface] : null;
+        const stateDef = firstState ? stateMap[firstState] : null;
+        const selectedColor = tooth.id === selectedToothId ? "#22c55e" : stateDef?.color ?? "#f4f4f5";
+
+        return {
+          number: tooth.id,
+          name: `Pieza ${tooth.id}`,
+          type: resolveToothTypeById(tooth.id),
+          quadrant: resolveQuadrantById(tooth.id),
+          conditions: [
+            {
+              id: `${tooth.id}-${firstState ?? "normal"}`,
+              type: "caries",
+              color: selectedColor,
+              description: firstState ? (stateDef?.label ?? firstState) : "Normal",
+            },
+          ],
+        };
+      }),
+    [permanentTeeth, selectedToothId, stateMap]
+  );
 
   const emit = (nextChart: OdontogramChart) => {
     setLocalChart(nextChart);
@@ -149,19 +179,6 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border p-3">
-        <p className="mb-2 text-xs font-medium text-muted-foreground">Vista general del odontograma</p>
-        <Odontogram
-          value={localChart}
-          dentition="mixed"
-          numberingSystem="FDI"
-          secondarySystem="UNIVERSAL"
-          optionalSystem="PALMER"
-          className="space-y-2"
-          readOnly
-        />
-      </div>
-
       <div className="grid gap-4 rounded-md border p-3 lg:grid-cols-[280px_1fr]">
         <div className="space-y-3">
           <div>
@@ -171,7 +188,7 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
               value={selectedToothId}
               onChange={(event) => setSelectedToothId(Number(event.target.value))}
             >
-              {localChart.teeth.map((tooth) => (
+              {permanentTeeth.map((tooth) => (
                 <option key={tooth.id} value={tooth.id}>
                   {tooth.id} · FDI {getToothLabel(tooth.id, "FDI")} · UNI {getToothLabel(tooth.id, "UNIVERSAL")}
                 </option>
@@ -199,8 +216,8 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
           </div>
 
           <div className="rounded-md border bg-muted/30 p-2 text-[11px] text-muted-foreground">
-            <p>3) Modelo 3D oficial de react-odontogram-3d para la pieza seleccionada.</p>
-            <p>4) Aplica estados por superficie con los botones inferiores.</p>
+            <p>3) Usa el modelo oficial `Odontogram3D` de react-odontogram-3d (según su documentación).</p>
+            <p>4) Haz clic en una pieza del 3D para seleccionarla; aplica superficies con los botones.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -219,15 +236,15 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
             {hoverSurface ? `Superficie seleccionada: ${SURFACE_LABELS[hoverSurface]} (${hoverSurface}).` : "Selecciona una superficie para aplicar estado."}
           </p>
 
-          <div className="mx-auto h-[360px] w-full max-w-[620px] overflow-hidden rounded-md border bg-gradient-to-b from-slate-50 to-slate-100">
-            <Canvas camera={{ position: [0, 0, 7], fov: 45 }}>
-              <ambientLight intensity={0.6} />
-              <directionalLight position={[4, 5, 4]} intensity={0.9} />
-              <mesh geometry={toothGeometry}>
-                <meshStandardMaterial color="#f4f4f5" roughness={0.35} metalness={0.05} />
-              </mesh>
-              <OrbitControls enablePan={false} />
-            </Canvas>
+          <div className="mx-auto h-[420px] w-full max-w-[760px] overflow-hidden rounded-md border">
+            <Odontogram3D
+              teeth={teeth3D}
+              interactive
+              showLabels
+              theme="light"
+              size="medium"
+              onToothClick={(tooth) => setSelectedToothId(tooth.number)}
+            />
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
