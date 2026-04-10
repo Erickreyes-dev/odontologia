@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Odontogram } from "@/components/odontogram/Odontogram";
-import { Tooth } from "@/components/odontogram/Tooth";
 import { ToothModel3D } from "@/components/odontogram/ToothModel3D";
 import { getToothLabel, inferDentitionById, PERMANENT_TEETH, TEMPORARY_TEETH } from "@/lib/odontogram/numbering";
 import type { OdontogramChart, OdontogramStateDefinition, ToothSurfaceKey } from "@/lib/odontogram/types";
@@ -14,6 +13,8 @@ const DEFAULT_STATES: OdontogramStateDefinition[] = [
   { key: "extraccion", label: "Extracción", color: "#6b7280", strokeColor: "#111827" },
   { key: "sellante", label: "Sellante", color: "#14b8a6", strokeColor: "#0f766e" },
 ];
+
+const SURFACE_ORDER: ToothSurfaceKey[] = ["M", "V", "O", "L", "D"];
 
 interface OdontogramaSelectorProps {
   value: number[];
@@ -40,7 +41,7 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
   const [activeState, setActiveState] = useState<(typeof DEFAULT_STATES)[number]["key"]>("caries");
   const [selectedToothId, setSelectedToothId] = useState<number>(16);
   const [localChart, setLocalChart] = useState<OdontogramChart>(() => chartValue ?? buildChartFromSelection(value));
-  const [hoverSurfaceLabel, setHoverSurfaceLabel] = useState<string | null>(null);
+  const [hoverSurface, setHoverSurface] = useState<ToothSurfaceKey | null>(null);
 
   useEffect(() => {
     if (chartValue) {
@@ -63,6 +64,15 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
     [localChart.teeth, selectedToothId]
   );
 
+  const activeSurfaces = useMemo(
+    () =>
+      SURFACE_ORDER.filter((surface) => Boolean(selectedTooth?.surfaces[surface])).map((surface) => ({
+        surface,
+        state: selectedTooth?.surfaces[surface] ?? null,
+      })),
+    [selectedTooth]
+  );
+
   const emit = (nextChart: OdontogramChart) => {
     setLocalChart(nextChart);
     onChartChange?.(nextChart);
@@ -80,6 +90,7 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
 
   const toggleSurface = (surface: ToothSurfaceKey) => {
     if (!selectedTooth) return;
+
     const nextChart: OdontogramChart = {
       ...localChart,
       teeth: localChart.teeth.map((tooth) => {
@@ -98,10 +109,8 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
     emit(nextChart);
   };
 
-  const toggleWholeTooth = () => {
+  const setWholeTooth = (state: string | null) => {
     if (!selectedTooth) return;
-    const hasState = Object.values(selectedTooth.surfaces).some(Boolean);
-    const targetState = hasState ? null : activeState;
 
     const nextChart: OdontogramChart = {
       ...localChart,
@@ -109,13 +118,7 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
         tooth.id === selectedTooth.id
           ? {
               ...tooth,
-              surfaces: {
-                M: targetState,
-                D: targetState,
-                V: targetState,
-                L: targetState,
-                O: targetState,
-              },
+              surfaces: { M: state, D: state, V: state, L: state, O: state },
             }
           : tooth
       ),
@@ -127,7 +130,7 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
   return (
     <div className="space-y-4">
       <div className="rounded-md border p-3">
-        <p className="mb-2 text-xs font-medium text-muted-foreground">Vista de arcada (solo visual)</p>
+        <p className="mb-2 text-xs font-medium text-muted-foreground">Vista general del odontograma</p>
         <Odontogram
           value={localChart}
           dentition="mixed"
@@ -139,85 +142,86 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
         />
       </div>
 
-      <div className="grid gap-4 rounded-md border p-3 lg:grid-cols-[260px_1fr]">
+      <div className="grid gap-4 rounded-md border p-3 lg:grid-cols-[280px_1fr]">
         <div className="space-y-3">
-          <label className="block text-xs font-medium text-muted-foreground">Seleccionar pieza a editar</label>
-          <select
-            className="w-full rounded-md border bg-background p-2 text-sm"
-            value={selectedToothId}
-            onChange={(event) => setSelectedToothId(Number(event.target.value))}
-          >
-            {localChart.teeth.map((tooth) => (
-              <option key={tooth.id} value={tooth.id}>
-                {tooth.id} · FDI {getToothLabel(tooth.id, "FDI")} · UNI {getToothLabel(tooth.id, "UNIVERSAL")}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex flex-wrap gap-2">
-            {DEFAULT_STATES.map((state) => (
-              <button
-                key={state.key}
-                type="button"
-                onClick={() => setActiveState(state.key)}
-                className={`rounded-md border px-2 py-1 text-xs transition ${
-                  activeState === state.key ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
-                }`}
-              >
-                {state.label}
-              </button>
-            ))}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">1) Pieza a tratar</label>
+            <select
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={selectedToothId}
+              onChange={(event) => setSelectedToothId(Number(event.target.value))}
+            >
+              {localChart.teeth.map((tooth) => (
+                <option key={tooth.id} value={tooth.id}>
+                  {tooth.id} · FDI {getToothLabel(tooth.id, "FDI")} · UNI {getToothLabel(tooth.id, "UNIVERSAL")}
+                </option>
+              ))}
+            </select>
           </div>
 
-
-          <div className="rounded-md border p-2">
-            <p className="text-xs font-medium text-muted-foreground">Modelo 3D interactivo</p>
-            <p className="text-[11px] text-muted-foreground">Arrastra con el mouse para rotar, usa la rueda para zoom y Shift + arrastre para mover.</p>
+          <div>
+            <p className="mb-1 text-xs font-medium text-muted-foreground">2) Estado clínico</p>
+            <div className="grid grid-cols-1 gap-2">
+              {DEFAULT_STATES.map((state) => (
+                <button
+                  key={state.key}
+                  type="button"
+                  onClick={() => setActiveState(state.key)}
+                  className={`flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition ${
+                    activeState === state.key ? "border-primary bg-primary/10" : "hover:bg-muted"
+                  }`}
+                >
+                  <span className="size-2.5 rounded-full" style={{ backgroundColor: state.color }} />
+                  <span>{state.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          <button
-            type="button"
-            className="w-full rounded-md border px-2 py-1 text-xs hover:bg-muted"
-            onClick={toggleWholeTooth}
-          >
-            Aplicar/quitar estado en todo el diente
-          </button>
+          <div className="rounded-md border bg-muted/30 p-2 text-[11px] text-muted-foreground">
+            <p>3) Modelo 3D: haz clic sobre una cara para aplicar o quitar el estado activo.</p>
+            <p>Arrastra para rotar, rueda para zoom y Shift + arrastre para mover.</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" className="rounded-md border px-2 py-1 text-xs hover:bg-muted" onClick={() => setWholeTooth(activeState)}>
+              Marcar toda pieza
+            </button>
+            <button type="button" className="rounded-md border px-2 py-1 text-xs hover:bg-muted" onClick={() => setWholeTooth(null)}>
+              Limpiar pieza
+            </button>
+          </div>
         </div>
 
         <div className="rounded-md border bg-card p-3">
           <p className="mb-2 text-xs text-muted-foreground">
-            Edición precisa de pieza {selectedTooth?.id ?? "-"}: clic en cada superficie para alternar estado.
+            Pieza {selectedTooth?.id ?? "-"}. {hoverSurface ? `Superficie apuntada: ${hoverSurface}.` : "Selecciona una superficie en el modelo."}
           </p>
-          <div className="mb-3 grid grid-cols-5 gap-1 text-center text-[11px] text-muted-foreground">
-            <span className="rounded border px-1 py-0.5">M</span>
-            <span className="rounded border px-1 py-0.5">V/B</span>
-            <span className="rounded border px-1 py-0.5">O/I</span>
-            <span className="rounded border px-1 py-0.5">L/P</span>
-            <span className="rounded border px-1 py-0.5">D</span>
-          </div>
-          <p className="mb-2 text-xs text-muted-foreground">
-            {hoverSurfaceLabel ? `Superficie activa: ${hoverSurfaceLabel}` : "Pase el mouse por una superficie para ver su nombre."}
-          </p>
+
           {selectedTooth ? (
-            <>
-              <ToothModel3D tooth={selectedTooth} stateMap={stateMap} className="mx-auto h-[280px] w-full max-w-[460px]" />
-              <svg viewBox="0 0 140 190" className="mx-auto mt-3 h-[220px] w-full max-w-[220px]">
-                <g transform="translate(18 8) scale(1.5)">
-                  <Tooth
-                    tooth={selectedTooth}
-                    numberingSystem="FDI"
-                    secondarySystem="UNIVERSAL"
-                    optionalSystem="PALMER"
-                    stateMap={stateMap}
-                    activeSelections={new Set<string>()}
-                    onToothClick={toggleWholeTooth}
-                    onSurfaceClick={(_, surface) => toggleSurface(surface)}
-                    onSurfaceHover={(payload) => setHoverSurfaceLabel(payload?.surfaceLabel ?? null)}
-                  />
-                </g>
-              </svg>
-            </>
+            <ToothModel3D
+              tooth={selectedTooth}
+              stateMap={stateMap}
+              className="mx-auto h-[360px] w-full max-w-[620px]"
+              onSurfaceClick={toggleSurface}
+              onSurfaceHover={setHoverSurface}
+            />
           ) : null}
+
+          <div className="mt-3 rounded-md border p-2 text-xs">
+            <p className="mb-2 font-medium text-muted-foreground">Superficies marcadas</p>
+            {activeSurfaces.length ? (
+              <div className="flex flex-wrap gap-2">
+                {activeSurfaces.map((entry) => (
+                  <span key={entry.surface} className="rounded-full border px-2 py-0.5" style={{ borderColor: stateMap[entry.state ?? ""]?.color }}>
+                    {entry.surface} · {stateMap[entry.state ?? ""]?.label ?? entry.state}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">Sin superficies marcadas en esta pieza.</p>
+            )}
+          </div>
         </div>
       </div>
 
