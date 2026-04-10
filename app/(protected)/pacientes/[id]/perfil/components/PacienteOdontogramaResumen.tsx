@@ -16,8 +16,6 @@ export function PacienteOdontogramaResumen({
       <OdontogramaModul
         selectedTeeth={treatedTeeth}
         readOnly
-        showTemporaryTeethToggle
-        defaultShowTemporaryTeeth
       />
 
       <p className="text-sm text-muted-foreground">

@@ -1,10 +1,21 @@
-# SVG del odontograma
+# SVG del odontograma (estilo demo React-Odontogram-Modul)
 
-Pega aquí los SVG de cada pieza dental con el siguiente nombre de archivo:
+Pega aquí **solo estos SVG base** del demo:
 
-- Dentición permanente: `11.svg` a `48.svg` (según numeración FDI).
-- Dentición temporal: `51.svg` a `85.svg` (según numeración FDI).
+- `11.svg`
+- `13.svg`
+- `14.svg`
+- `16.svg`
+- `14_occl.svg`
+- `16_occl.svg`
 
-Ejemplo: `public/odontograma-svg/11.svg`, `public/odontograma-svg/36.svg`, `public/odontograma-svg/75.svg`.
+Ruta exacta esperada por el componente:
 
-El componente carga cada pieza desde `/odontograma-svg/<numero>.svg`.
+- `/odontograma-svg/11.svg`
+- `/odontograma-svg/13.svg`
+- `/odontograma-svg/14.svg`
+- `/odontograma-svg/16.svg`
+- `/odontograma-svg/14_occl.svg`
+- `/odontograma-svg/16_occl.svg`
+
+El resto de piezas se generan por mapeo (rotación/espejo) a partir de esos templates.
