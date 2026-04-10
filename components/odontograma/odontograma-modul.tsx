@@ -50,6 +50,22 @@ type ToothRootState = "sana" | "pulpitis" | "resecado" | "pin";
 type ToothBaseSelect = "none" | "tooth-base" | "milktooth" | "implant" | "tooth-crownprep" | "tooth-under-gum";
 type ToothEndoSelect = "none" | "endo-medical-filling";
 type ToothVisualState = { base: ToothBaseSelect; endo: ToothEndoSelect };
+const SVG_TEXT_CACHE = new Map<string, string>();
+
+function setDataActiveById(svgRoot: SVGSVGElement, id: string, active: boolean) {
+  const node = svgRoot.querySelector<SVGElement>(`#${id}`);
+  if (!node) return;
+  node.setAttribute("data-active", active ? "1" : "0");
+}
+
+function normalizeDisplayNoneToDataActive(svgRoot: SVGSVGElement) {
+  svgRoot.querySelectorAll<SVGElement>("[style]").forEach((node) => {
+    const style = node.getAttribute("style");
+    if (!style || !style.includes("display: none")) return;
+    node.setAttribute("style", style.replace(/display:\s*none;?/g, "").trim());
+    node.setAttribute("data-active", "0");
+  });
+}
 
 function transformFor(conf: { rot: 0 | 180; mirror: boolean }) {
   return `rotate(${conf.rot}deg) scaleX(${conf.mirror ? "-1" : "1"})`;
@@ -97,35 +113,38 @@ function InlineToothSvg({
   hiddenIds: string[];
   style: CSSProperties;
 }) {
-  const [svgMap, setSvgMap] = useState<Record<string, string>>({});
-  const svgText = svgMap[src];
+  const [svgText, setSvgText] = useState<string>(SVG_TEXT_CACHE.get(src) ?? "");
 
   useEffect(() => {
     let cancelled = false;
-    if (svgMap[src]) return;
+    if (SVG_TEXT_CACHE.has(src)) return;
+
     fetch(src)
       .then((res) => res.text())
       .then((text) => {
         if (cancelled) return;
-        setSvgMap((prev) => ({ ...prev, [src]: text }));
+        SVG_TEXT_CACHE.set(src, text);
+        setSvgText(text);
       })
       .catch(() => undefined);
+
     return () => {
       cancelled = true;
     };
-  }, [src, svgMap]);
+  }, [src]);
 
   const markup = useMemo(() => {
     if (!svgText) return "";
-    const safeActive = activeIds.filter(Boolean);
-    const safeHidden = hiddenIds.filter(Boolean);
-    const customStyle = `
-      <style>
-        ${safeActive.map((id) => `#${id}{display:inline !important;}`).join("")}
-        ${safeHidden.map((id) => `#${id}{display:none !important;}`).join("")}
-      </style>
-    `;
-    return svgText.replace("</svg>", `${customStyle}</svg>`);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgText, "image/svg+xml");
+    const svg = doc.querySelector("svg");
+    if (!svg) return svgText;
+
+    normalizeDisplayNoneToDataActive(svg);
+    activeIds.forEach((id) => setDataActiveById(svg, id, true));
+    hiddenIds.forEach((id) => setDataActiveById(svg, id, false));
+
+    return svg.outerHTML;
   }, [activeIds, hiddenIds, svgText]);
 
   if (!markup) return null;
@@ -157,7 +176,18 @@ function ToothTile({
   const currentVisual = visualState ?? { base: "tooth-base", endo: "none" };
 
   const idsToShow: string[] = [];
-  const idsToHide: string[] = ["tooth-base", "milktooth-base", "milktooth", "implant", "tooth-crownprep", "tooth-crownprep-inner", "tooth-crownprep-outer", "tooth-under-gum", "no-tooth-after-extraction"];
+  const idsToHide: string[] = [];
+  const mutuallyExclusiveBaseIds = [
+    "tooth-base",
+    "milktooth-base",
+    "milktooth",
+    "implant",
+    "tooth-crownprep",
+    "tooth-crownprep-inner",
+    "tooth-crownprep-outer",
+    "tooth-under-gum",
+    "no-tooth-after-extraction",
+  ];
 
   if (currentVisual.base === "none") {
     idsToShow.push("no-tooth-after-extraction");
@@ -176,6 +206,10 @@ function ToothTile({
   if (currentVisual.endo === "endo-medical-filling") {
     idsToShow.push("endo-medical-filling");
   }
+
+  mutuallyExclusiveBaseIds.forEach((id) => {
+    if (!idsToShow.includes(id)) idsToHide.push(id);
+  });
 
   return (
     <button
