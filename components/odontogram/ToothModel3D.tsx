@@ -4,13 +4,18 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import type { OdontogramStateDefinition, ToothRecord, ToothSurfaceKey } from "@/lib/odontogram/types";
 
-type ToothFamily = "incisor" | "canine" | "premolar" | "molar";
-
 type SurfaceMeta = {
   key: ToothSurfaceKey;
   position: [number, number, number];
   rotation?: [number, number, number];
   size: [number, number, number];
+};
+
+type AnatomyPreset = {
+  crownScale: [number, number, number];
+  cuspPositions: Array<[number, number, number]>;
+  rootPositions: Array<[number, number, number]>;
+  rootRotations: Array<[number, number, number]>;
 };
 
 const SURFACES: SurfaceMeta[] = [
@@ -29,127 +34,100 @@ interface ToothModel3DProps {
   onSurfaceHover?: (surface: ToothSurfaceKey | null) => void;
 }
 
-function getFamily(toothId: number): ToothFamily {
+function getAnatomyPreset(toothId: number): AnatomyPreset {
+  const quadrant = Math.floor(toothId / 10);
   const position = toothId % 10;
-  if (position <= 2) return "incisor";
-  if (position === 3) return "canine";
-  if (position <= 5) return "premolar";
-  return "molar";
-}
+  const isUpper = quadrant === 1 || quadrant === 2 || quadrant === 5 || quadrant === 6;
+  const isPrimary = quadrant >= 5;
 
-function getCrownScale(family: ToothFamily): [number, number, number] {
-  if (family === "incisor") return [0.62, 0.86, 0.44];
-  if (family === "canine") return [0.56, 0.92, 0.56];
-  if (family === "premolar") return [0.72, 0.86, 0.7];
-  return [0.84, 0.8, 0.82];
-}
-
-function RootSet({ family }: { family: ToothFamily }) {
-  if (family === "incisor" || family === "canine") {
-    return (
-      <mesh position={[0, -0.68, 0]} rotation={[0.05, 0, 0]}>
-        <cylinderGeometry args={[0.13, 0.08, 1.28, 20]} />
-        <meshStandardMaterial color="#f8fafc" roughness={0.4} />
-      </mesh>
-    );
+  if (position <= 2) {
+    return {
+      crownScale: position === 1 ? [0.58, 0.95, 0.44] : [0.52, 0.9, 0.42],
+      cuspPositions: [],
+      rootPositions: [[0, -0.68, 0]],
+      rootRotations: [[0.05, 0, 0]],
+    };
   }
 
-  if (family === "premolar") {
-    return (
-      <>
-        <mesh position={[-0.2, -0.7, 0]} rotation={[0.05, 0.04, 0]}>
-          <cylinderGeometry args={[0.11, 0.08, 1.22, 18]} />
-          <meshStandardMaterial color="#f8fafc" roughness={0.4} />
-        </mesh>
-        <mesh position={[0.2, -0.7, 0]} rotation={[0.05, -0.04, 0]}>
-          <cylinderGeometry args={[0.11, 0.08, 1.22, 18]} />
-          <meshStandardMaterial color="#f8fafc" roughness={0.4} />
-        </mesh>
-      </>
-    );
+  if (position === 3) {
+    return {
+      crownScale: [0.56, 0.98, 0.56],
+      cuspPositions: [[0, 0.95, 0]],
+      rootPositions: [[0, -0.7, 0]],
+      rootRotations: [[0.05, 0, 0]],
+    };
   }
 
-  return (
-    <>
-      <mesh position={[-0.28, -0.7, 0.03]} rotation={[0.06, 0.08, 0]}>
-        <cylinderGeometry args={[0.1, 0.07, 1.2, 16]} />
-        <meshStandardMaterial color="#f8fafc" roughness={0.4} />
-      </mesh>
-      <mesh position={[0, -0.74, -0.07]} rotation={[0.02, 0, 0]}>
-        <cylinderGeometry args={[0.11, 0.08, 1.3, 16]} />
-        <meshStandardMaterial color="#f8fafc" roughness={0.4} />
-      </mesh>
-      <mesh position={[0.28, -0.7, 0.03]} rotation={[0.06, -0.08, 0]}>
-        <cylinderGeometry args={[0.1, 0.07, 1.2, 16]} />
-        <meshStandardMaterial color="#f8fafc" roughness={0.4} />
-      </mesh>
-    </>
-  );
-}
-
-function Cusps({ family }: { family: ToothFamily }) {
-  if (family === "canine") {
-    return (
-      <mesh position={[0, 0.92, 0]}>
-        <coneGeometry args={[0.16, 0.28, 20]} />
-        <meshStandardMaterial color="#ffffff" roughness={0.24} />
-      </mesh>
-    );
+  if (position === 4 || position === 5) {
+    const twoRootsUpper = isUpper && !isPrimary && position === 4;
+    return {
+      crownScale: position === 4 ? [0.66, 0.88, 0.66] : [0.7, 0.84, 0.72],
+      cuspPositions: [
+        [-0.16, 0.82, 0.04],
+        [0.16, 0.8, -0.04],
+      ],
+      rootPositions: twoRootsUpper ? [[-0.18, -0.7, 0], [0.18, -0.7, 0]] : [[0, -0.68, 0]],
+      rootRotations: twoRootsUpper ? [[0.05, 0.04, 0], [0.05, -0.04, 0]] : [[0.05, 0, 0]],
+    };
   }
 
-  if (family === "premolar") {
-    return (
-      <>
-        <mesh position={[-0.16, 0.82, 0.02]}>
-          <sphereGeometry args={[0.11, 20, 20]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.24} />
-        </mesh>
-        <mesh position={[0.16, 0.8, -0.02]}>
-          <sphereGeometry args={[0.1, 20, 20]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.24} />
-        </mesh>
-      </>
-    );
-  }
-
-  if (family === "molar") {
-    return (
-      <>
-        <mesh position={[-0.22, 0.8, 0.18]}>
-          <sphereGeometry args={[0.11, 18, 18]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.24} />
-        </mesh>
-        <mesh position={[0.22, 0.8, 0.18]}>
-          <sphereGeometry args={[0.1, 18, 18]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.24} />
-        </mesh>
-        <mesh position={[-0.22, 0.8, -0.18]}>
-          <sphereGeometry args={[0.1, 18, 18]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.24} />
-        </mesh>
-        <mesh position={[0.22, 0.8, -0.18]}>
-          <sphereGeometry args={[0.11, 18, 18]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.24} />
-        </mesh>
-      </>
-    );
-  }
-
-  return null;
+  const upperMolarRoots = isUpper ? 3 : 2;
+  return {
+    crownScale: [0.84, 0.8, 0.82],
+    cuspPositions: [
+      [-0.22, 0.8, 0.18],
+      [0.22, 0.8, 0.18],
+      [-0.22, 0.8, -0.18],
+      [0.22, 0.8, -0.18],
+    ],
+    rootPositions:
+      upperMolarRoots === 3
+        ? [
+            [-0.28, -0.7, 0.03],
+            [0, -0.74, -0.07],
+            [0.28, -0.7, 0.03],
+          ]
+        : [
+            [-0.18, -0.74, 0],
+            [0.18, -0.74, 0],
+          ],
+    rootRotations:
+      upperMolarRoots === 3
+        ? [
+            [0.06, 0.08, 0],
+            [0.02, 0, 0],
+            [0.06, -0.08, 0],
+          ]
+        : [
+            [0.03, 0.04, 0],
+            [0.03, -0.04, 0],
+          ],
+  };
 }
 
 function ToothMesh({ tooth, stateMap, onSurfaceClick, onSurfaceHover }: Omit<ToothModel3DProps, "className">) {
-  const family = getFamily(tooth.id);
+  const anatomy = getAnatomyPreset(tooth.id);
 
   return (
     <group>
-      <mesh position={[0, 0.36, 0]} scale={getCrownScale(family)}>
-        <sphereGeometry args={[0.72, 42, 42]} />
+      <mesh position={[0, 0.36, 0]} scale={anatomy.crownScale}>
+        <sphereGeometry args={[0.72, 46, 46]} />
         <meshStandardMaterial color="#ffffff" metalness={0.06} roughness={0.23} />
       </mesh>
 
-      <Cusps family={family} />
-      <RootSet family={family} />
+      {anatomy.cuspPositions.map((cusp, index) => (
+        <mesh key={`cusp-${index}`} position={cusp}>
+          {tooth.id % 10 === 3 ? <coneGeometry args={[0.16, 0.28, 20]} /> : <sphereGeometry args={[0.1, 20, 20]} />}
+          <meshStandardMaterial color="#ffffff" roughness={0.24} />
+        </mesh>
+      ))}
+
+      {anatomy.rootPositions.map((position, index) => (
+        <mesh key={`root-${index}`} position={position} rotation={anatomy.rootRotations[index] ?? [0.04, 0, 0]}>
+          <cylinderGeometry args={[0.11, 0.07, 1.24, 18]} />
+          <meshStandardMaterial color="#f8fafc" roughness={0.4} />
+        </mesh>
+      ))}
 
       {SURFACES.map((surface) => {
         const stateKey = tooth.surfaces[surface.key];
@@ -169,7 +147,7 @@ function ToothMesh({ tooth, stateMap, onSurfaceClick, onSurfaceHover }: Omit<Too
             }}
           >
             <boxGeometry args={surface.size} />
-            <meshStandardMaterial color={color} transparent opacity={state ? 0.92 : 0.2} roughness={0.35} metalness={0.05} />
+            <meshStandardMaterial color={color} transparent opacity={state ? 0.92 : 0.18} roughness={0.35} metalness={0.05} />
           </mesh>
         );
       })}
