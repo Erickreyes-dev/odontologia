@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Odontogram } from "@/components/odontogram/Odontogram";
-import { ToothModel3D } from "@/components/odontogram/ToothModel3D";
+import { Odontogram3D, type ToothCondition, type ToothData } from "react-odontogram-3d";
 import { getToothLabel, inferDentitionById, PERMANENT_TEETH, TEMPORARY_TEETH } from "@/lib/odontogram/numbering";
 import type { OdontogramChart, OdontogramStateDefinition, ToothSurfaceKey } from "@/lib/odontogram/types";
 
@@ -15,6 +15,22 @@ const DEFAULT_STATES: OdontogramStateDefinition[] = [
 ];
 
 const SURFACE_ORDER: ToothSurfaceKey[] = ["M", "V", "O", "L", "D"];
+
+const SURFACE_LABELS: Record<ToothSurfaceKey, string> = {
+  M: "Mesial",
+  D: "Distal",
+  V: "Vestibular/Bucal",
+  L: "Lingual/Palatino",
+  O: "Oclusal/Incisal",
+};
+
+const SURFACE_TO_LIBRARY: Record<ToothSurfaceKey, ToothCondition["surface"]> = {
+  M: "mesial",
+  D: "distal",
+  V: "buccal",
+  L: "lingual",
+  O: "occlusal",
+};
 
 interface OdontogramaSelectorProps {
   value: number[];
@@ -35,6 +51,22 @@ function buildChartFromSelection(selectedTeeth: number[]): OdontogramChart {
       };
     }),
   };
+}
+
+function resolveToothTypeById(id: number): ToothData["type"] {
+  const position = id % 10;
+  if (position <= 2) return "incisor";
+  if (position === 3) return "canine";
+  if (position <= 5) return "premolar";
+  return "molar";
+}
+
+function resolveQuadrantById(id: number): ToothData["quadrant"] {
+  const firstDigit = Math.floor(id / 10);
+  if (firstDigit === 1 || firstDigit === 5) return 1;
+  if (firstDigit === 2 || firstDigit === 6) return 2;
+  if (firstDigit === 3 || firstDigit === 7) return 3;
+  return 4;
 }
 
 export function OdontogramaSelector({ value, onChange, chartValue, onChartChange }: OdontogramaSelectorProps) {
@@ -71,6 +103,33 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
         state: selectedTooth?.surfaces[surface] ?? null,
       })),
     [selectedTooth]
+  );
+
+  const teeth3D = useMemo<ToothData[]>(
+    () =>
+      localChart.teeth
+        .filter((tooth) => inferDentitionById(tooth.id) === "permanent")
+        .map((tooth) => ({
+          number: tooth.id,
+          name: `Pieza ${tooth.id}`,
+          type: resolveToothTypeById(tooth.id),
+          quadrant: resolveQuadrantById(tooth.id),
+          conditions: SURFACE_ORDER.flatMap((surface) => {
+            const state = tooth.surfaces[surface];
+            if (!state) return [];
+            const stateDef = stateMap[state];
+            return [
+              {
+                id: `${tooth.id}-${surface}-${state}`,
+                type: state === "restauracion" ? "filling" : state === "corona" ? "crown" : state === "extraccion" ? "extraction" : "caries",
+                surface: SURFACE_TO_LIBRARY[surface],
+                color: stateDef?.color ?? "#ef4444",
+                description: stateDef?.label ?? state,
+              },
+            ];
+          }),
+        })),
+    [localChart.teeth, stateMap]
   );
 
   const emit = (nextChart: OdontogramChart) => {
@@ -179,8 +238,8 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
           </div>
 
           <div className="rounded-md border bg-muted/30 p-2 text-[11px] text-muted-foreground">
-            <p>3) Modelo 3D: haz clic sobre una cara para aplicar o quitar el estado activo.</p>
-            <p>Arrastra para rotar, rueda para zoom y Shift + arrastre para mover.</p>
+            <p>3) Modelo 3D oficial de react-odontogram-3d: haz clic en una pieza para seleccionarla.</p>
+            <p>4) Aplica estados por superficie con los botones inferiores.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -195,18 +254,40 @@ export function OdontogramaSelector({ value, onChange, chartValue, onChartChange
 
         <div className="rounded-md border bg-card p-3">
           <p className="mb-2 text-xs text-muted-foreground">
-            Pieza {selectedTooth?.id ?? "-"}. {hoverSurface ? `Superficie apuntada: ${hoverSurface}.` : "Selecciona una superficie en el modelo."}
+            Pieza {selectedTooth?.id ?? "-"}.{" "}
+            {hoverSurface ? `Superficie seleccionada: ${SURFACE_LABELS[hoverSurface]} (${hoverSurface}).` : "Selecciona una superficie para aplicar estado."}
           </p>
 
-          {selectedTooth ? (
-            <ToothModel3D
-              tooth={selectedTooth}
-              stateMap={stateMap}
-              className="mx-auto h-[360px] w-full max-w-[620px]"
-              onSurfaceClick={toggleSurface}
-              onSurfaceHover={setHoverSurface}
+          <div className="mx-auto h-[360px] w-full max-w-[620px] overflow-hidden rounded-md border">
+            <Odontogram3D
+              teeth={teeth3D}
+              interactive
+              showLabels
+              size="medium"
+              theme="light"
+              onToothClick={(tooth) => setSelectedToothId(tooth.number)}
             />
-          ) : null}
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+            {SURFACE_ORDER.map((surface) => {
+              const active = selectedTooth?.surfaces[surface] ?? null;
+              const activeColor = active ? stateMap[active]?.color : undefined;
+              return (
+                <button
+                  key={surface}
+                  type="button"
+                  className="rounded-md border px-2 py-1 text-xs hover:bg-muted"
+                  style={activeColor ? { borderColor: activeColor, backgroundColor: `${activeColor}22` } : undefined}
+                  onMouseEnter={() => setHoverSurface(surface)}
+                  onMouseLeave={() => setHoverSurface(null)}
+                  onClick={() => toggleSurface(surface)}
+                >
+                  {surface} · {SURFACE_LABELS[surface]}
+                </button>
+              );
+            })}
+          </div>
 
           <div className="mt-3 rounded-md border p-2 text-xs">
             <p className="mb-2 font-medium text-muted-foreground">Superficies marcadas</p>
