@@ -1,138 +1,66 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  Odontogram,
-  initialPermanentTeeth,
-  initialTemporaryTeeth,
-} from "op-odontogram";
+import { useMemo, useState } from "react";
+import { Odontogram } from "@/components/odontogram/Odontogram";
+import type { OdontogramChart } from "@/lib/odontogram/types";
 
-type ToothLike = {
-  id: number;
-  status?: string;
-  selected?: boolean;
-  isSelected?: boolean;
-};
+const DEFAULT_STATES = ["caries", "restauracion", "corona", "extraccion", "sellante"] as const;
 
 interface OdontogramaSelectorProps {
   value: number[];
   onChange: (value: number[]) => void;
+  chartValue?: OdontogramChart;
+  onChartChange?: (chart: OdontogramChart) => void;
 }
 
-export function OdontogramaSelector({ value, onChange }: OdontogramaSelectorProps) {
-  const [isMounted, setIsMounted] = useState(false);
-  const [selectedTooth, setSelectedTooth] = useState<ToothLike | null>(null);
-  const [showTemporaryTeeth, setShowTemporaryTeeth] = useState(false);
-  const [showDemoMode, setShowDemoMode] = useState(false);
-  const [showBiteEffect, setShowBiteEffect] = useState(false);
-  const [isAnimatingBite, setIsAnimatingBite] = useState(false);
-
+export function OdontogramaSelector({ value, onChange, chartValue, onChartChange }: OdontogramaSelectorProps) {
+  const [activeState, setActiveState] = useState<(typeof DEFAULT_STATES)[number]>("caries");
   const selectedSet = useMemo(() => new Set(value), [value]);
 
-  const normalizeTooth = (tooth: ToothLike, isSelected: boolean) => ({
-    ...tooth,
-    status: isSelected ? "filled" : "healthy",
-    selected: isSelected,
-    isSelected,
-  });
+  const handleChartChange = (nextChart: OdontogramChart) => {
+    onChartChange?.(nextChart);
 
-  const [teeth, setTeeth] = useState<any[]>(() =>
-    initialPermanentTeeth.map((tooth: ToothLike) => ({
-      ...normalizeTooth(tooth, selectedSet.has(tooth.id)),
-    }))
-  );
+    const selectedTeeth = Array.from(
+      new Set(
+        nextChart.teeth
+          .filter((tooth) => Object.values(tooth.surfaces).some((surface) => Boolean(surface)))
+          .map((tooth) => tooth.id)
+      )
+    ).sort((a, b) => a - b);
 
-  const [temporaryTeeth, setTemporaryTeeth] = useState<any[]>(() =>
-    initialTemporaryTeeth.map((tooth: ToothLike) => ({
-      ...normalizeTooth(tooth, selectedSet.has(tooth.id)),
-    }))
-  );
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
-    setTeeth((current) =>
-      current.map((tooth: ToothLike) => ({
-        ...normalizeTooth(tooth, selectedSet.has(tooth.id)),
-      }))
-    );
-
-    setTemporaryTeeth((current) =>
-      current.map((tooth: ToothLike) => ({
-        ...normalizeTooth(tooth, selectedSet.has(tooth.id)),
-      }))
-    );
-  }, [selectedSet]);
-
-  const onToothClick = (tooth: ToothLike) => {
-    const nextSelected = selectedSet.has(tooth.id)
-      ? value.filter((id) => id !== tooth.id)
-      : [...value, tooth.id];
-
-    const sortedSelection = nextSelected.sort((a, b) => a - b);
-    const nextSelectionSet = new Set(sortedSelection);
-
-    setTeeth((current) =>
-      current.map((item: ToothLike) => ({
-        ...normalizeTooth(item, nextSelectionSet.has(item.id)),
-      }))
-    );
-    setTemporaryTeeth((current) =>
-      current.map((item: ToothLike) => ({
-        ...normalizeTooth(item, nextSelectionSet.has(item.id)),
-      }))
-    );
-
-    setSelectedTooth({
-      ...tooth,
-      ...normalizeTooth(tooth, nextSelectionSet.has(tooth.id)),
-    });
-
-    onChange(sortedSelection);
-  };
-
-  const onSimulateBite = () => {
-    if (isAnimatingBite) return;
-    setIsAnimatingBite(true);
-    setShowBiteEffect(false);
-
-    setTimeout(() => setShowBiteEffect(true), 300);
-    setTimeout(() => setShowBiteEffect(false), 1000);
-    setTimeout(() => setIsAnimatingBite(false), 1500);
+    onChange(selectedTeeth);
   };
 
   return (
-    <div
-      className="space-y-3 rounded-md border p-3"
-      onClickCapture={(event) => {
-        const target = event.target as HTMLElement;
-        if (target.closest("button")) {
-          event.preventDefault();
-        }
-      }}
-    >
-      {isMounted ? (
-        <Odontogram
-          teeth={teeth}
-          temporaryTeeth={temporaryTeeth}
-          showTemporaryTeeth={showTemporaryTeeth}
-          onToggleTemporaryTeeth={setShowTemporaryTeeth}
-          showDemoMode={showDemoMode}
-          onToggleDemoMode={setShowDemoMode}
-          selectedTooth={selectedTooth}
-          onToothClick={onToothClick}
-          showBiteEffect={showBiteEffect}
-          onToggleBiteEffect={setShowBiteEffect}
-          isAnimatingBite={isAnimatingBite}
-          onSimulateBite={onSimulateBite}
-        />
-      ) : (
-        <div className="h-[420px] w-full animate-pulse rounded-md bg-muted" />
-      )}
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {DEFAULT_STATES.map((state) => (
+          <button
+            key={state}
+            type="button"
+            onClick={() => setActiveState(state)}
+            className={`rounded-md border px-2 py-1 text-xs capitalize transition ${
+              activeState === state ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
+            }`}
+          >
+            {state}
+          </button>
+        ))}
+      </div>
+
+      <Odontogram
+        value={chartValue}
+        onChange={handleChartChange}
+        dentition="mixed"
+        activeState={activeState}
+        numberingSystem="FDI"
+        secondarySystem="UNIVERSAL"
+        optionalSystem="PALMER"
+        className="space-y-2"
+      />
+
       <p className="text-xs text-muted-foreground">
-        Piezas seleccionadas: {value.length > 0 ? value.join(", ") : "ninguna"}.
+        Piezas seleccionadas: {selectedSet.size > 0 ? Array.from(selectedSet).sort((a, b) => a - b).join(", ") : "ninguna"}.
       </p>
     </div>
   );

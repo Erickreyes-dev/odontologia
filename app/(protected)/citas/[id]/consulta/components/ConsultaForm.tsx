@@ -130,6 +130,7 @@ export function ConsultaForm({
       notas: consulta?.notas || "",
       observacionesClinicas: consulta?.observacionesClinicas || "",
       piezasTratadas: consulta?.piezasTratadas ?? [],
+      odontogramaClinico: consulta?.odontogramaClinico ?? null,
       servicios: consulta?.servicios ?? [],
       productos: consulta?.productos ?? [],
       seguimientoId: consulta?.seguimientoId ?? null,
@@ -168,8 +169,9 @@ export function ConsultaForm({
   const promocionId = useWatch({ control: form.control, name: "promocionId" });
   const descuentoPorcentaje = useWatch({ control: form.control, name: "descuento" }) ?? 0;
   const piezasTratadas = useWatch({ control: form.control, name: "piezasTratadas" }) ?? [];
+  const odontogramaClinico = useWatch({ control: form.control, name: "odontogramaClinico" });
   const [usarOdontograma, setUsarOdontograma] = useState(
-    (consulta?.piezasTratadas?.length ?? 0) > 0
+    (consulta?.piezasTratadas?.length ?? 0) > 0 || (consulta?.odontogramaClinico?.teeth?.length ?? 0) > 0
   );
   const [mostrarProductos, setMostrarProductos] = useState(
     (consulta?.productos?.length ?? 0) > 0
@@ -1018,6 +1020,10 @@ export function ConsultaForm({
                         shouldDirty: true,
                         shouldValidate: true,
                       });
+                      form.setValue("odontogramaClinico", null, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
                     }
                   }}
                 />
@@ -1034,6 +1040,10 @@ export function ConsultaForm({
                     <FieldContent>
                       <OdontogramaSelector
                         value={field.value ?? []}
+                        chartValue={odontogramaClinico ?? undefined}
+                        onChartChange={(chart) =>
+                          form.setValue("odontogramaClinico", chart, { shouldDirty: true, shouldValidate: true })
+                        }
                         onChange={(nextValue) => field.onChange(nextValue)}
                       />
                     </FieldContent>

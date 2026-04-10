@@ -8,6 +8,18 @@ export const ConsultaSchema = z.object({
   notas: z.string().nullable().optional(),
   observacionesClinicas: z.string().nullable().optional(),
   piezasTratadas: z.array(z.number()).optional().nullable(),
+  odontogramaClinico: z
+    .object({
+      teeth: z.array(
+        z.object({
+          id: z.number(),
+          dentition: z.enum(["permanent", "temporary"]).optional(),
+          surfaces: z.record(z.string(), z.string().nullable().optional()),
+        })
+      ),
+    })
+    .optional()
+    .nullable(),
   total: z.number().optional(),
   descuento: z.number().min(0, "El descuento debe ser mayor o igual a 0").max(100, "El descuento no puede superar 100%").optional().nullable(),
   servicios: z.array(
