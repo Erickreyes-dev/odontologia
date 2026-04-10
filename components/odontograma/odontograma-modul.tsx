@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { type MouseEvent, useMemo, useState } from "react";
-import { Plus, Minus } from "lucide-react";
+import { ChevronDown, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ALL_TEETH = [
@@ -45,13 +45,37 @@ interface OdontogramaModulProps {
   readOnly?: boolean;
 }
 
+type SectionKey = "estados" | "detalles" | "caries" | "obturaciones" | "raiz" | "periodonto";
+type ToothRootState = "sana" | "pulpitis" | "resecado" | "pin";
+
 function transformFor(conf: { rot: 0 | 180; mirror: boolean }) {
   return `rotate(${conf.rot}deg) scaleX(${conf.mirror ? "-1" : "1"})`;
 }
 
-function ToolButton({ src, label }: { src: string; label: string }) {
+function ToolButton({
+  src,
+  label,
+  active,
+  disabled,
+  onClick,
+}: {
+  src: string;
+  label: string;
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
   return (
-    <button type="button" className="flex h-16 w-16 items-center justify-center rounded-2xl border border-sky-300 bg-violet-100">
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex h-16 w-16 items-center justify-center rounded-2xl border bg-secondary/20 transition-colors",
+        active && "border-primary bg-primary/15",
+        disabled && "cursor-not-allowed opacity-50"
+      )}
+    >
       <div className="relative h-9 w-9">
         <Image src={src} alt={label} fill sizes="36px" className="object-contain" />
       </div>
@@ -59,7 +83,19 @@ function ToolButton({ src, label }: { src: string; label: string }) {
   );
 }
 
-function ToothTile({ tooth, selected, readOnly, onClick }: { tooth: number; selected: boolean; readOnly: boolean; onClick: (event: MouseEvent, tooth: number) => void }) {
+function ToothTile({
+  tooth,
+  selected,
+  readOnly,
+  rootState,
+  onClick,
+}: {
+  tooth: number;
+  selected: boolean;
+  readOnly: boolean;
+  rootState?: ToothRootState;
+  onClick: (event: MouseEvent, tooth: number) => void;
+}) {
   const conf = TOOTH_TEMPLATE.get(tooth);
   if (!conf) return null;
 
@@ -73,10 +109,19 @@ function ToothTile({ tooth, selected, readOnly, onClick }: { tooth: number; sele
       onClick={(event) => onClick(event, tooth)}
       disabled={readOnly}
       className={cn(
-        "relative h-[108px] rounded-2xl border border-slate-300 bg-slate-50 p-1 transition",
-        selected && "border-blue-500 ring-2 ring-blue-300"
+        "relative h-[108px] rounded-2xl border border-border bg-card p-1 transition",
+        selected && "border-primary ring-2 ring-primary/50"
       )}
     >
+      {rootState === "pulpitis" && (
+        <div className="pointer-events-none absolute inset-x-0 top-6 mx-auto h-9 w-2 rounded-full bg-destructive">
+          <div className="absolute inset-0 -translate-x-1/2">
+            <span className="absolute left-3 top-1 h-[1px] w-2 bg-foreground/70" />
+            <span className="absolute left-3 top-3 h-[1px] w-2 bg-foreground/70" />
+            <span className="absolute left-3 top-5 h-[1px] w-2 bg-foreground/70" />
+          </div>
+        </div>
+      )}
       {occl && (
         <div className="absolute inset-x-0 top-1 mx-auto h-8 w-8">
           <Image src={occl} alt={`oclusal ${tooth}`} fill sizes="32px" className="object-contain" style={style} />
@@ -91,7 +136,22 @@ function ToothTile({ tooth, selected, readOnly, onClick }: { tooth: number; sele
 
 export function OdontogramaModul({ selectedTeeth, onSelectedTeethChange, readOnly = false }: OdontogramaModulProps) {
   const [activeTooth, setActiveTooth] = useState<number | null>(selectedTeeth[0] ?? null);
+  const [rootStateByTooth, setRootStateByTooth] = useState<Record<number, ToothRootState>>({});
+  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
+    estados: true,
+    detalles: true,
+    caries: true,
+    obturaciones: true,
+    raiz: true,
+    periodonto: true,
+  });
+  const [activeTool, setActiveTool] = useState<"base" | "variante" | "restauracion" | "raiz" | "extraccion">("base");
+  const [selectedCaries, setSelectedCaries] = useState<string[]>([]);
   const selectedSet = useMemo(() => new Set(selectedTeeth), [selectedTeeth]);
+
+  const toggleSection = (section: SectionKey) => {
+    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const handleToothClick = (event: MouseEvent, tooth: number) => {
     if (readOnly || !onSelectedTeethChange) return;
@@ -109,89 +169,161 @@ export function OdontogramaModul({ selectedTeeth, onSelectedTeethChange, readOnl
     onSelectedTeethChange(next.sort((a, b) => a - b));
   };
 
+  const updateRootState = (state: ToothRootState) => {
+    if (!activeTooth) return;
+    setRootStateByTooth((prev) => ({ ...prev, [activeTooth]: state }));
+  };
+
   const topRow = ALL_TEETH.slice(0, 16);
   const bottomRow = [...ALL_TEETH.slice(16)].reverse();
 
   return (
-    <div className="rounded-3xl border bg-[#f3f5f8]">
+    <div className="rounded-3xl border border-border bg-muted/20">
       {!readOnly && (
-        <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>
-            <h3 className="text-3xl font-bold tracking-tight text-slate-900">Carta dental</h3>
-            <p className="text-sm text-slate-600">Haz clic en un diente. Para selección múltiple, usa CMD/CTRL + clic.</p>
+            <h3 className="text-3xl font-bold tracking-tight text-foreground">Carta dental</h3>
+            <p className="text-sm text-muted-foreground">Haz clic en un diente. Para selección múltiple, usa CMD/CTRL + clic.</p>
           </div>
           <div className="flex gap-2">
-            <ToolButton src={TEMPLATES[11]} label="base" />
-            <ToolButton src={TEMPLATES[13]} label="variante" />
-            <ToolButton src={TEMPLATES[14]} label="restauración" />
-            <ToolButton src={TEMPLATES[16]} label="raíz" />
+            <ToolButton src={TEMPLATES[11]} label="base" active={activeTool === "base"} onClick={() => setActiveTool("base")} />
+            <ToolButton src={TEMPLATES[13]} label="variante" active={activeTool === "variante"} onClick={() => setActiveTool("variante")} />
+            <ToolButton src={TEMPLATES[14]} label="restauración" active={activeTool === "restauracion"} onClick={() => setActiveTool("restauracion")} />
+            <ToolButton src={TEMPLATES[16]} label="raíz" active={activeTool === "raiz"} onClick={() => setActiveTool("raiz")} />
+            <ToolButton src={TEMPLATES[16]} label="extracción" active={activeTool === "extraccion"} disabled onClick={() => setActiveTool("extraccion")} />
           </div>
         </div>
       )}
 
       <div className="grid gap-0 lg:grid-cols-[1fr_430px]">
         <div className="p-4">
-          <div className="grid grid-cols-[repeat(16,minmax(0,1fr))] gap-2 text-center text-sm font-semibold text-slate-600">
+          <div className="grid grid-cols-[repeat(16,minmax(0,1fr))] gap-2 text-center text-sm font-semibold text-muted-foreground">
             {topRow.map((tooth, idx) => <span key={`${tooth}-${idx}`}>{idx + 1}</span>)}
           </div>
 
           <div className="mt-2 grid grid-cols-8 gap-2 md:grid-cols-[repeat(16,minmax(0,1fr))]">
             {topRow.map((tooth) => (
-              <ToothTile key={tooth} tooth={tooth} selected={selectedSet.has(tooth)} readOnly={readOnly} onClick={handleToothClick} />
+              <ToothTile
+                key={tooth}
+                tooth={tooth}
+                selected={selectedSet.has(tooth)}
+                readOnly={readOnly}
+                rootState={rootStateByTooth[tooth]}
+                onClick={handleToothClick}
+              />
             ))}
           </div>
 
           <div className="mt-2 grid grid-cols-8 gap-2 md:grid-cols-[repeat(16,minmax(0,1fr))]">
             {bottomRow.map((tooth) => (
-              <ToothTile key={tooth} tooth={tooth} selected={selectedSet.has(tooth)} readOnly={readOnly} onClick={handleToothClick} />
+              <ToothTile
+                key={tooth}
+                tooth={tooth}
+                selected={selectedSet.has(tooth)}
+                readOnly={readOnly}
+                rootState={rootStateByTooth[tooth]}
+                onClick={handleToothClick}
+              />
             ))}
           </div>
 
-          <div className="mt-2 grid grid-cols-[repeat(16,minmax(0,1fr))] gap-2 text-center text-sm font-semibold text-slate-600">
+          <div className="mt-2 grid grid-cols-[repeat(16,minmax(0,1fr))] gap-2 text-center text-sm font-semibold text-muted-foreground">
             {bottomRow.map((tooth) => <span key={`label-${tooth}`}>{tooth}</span>)}
           </div>
         </div>
 
         {!readOnly && (
-          <aside className="border-l bg-[#f0f2f5] p-4">
-            <div className="rounded-2xl border bg-white/40 p-4">
+          <aside className="border-l border-border bg-muted/10 p-4">
+            <div className="rounded-2xl border border-border bg-card/40 p-4">
               <div className="mb-3 flex items-center justify-between">
-                <h4 className="text-2xl font-bold text-slate-900">Controles</h4>
+                <h4 className="text-2xl font-bold text-foreground">Controles</h4>
                 <button
                   type="button"
-                  className="rounded-xl border border-red-300 px-4 py-1 text-red-600"
+                  className="rounded-xl border border-destructive/40 px-4 py-1 text-destructive"
                   onClick={() => onSelectedTeethChange?.([])}
                 >
                   Borrar selección
                 </button>
               </div>
-              <p className="mb-3 text-sm text-slate-600">
-                Diente activo: <span className="rounded-full bg-emerald-100 px-2 py-1 font-semibold">{activeTooth ?? "-"}</span>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Diente activo: <span className="rounded-full bg-primary/15 px-2 py-1 font-semibold text-primary">{activeTooth ?? "-"}</span>
               </p>
               <div className="space-y-3">
-                <section className="rounded-2xl border bg-white/60 p-3">
+                <section className="rounded-2xl border border-border bg-card/60 p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <h5 className="text-lg font-bold">Raíz</h5>
-                    <Minus className="h-4 w-4" />
+                    <button type="button" onClick={() => toggleSection("raiz")} className="rounded-full border border-border p-1">
+                      {openSections.raiz ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                    </button>
                   </div>
-                  <button type="button" className="w-full rounded-xl bg-slate-200 px-3 py-2 text-left font-semibold">Raíz sana</button>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <span className="rounded-full border border-emerald-400 bg-emerald-100 px-3 py-1">Pulpitis</span>
-                    <span className="rounded-full border px-3 py-1">Diente resecado</span>
-                    <span className="rounded-full border px-3 py-1">Pin parapulpar</span>
-                  </div>
+                  {openSections.raiz && (
+                    <>
+                      <button type="button" className="flex w-full items-center justify-between rounded-xl bg-secondary/60 px-3 py-2 text-left font-semibold" onClick={() => updateRootState("sana")}>
+                        Raíz sana <ChevronDown className="h-4 w-4" />
+                      </button>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {[
+                          { id: "pulpitis", label: "Pulpitis", state: "pulpitis" as ToothRootState },
+                          { id: "resecado", label: "Diente resecado", state: "resecado" as ToothRootState },
+                          { id: "pin", label: "Pin parapulpar", state: "pin" as ToothRootState },
+                        ].map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className={cn(
+                              "rounded-full border px-3 py-1",
+                              rootStateByTooth[activeTooth ?? -1] === item.state && "border-primary bg-primary/15 text-primary"
+                            )}
+                            onClick={() => updateRootState(item.state)}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </section>
-
-                {[
-                  "Caries",
-                  "Obturaciones y restauración",
-                  "Periodonto e inflamaciones",
-                ].map((title) => (
-                  <section key={title} className="rounded-2xl border bg-white/60 p-3">
-                    <div className="flex items-center justify-between">
-                      <h5 className="text-lg font-bold">{title}</h5>
-                      <Plus className="h-4 w-4" />
+                <section className="rounded-2xl border border-border bg-card/60 p-3">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-lg font-bold">Caries</h5>
+                    <button type="button" onClick={() => toggleSection("caries")} className="rounded-full border border-border p-1">
+                      {openSections.caries ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {openSections.caries && (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {["mesial", "distal", "bucal", "lingual/palatino", "oclusal"].map((surface) => (
+                        <button
+                          key={surface}
+                          type="button"
+                          onClick={() => setSelectedCaries((prev) => (prev.includes(surface) ? prev.filter((item) => item !== surface) : [...prev, surface]))}
+                          className={cn(
+                            "rounded-xl border px-3 py-2 text-left",
+                            selectedCaries.includes(surface) && "border-primary bg-primary/15 text-primary"
+                          )}
+                        >
+                          {surface}
+                        </button>
+                      ))}
                     </div>
+                  )}
+                </section>
+                {[
+                  { title: "Obturaciones y restauración", section: "obturaciones" as SectionKey },
+                  { title: "Periodonto e inflamaciones", section: "periodonto" as SectionKey },
+                ].map((item) => (
+                  <section key={item.section} className="rounded-2xl border border-border bg-card/60 p-3">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-lg font-bold">{item.title}</h5>
+                      <button type="button" onClick={() => toggleSection(item.section)} className="rounded-full border border-border p-1">
+                        {openSections[item.section] ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {openSections[item.section] && (
+                      <button type="button" className="mt-3 flex w-full items-center justify-between rounded-xl bg-secondary/60 px-3 py-2 text-left font-semibold">
+                        Ninguno <ChevronDown className="h-4 w-4" />
+                      </button>
+                    )}
                   </section>
                 ))}
               </div>
