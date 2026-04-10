@@ -24,6 +24,7 @@ interface ToothProps {
 }
 
 type ToothFamily = "incisor" | "canine" | "premolar" | "molar";
+const CORE_SURFACES: ToothSurfaceKey[] = ["M", "D", "V", "L", "O"];
 
 const SURFACE_NAMES: Record<ToothSurfaceKey, string> = {
   M: "Mesial",
@@ -139,6 +140,13 @@ export function Tooth({
     () => (Object.keys(shape.surfaces) as ToothSurfaceKey[]).map((key) => ({ key, path: shape.surfaces[key] })),
     [shape]
   );
+  const gingivaState = tooth.surfaces.G;
+  const subcrownState = tooth.surfaces.SC;
+  const toothWideState = tooth.surfaces.__TOOTH__;
+  const mobilityState = tooth.surfaces.__MOBILITY__;
+  const extraStatesCount = Object.entries(tooth.surfaces).filter(
+    ([surface, state]) => !CORE_SURFACES.includes(surface as ToothSurfaceKey) && Boolean(state)
+  ).length;
 
   return (
     <g transform="translate(0 0)">
@@ -205,6 +213,37 @@ export function Tooth({
         />
       ))}
 
+      {gingivaState ? (
+        <ellipse
+          cx={30}
+          cy={31}
+          rx={24}
+          ry={30}
+          fill="none"
+          stroke={stateMap[gingivaState]?.color ?? "#ef4444"}
+          strokeWidth={2}
+          strokeDasharray="4 3"
+          className="pointer-events-none opacity-85"
+        />
+      ) : null}
+
+      {subcrownState ? (
+        <ellipse
+          cx={30}
+          cy={28}
+          rx={12}
+          ry={8}
+          fill="none"
+          stroke={stateMap[subcrownState]?.color ?? "#f59e0b"}
+          strokeWidth={2}
+          className="pointer-events-none"
+        />
+      ) : null}
+
+      {toothWideState ? (
+        <circle cx={48} cy={10} r={6} fill={stateMap[toothWideState]?.color ?? "#6366f1"} className="pointer-events-none" />
+      ) : null}
+
       <text x={30} y={66} textAnchor="middle" fontSize={9} fill="currentColor" className="select-none font-medium">
         {getToothLabel(tooth.id, numberingSystem)}
       </text>
@@ -218,6 +257,18 @@ export function Tooth({
       {optionalSystem ? (
         <text x={30} y={83} textAnchor="middle" fontSize={7} fill="hsl(var(--muted-foreground))" className="select-none">
           {getToothLabel(tooth.id, optionalSystem)}
+        </text>
+      ) : null}
+
+      {mobilityState ? (
+        <text x={30} y={91} textAnchor="middle" fontSize={6} fill="hsl(var(--destructive))" className="select-none font-semibold">
+          {mobilityState.toUpperCase()}
+        </text>
+      ) : null}
+
+      {extraStatesCount > 1 ? (
+        <text x={48} y={21} textAnchor="middle" fontSize={6} fill="hsl(var(--foreground))" className="select-none font-semibold">
+          +{extraStatesCount}
         </text>
       ) : null}
     </g>
