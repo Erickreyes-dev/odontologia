@@ -31,8 +31,9 @@ export function ToothSurface({
   const style = {
     fill: stateConfig?.color ?? "hsl(var(--background))",
     stroke: stateConfig?.strokeColor ?? "hsl(var(--border))",
-    transition: "fill 180ms ease, stroke 180ms ease, transform 180ms ease, opacity 180ms ease",
+    transition: "fill 180ms ease, stroke 180ms ease, transform 180ms ease, opacity 180ms ease, filter 180ms ease",
     transformOrigin: "50% 50%",
+    filter: active ? "drop-shadow(0px 1px 1px rgba(15, 23, 42, 0.2))" : "none",
   } satisfies CSSProperties;
 
   return (
