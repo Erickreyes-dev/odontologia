@@ -9,6 +9,7 @@ interface ToothSurfaceProps {
   stateKey?: string | null;
   stateMap: Record<string, OdontogramStateDefinition>;
   active?: boolean;
+  readOnly?: boolean;
   onSelect: (surface: ToothSurfaceKey) => void;
   onHover: (surface: ToothSurfaceKey | null) => void;
 }
@@ -21,6 +22,7 @@ export function ToothSurface({
   stateKey,
   stateMap,
   active,
+  readOnly,
   onSelect,
   onHover,
 }: ToothSurfaceProps) {
@@ -37,20 +39,22 @@ export function ToothSurface({
     <path
       d={path}
       style={style}
-      className="cursor-pointer"
+      className={readOnly ? "cursor-default" : "cursor-pointer"}
       opacity={active ? 1 : 0.94}
       strokeWidth={active ? 2.5 : 1.5}
       transform={active ? "scale(1.02)" : "scale(1)"}
       onMouseEnter={() => onHover(surface)}
       onMouseLeave={() => onHover(null)}
       onClick={(event) => {
+        if (readOnly) return;
         event.stopPropagation();
         onSelect(surface);
       }}
       role="button"
       aria-label={`Diente ${toothId} superficie ${label}`}
-      tabIndex={0}
+      tabIndex={readOnly ? -1 : 0}
       onKeyDown={(event) => {
+        if (readOnly) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           onSelect(surface);

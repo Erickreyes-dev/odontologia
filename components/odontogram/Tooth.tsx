@@ -18,6 +18,7 @@ interface ToothProps {
   onToothClick: (toothId: number) => void;
   onSurfaceClick: (toothId: number, surface: ToothSurfaceKey) => void;
   onSurfaceHover: (payload: { toothId: number; surface: ToothSurfaceKey; surfaceLabel: string } | null) => void;
+  readOnly?: boolean;
 }
 
 const SURFACE_PATHS: Record<ToothSurfaceKey, string> = {
@@ -46,6 +47,7 @@ export function Tooth({
   onToothClick,
   onSurfaceClick,
   onSurfaceHover,
+  readOnly,
 }: ToothProps) {
   const surfaceEntries = useMemo(
     () => (Object.keys(SURFACE_PATHS) as ToothSurfaceKey[]).map((key) => ({ key, path: SURFACE_PATHS[key] })),
@@ -59,8 +61,8 @@ export function Tooth({
         fill="hsl(var(--card))"
         stroke="hsl(var(--border))"
         strokeWidth={1.3}
-        className="cursor-pointer"
-        onClick={() => onToothClick(tooth.id)}
+        className={readOnly ? "cursor-default" : "cursor-pointer"}
+        onClick={() => { if (!readOnly) onToothClick(tooth.id); }}
       />
 
       <path
@@ -82,6 +84,7 @@ export function Tooth({
           stateMap={stateMap}
           active={activeSelections.has(`${tooth.id}:${key}`)}
           onSelect={(surface) => onSurfaceClick(tooth.id, surface)}
+          readOnly={readOnly}
           onHover={(surface) => {
             if (!surface) {
               onSurfaceHover(null);

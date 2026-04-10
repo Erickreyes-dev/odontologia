@@ -35,6 +35,7 @@ interface OdontogramProps {
   enableSurfaceMultiSelect?: boolean;
   onSelectionChange?: (selection: SurfaceSelection[]) => void;
   compact?: boolean;
+  readOnly?: boolean;
 }
 
 function buildEmptyChart(dentition: DentitionType | "mixed"): OdontogramChart {
@@ -66,6 +67,7 @@ interface ArcProps {
   onSurfaceClick: (toothId: number, surface: ToothSurfaceKey) => void;
   onSurfaceHover: (payload: { toothId: number; surface: ToothSurfaceKey; surfaceLabel: string } | null) => void;
   compact?: boolean;
+  readOnly?: boolean;
 }
 
 function ToothArc({
@@ -80,6 +82,7 @@ function ToothArc({
   onSurfaceClick,
   onSurfaceHover,
   compact,
+  readOnly,
 }: ArcProps) {
   const width = compact ? 1000 : 1120;
   const height = compact ? 320 : 360;
@@ -119,6 +122,7 @@ function ToothArc({
               onToothClick={onToothClick}
               onSurfaceClick={onSurfaceClick}
               onSurfaceHover={onSurfaceHover}
+              readOnly={readOnly}
             />
           </g>
         );
@@ -141,6 +145,7 @@ export function Odontogram({
   enableSurfaceMultiSelect = true,
   onSelectionChange,
   compact,
+  readOnly,
 }: OdontogramProps) {
   const [internal, setInternal] = useState<OdontogramChart>(() => initialData ?? buildEmptyChart(dentition));
   const [surfaceSelection, setSurfaceSelection] = useState<SurfaceSelection[]>([]);
@@ -184,6 +189,7 @@ export function Odontogram({
   };
 
   const toggleSurface = (toothId: number, surface: ToothSurfaceKey) => {
+    if (readOnly) return;
     const next = {
       ...current,
       teeth: current.teeth.map((tooth) => {
@@ -209,6 +215,7 @@ export function Odontogram({
   };
 
   const toggleWholeTooth = (toothId: number) => {
+    if (readOnly) return;
     const next = {
       ...current,
       teeth: current.teeth.map((tooth) => {
@@ -252,6 +259,7 @@ export function Odontogram({
               onSurfaceClick={toggleSurface}
               onSurfaceHover={setTooltip}
               compact={compact}
+              readOnly={readOnly}
             />
             <ToothArc
               teeth={teethByDentition.permanentLower}
@@ -265,6 +273,7 @@ export function Odontogram({
               onSurfaceClick={toggleSurface}
               onSurfaceHover={setTooltip}
               compact={compact}
+              readOnly={readOnly}
             />
           </>
         )}
@@ -284,6 +293,7 @@ export function Odontogram({
               onSurfaceClick={toggleSurface}
               onSurfaceHover={setTooltip}
               compact
+              readOnly={readOnly}
             />
             <ToothArc
               teeth={teethByDentition.temporaryLower}
@@ -297,6 +307,7 @@ export function Odontogram({
               onSurfaceClick={toggleSurface}
               onSurfaceHover={setTooltip}
               compact
+              readOnly={readOnly}
             />
           </div>
         )}
