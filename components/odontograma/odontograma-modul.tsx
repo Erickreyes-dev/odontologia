@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { type MouseEvent, useMemo, useState } from "react";
+import { type CSSProperties, type MouseEvent, useEffect, useMemo, useState } from "react";
 import { ChevronDown, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +47,9 @@ interface OdontogramaModulProps {
 
 type SectionKey = "estados" | "detalles" | "caries" | "obturaciones" | "raiz" | "periodonto";
 type ToothRootState = "sana" | "pulpitis" | "resecado" | "pin";
+type ToothBaseSelect = "none" | "tooth-base" | "milktooth" | "implant" | "tooth-crownprep" | "tooth-under-gum";
+type ToothEndoSelect = "none" | "endo-medical-filling";
+type ToothVisualState = { base: ToothBaseSelect; endo: ToothEndoSelect };
 
 function transformFor(conf: { rot: 0 | 180; mirror: boolean }) {
   return `rotate(${conf.rot}deg) scaleX(${conf.mirror ? "-1" : "1"})`;
@@ -83,17 +86,66 @@ function ToolButton({
   );
 }
 
+function InlineToothSvg({
+  src,
+  activeIds,
+  hiddenIds,
+  style,
+}: {
+  src: string;
+  activeIds: string[];
+  hiddenIds: string[];
+  style: CSSProperties;
+}) {
+  const [svgMap, setSvgMap] = useState<Record<string, string>>({});
+  const svgText = svgMap[src];
+
+  useEffect(() => {
+    let cancelled = false;
+    if (svgMap[src]) return;
+    fetch(src)
+      .then((res) => res.text())
+      .then((text) => {
+        if (cancelled) return;
+        setSvgMap((prev) => ({ ...prev, [src]: text }));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [src, svgMap]);
+
+  const markup = useMemo(() => {
+    if (!svgText) return "";
+    const safeActive = activeIds.filter(Boolean);
+    const safeHidden = hiddenIds.filter(Boolean);
+    const customStyle = `
+      <style>
+        ${safeActive.map((id) => `#${id}{display:inline !important;}`).join("")}
+        ${safeHidden.map((id) => `#${id}{display:none !important;}`).join("")}
+      </style>
+    `;
+    return svgText.replace("</svg>", `${customStyle}</svg>`);
+  }, [activeIds, hiddenIds, svgText]);
+
+  if (!markup) return null;
+
+  return <div className="h-full w-full" style={style} dangerouslySetInnerHTML={{ __html: markup }} />;
+}
+
 function ToothTile({
   tooth,
   selected,
   readOnly,
   rootState,
+  visualState,
   onClick,
 }: {
   tooth: number;
   selected: boolean;
   readOnly: boolean;
   rootState?: ToothRootState;
+  visualState?: ToothVisualState;
   onClick: (event: MouseEvent, tooth: number) => void;
 }) {
   const conf = TOOTH_TEMPLATE.get(tooth);
@@ -102,6 +154,28 @@ function ToothTile({
   const img = TEMPLATES[conf.tpl];
   const occl = TEMPLATES_OCCL[conf.tpl as 14 | 16];
   const style = { transform: transformFor(conf) };
+  const currentVisual = visualState ?? { base: "tooth-base", endo: "none" };
+
+  const idsToShow: string[] = [];
+  const idsToHide: string[] = ["tooth-base", "milktooth-base", "milktooth", "implant", "tooth-crownprep", "tooth-crownprep-inner", "tooth-crownprep-outer", "tooth-under-gum", "no-tooth-after-extraction"];
+
+  if (currentVisual.base === "none") {
+    idsToShow.push("no-tooth-after-extraction");
+  } else if (currentVisual.base === "tooth-base") {
+    idsToShow.push("tooth-base");
+  } else if (currentVisual.base === "milktooth") {
+    idsToShow.push("milktooth", "milktooth-base");
+  } else if (currentVisual.base === "implant") {
+    idsToShow.push("implant");
+  } else if (currentVisual.base === "tooth-crownprep") {
+    idsToShow.push("tooth-crownprep", "tooth-crownprep-inner", "tooth-crownprep-outer");
+  } else if (currentVisual.base === "tooth-under-gum") {
+    idsToShow.push("tooth-under-gum");
+  }
+
+  if (currentVisual.endo === "endo-medical-filling") {
+    idsToShow.push("endo-medical-filling");
+  }
 
   return (
     <button
@@ -124,11 +198,11 @@ function ToothTile({
       )}
       {occl && (
         <div className="absolute inset-x-0 top-1 mx-auto h-8 w-8">
-          <Image src={occl} alt={`oclusal ${tooth}`} fill sizes="32px" className="object-contain" style={style} />
+          <InlineToothSvg src={occl} activeIds={idsToShow} hiddenIds={idsToHide} style={style} />
         </div>
       )}
       <div className="absolute inset-x-0 bottom-1 mx-auto h-16 w-10">
-        <Image src={img} alt={`pieza ${tooth}`} fill sizes="40px" className="object-contain" style={style} />
+        <InlineToothSvg src={img} activeIds={idsToShow} hiddenIds={idsToHide} style={style} />
       </div>
     </button>
   );
@@ -147,7 +221,9 @@ export function OdontogramaModul({ selectedTeeth, onSelectedTeethChange, readOnl
   });
   const [activeTool, setActiveTool] = useState<"base" | "variante" | "restauracion" | "raiz" | "extraccion">("base");
   const [selectedCaries, setSelectedCaries] = useState<string[]>([]);
+  const [visualStateByTooth, setVisualStateByTooth] = useState<Record<number, ToothVisualState>>({});
   const selectedSet = useMemo(() => new Set(selectedTeeth), [selectedTeeth]);
+  const activeVisualState = activeTooth ? visualStateByTooth[activeTooth] ?? { base: "tooth-base", endo: "none" } : { base: "tooth-base", endo: "none" };
 
   const toggleSection = (section: SectionKey) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
@@ -172,6 +248,28 @@ export function OdontogramaModul({ selectedTeeth, onSelectedTeethChange, readOnl
   const updateRootState = (state: ToothRootState) => {
     if (!activeTooth) return;
     setRootStateByTooth((prev) => ({ ...prev, [activeTooth]: state }));
+  };
+
+  const updateBaseState = (base: ToothBaseSelect) => {
+    if (!activeTooth) return;
+    setVisualStateByTooth((prev) => ({
+      ...prev,
+      [activeTooth]: {
+        base,
+        endo: prev[activeTooth]?.endo ?? "none",
+      },
+    }));
+  };
+
+  const updateEndoState = (endo: ToothEndoSelect) => {
+    if (!activeTooth) return;
+    setVisualStateByTooth((prev) => ({
+      ...prev,
+      [activeTooth]: {
+        base: prev[activeTooth]?.base ?? "tooth-base",
+        endo,
+      },
+    }));
   };
 
   const topRow = ALL_TEETH.slice(0, 16);
@@ -209,6 +307,7 @@ export function OdontogramaModul({ selectedTeeth, onSelectedTeethChange, readOnl
                 selected={selectedSet.has(tooth)}
                 readOnly={readOnly}
                 rootState={rootStateByTooth[tooth]}
+                visualState={visualStateByTooth[tooth]}
                 onClick={handleToothClick}
               />
             ))}
@@ -222,6 +321,7 @@ export function OdontogramaModul({ selectedTeeth, onSelectedTeethChange, readOnl
                 selected={selectedSet.has(tooth)}
                 readOnly={readOnly}
                 rootState={rootStateByTooth[tooth]}
+                visualState={visualStateByTooth[tooth]}
                 onClick={handleToothClick}
               />
             ))}
@@ -249,6 +349,41 @@ export function OdontogramaModul({ selectedTeeth, onSelectedTeethChange, readOnl
                 Diente activo: <span className="rounded-full bg-primary/15 px-2 py-1 font-semibold text-primary">{activeTooth ?? "-"}</span>
               </p>
               <div className="space-y-3">
+                <section className="rounded-2xl border border-border bg-card/60 p-3">
+                  <h5 className="text-lg font-bold">Base e endodoncia</h5>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium">Base</span>
+                      <select
+                        id="toothSelect"
+                        value={activeVisualState.base}
+                        onChange={(event) => updateBaseState(event.target.value as ToothBaseSelect)}
+                        className="rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                        disabled={!activeTooth}
+                      >
+                        <option value="none">Diente ausente</option>
+                        <option value="tooth-base">Diente permanente</option>
+                        <option value="milktooth">Diente primario</option>
+                        <option value="implant">Implante</option>
+                        <option value="tooth-crownprep">Preparado para corona</option>
+                        <option value="tooth-under-gum">Diente subgingival</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium">Endodoncia</span>
+                      <select
+                        id="endoSelect"
+                        value={activeVisualState.endo}
+                        onChange={(event) => updateEndoState(event.target.value as ToothEndoSelect)}
+                        className="rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                        disabled={!activeTooth}
+                      >
+                        <option value="none">Raíz sana</option>
+                        <option value="endo-medical-filling">Obturación radicular medicinal</option>
+                      </select>
+                    </div>
+                  </div>
+                </section>
                 <section className="rounded-2xl border border-border bg-card/60 p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <h5 className="text-lg font-bold">Raíz</h5>
