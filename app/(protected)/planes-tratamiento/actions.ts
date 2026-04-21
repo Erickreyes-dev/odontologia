@@ -17,6 +17,8 @@ import { EmailService } from "@/lib/sendEmail";
 import { generatePlanEmailHtml } from "@/lib/templates/clinical-notifications";
 import { getTenantEmailBranding } from "@/lib/tenant-branding";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
+import { getSession } from "@/auth";
+import { sendTenantWhatsappMessage } from "@/lib/whatsapp/send-whatsapp";
 
 /**
  * Genera seguimientos automáticamente para las etapas de un plan
@@ -164,7 +166,7 @@ export async function getPlanById(id: string): Promise<PlanTratamiento | null> {
  */
 export async function createPlanTratamiento(
   data: PlanTratamiento,
-  options?: { sendEmailToPaciente?: boolean }
+  options?: { sendEmailToPaciente?: boolean; sendWhatsappToPaciente?: boolean }
 ): Promise<{ success: true; data: PlanTratamiento } | { success: false; error: string }> {
   try {
     const validatedData = PlanTratamientoSchema.parse(data);
@@ -215,11 +217,11 @@ export async function createPlanTratamiento(
     // Generar seguimientos
     await generarSeguimientos(plan.id, plan.pacienteId);
 
-    if (options?.sendEmailToPaciente) {
-      if (!plan.paciente.correo) {
+    if (options?.sendEmailToPaciente && !plan.paciente.correo) {
         return { success: false, error: "El paciente no tiene correo registrado para enviar el plan." };
-      }
+    }
 
+    if (options?.sendEmailToPaciente) {
       const doctorName = await resolveDoctorSenderName();
       const { clinicLogoBase64, tenantName } = await getTenantEmailBranding();
       const emailService = new EmailService();
@@ -239,6 +241,19 @@ export async function createPlanTratamiento(
           tenantName,
         }),
       });
+
+    }
+
+    if (options?.sendWhatsappToPaciente && plan.paciente.telefono) {
+      const session = await getSession();
+      if (session?.TenantId) {
+        await sendTenantWhatsappMessage({
+          tenantId: session.TenantId,
+          toPhone: plan.paciente.telefono,
+          tipoEvento: "plan_documento",
+          body: `MediSoftCore | Documento de plan\nPaciente: ${plan.paciente.nombre} ${plan.paciente.apellido}\nPlan: ${plan.nombre}\nInicio: ${new Date(plan.fechaInicio).toLocaleDateString()}\nEstado: ${plan.estado}`,
+        });
+      }
     }
 
     revalidatePath("/planes-tratamiento");
@@ -370,7 +385,7 @@ export async function sendPlanTratamientoEmail(
     const plan = await prisma.planTratamiento.findFirst({
       where: await tenantWhere<Prisma.PlanTratamientoWhereInput>({ id }),
       include: {
-        paciente: { select: { nombre: true, apellido: true, correo: true } },
+        paciente: { select: { nombre: true, apellido: true, correo: true, telefono: true } },
         etapas: { select: { nombre: true }, orderBy: { orden: "asc" } },
       },
     });
@@ -403,6 +418,41 @@ export async function sendPlanTratamientoEmail(
     return { success: true };
   } catch (error) {
     console.error(`Error al enviar plan por email ${id}:`, error);
+    return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
+  }
+}
+
+export async function sendPlanTratamientoWhatsapp(
+  id: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    if (!id) return { success: false, error: "ID del plan es requerido" };
+
+    const plan = await prisma.planTratamiento.findFirst({
+      where: await tenantWhere<Prisma.PlanTratamientoWhereInput>({ id }),
+      include: {
+        paciente: { select: { nombre: true, apellido: true, telefono: true } },
+      },
+    });
+
+    if (!plan) return { success: false, error: "Plan no válido para este tenant" };
+    if (!plan.paciente?.telefono) {
+      return { success: false, error: "El paciente no tiene teléfono registrado para enviar el plan." };
+    }
+
+    const session = await getSession();
+    if (!session?.TenantId) return { success: false, error: "Sesión inválida" };
+
+    const result = await sendTenantWhatsappMessage({
+      tenantId: session.TenantId,
+      toPhone: plan.paciente.telefono,
+      tipoEvento: "plan_documento",
+      body: `MediSoftCore | Documento de plan\nPaciente: ${plan.paciente.nombre} ${plan.paciente.apellido}\nPlan: ${plan.nombre}\nInicio: ${new Date(plan.fechaInicio).toLocaleDateString()}\nEstado: ${plan.estado}`,
+    });
+
+    if (!result.success) return result;
+    return { success: true };
+  } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
   }
 }

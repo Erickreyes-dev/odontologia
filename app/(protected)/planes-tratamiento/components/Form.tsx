@@ -76,6 +76,7 @@ export function PlanFormulario({
 }: PlanFormularioProps) {
   const router = useRouter();
   const [sendEmailToPaciente, setSendEmailToPaciente] = useState(false);
+  const [sendWhatsappToPaciente, setSendWhatsappToPaciente] = useState(false);
 
 type PlanFormValues = z.infer<typeof PlanTratamientoSchema>;
 
@@ -251,8 +252,12 @@ console.log("🚀 ~ PlanFormulario ~ form:", form.formState.defaultValues)
           toast.error("El paciente no tiene correo registrado.");
           return;
         }
+        if (sendWhatsappToPaciente && !selectedPaciente?.telefono) {
+          toast.error("El paciente no tiene teléfono registrado.");
+          return;
+        }
 
-        const result = await createPlanTratamiento(planData, { sendEmailToPaciente });
+        const result = await createPlanTratamiento(planData, { sendEmailToPaciente, sendWhatsappToPaciente });
         if (result.success) {
           toast.success("Plan creado correctamente. Se generaron los seguimientos.");
           router.push("/planes-tratamiento");
@@ -778,6 +783,21 @@ console.log("🚀 ~ PlanFormulario ~ form:", form.formState.defaultValues)
             </label>
             <p className="text-xs text-muted-foreground mt-1">
               Solo aplica para pacientes con correo electrónico registrado.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 mt-4">
+          <Checkbox
+            id="enviarWhatsappPlan"
+            checked={sendWhatsappToPaciente}
+            onCheckedChange={(checked) => setSendWhatsappToPaciente(checked === true)}
+          />
+          <div>
+            <label htmlFor="enviarWhatsappPlan" className="text-sm font-medium cursor-pointer">
+              Enviar plan por WhatsApp
+            </label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Solo aplica para pacientes con teléfono registrado.
             </p>
           </div>
         </div>

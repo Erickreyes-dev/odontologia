@@ -12,6 +12,8 @@ import { EmailService } from "@/lib/sendEmail";
 import { generateAppointmentEmailHtml } from "@/lib/templates/clinical-notifications";
 import { getTenantEmailBranding } from "@/lib/tenant-branding";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
+import { getSession } from "@/auth";
+import { sendTenantWhatsappMessage } from "@/lib/whatsapp/send-whatsapp";
 
 /**
  * Obtiene todas las citas con paginacion
@@ -376,7 +378,7 @@ export async function getSeguimientoContextoParaCita(seguimientoId: string): Pro
  */
 export async function createCita(
   data: Cita,
-  options?: { sendEmailToPaciente?: boolean }
+  options?: { sendEmailToPaciente?: boolean; sendWhatsappToPaciente?: boolean }
 ): Promise<{ success: true; data: Cita } | { success: false; error: string }> {
   try {
     const validatedData = CitaSchema.parse({
@@ -406,18 +408,20 @@ export async function createCita(
         observacion: validatedData.observacion,
       }),
       include: {
-        paciente: { select: { nombre: true, apellido: true, correo: true } },
+        paciente: { select: { nombre: true, apellido: true, correo: true, telefono: true } },
         medico: { include: { empleado: { select: { nombre: true, apellido: true } } } },
         consultorio: { select: { nombre: true } },
       },
     });
 
-    if (options?.sendEmailToPaciente) {
-      if (!r.paciente?.correo) {
+    if (options?.sendEmailToPaciente && !r.paciente?.correo) {
         return { success: false, error: "El paciente no tiene correo registrado para enviar la cita." };
-      }
+    }
 
-      const doctorName = `${r.medico?.empleado?.nombre ?? ""} ${r.medico?.empleado?.apellido ?? ""}`.trim() || await resolveDoctorSenderName();
+    const doctorName = `${r.medico?.empleado?.nombre ?? ""} ${r.medico?.empleado?.apellido ?? ""}`.trim() || await resolveDoctorSenderName();
+
+    if (options?.sendEmailToPaciente) {
+
       const { clinicLogoBase64, tenantName } = await getTenantEmailBranding();
       const emailService = new EmailService();
 
@@ -436,6 +440,19 @@ export async function createCita(
           tenantName,
         }),
       });
+
+    }
+
+    if (options?.sendWhatsappToPaciente && r.paciente.telefono) {
+      const session = await getSession();
+      if (session?.TenantId) {
+        await sendTenantWhatsappMessage({
+          tenantId: session.TenantId,
+          toPhone: r.paciente.telefono,
+          tipoEvento: "cita_notificacion",
+          body: `MediSoftCore | Cita confirmada\nPaciente: ${r.paciente.nombre} ${r.paciente.apellido}\nDoctor: ${doctorName}\nFecha: ${new Date(r.fechaHora).toLocaleString()}\nMotivo: ${r.motivo ?? "Consulta general"}`,
+        });
+      }
     }
 
     const result = {
@@ -602,7 +619,7 @@ export async function sendCitaEmail(
     const cita = await prisma.cita.findFirst({
       where: await tenantWhere<Prisma.CitaWhereInput>({ id }),
       include: {
-        paciente: { select: { nombre: true, apellido: true, correo: true } },
+        paciente: { select: { nombre: true, apellido: true, correo: true, telefono: true } },
         medico: { include: { empleado: { select: { nombre: true, apellido: true } } } },
         consultorio: { select: { nombre: true } },
       },
@@ -637,5 +654,40 @@ export async function sendCitaEmail(
   } catch (error) {
     console.error(`Error al enviar cita por email ${id}:`, error);
     return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
+  }
+}
+
+export async function sendCitaWhatsapp(
+  id: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    if (!id) return { success: false, error: "ID de la cita es requerido" };
+
+    const cita = await prisma.cita.findFirst({
+      where: await tenantWhere<Prisma.CitaWhereInput>({ id }),
+      include: {
+        paciente: { select: { nombre: true, apellido: true, telefono: true } },
+        medico: { include: { empleado: { select: { nombre: true, apellido: true } } } },
+      },
+    });
+
+    if (!cita) return { success: false, error: "Cita no encontrada en la clínica" };
+    if (!cita.paciente?.telefono) return { success: false, error: "El paciente no tiene teléfono registrado." };
+
+    const doctorName = `${cita.medico?.empleado?.nombre ?? ""} ${cita.medico?.empleado?.apellido ?? ""}`.trim() || await resolveDoctorSenderName();
+    const session = await getSession();
+    if (!session?.TenantId) return { success: false, error: "Sesión inválida" };
+
+    const result = await sendTenantWhatsappMessage({
+      tenantId: session.TenantId,
+      toPhone: cita.paciente.telefono,
+      tipoEvento: "cita_documento",
+      body: `MediSoftCore | Documento de cita\nPaciente: ${cita.paciente.nombre} ${cita.paciente.apellido}\nDoctor: ${doctorName}\nFecha: ${new Date(cita.fechaHora).toLocaleString()}\nMotivo: ${cita.motivo ?? "Consulta general"}`,
+    });
+
+    if (!result.success) return result;
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "No se pudo enviar WhatsApp" };
   }
 }

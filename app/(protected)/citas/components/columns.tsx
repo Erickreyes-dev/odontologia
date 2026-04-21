@@ -30,7 +30,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Cita } from "../schema";
-import { deleteCita, cambiarEstadoCita, sendCitaEmail } from "../actions";
+import { deleteCita, cambiarEstadoCita, sendCitaEmail, sendCitaWhatsapp } from "../actions";
 
 const getEstadoBadge = (estado: string) => {
   switch (estado) {
@@ -227,6 +227,23 @@ function ActionsCell({ cita }: { cita: Cita }) {
     });
   };
 
+  const handleSendWhatsapp = async () => {
+    if (!cita.id) return;
+
+    const result = await sendCitaWhatsapp(cita.id);
+    if (result.success) {
+      toast.success("Cita enviada", {
+        description: "El documento de cita fue enviado por WhatsApp al paciente.",
+      });
+      router.refresh();
+      return;
+    }
+
+    toast.error("No se pudo enviar por WhatsApp", {
+      description: result.error,
+    });
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -239,6 +256,7 @@ function ActionsCell({ cita }: { cita: Cita }) {
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
           <DropdownMenuItem onClick={handleSendEmail}>Enviar por email</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleSendWhatsapp}>Enviar por WhatsApp</DropdownMenuItem>
           <Link href={`/citas/${cita.id}/consulta`}>
             <DropdownMenuItem>
               <Stethoscope className="h-4 w-4 mr-2" />

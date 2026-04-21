@@ -21,6 +21,7 @@ import { EmailService } from "@/lib/sendEmail";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
 import { generatePagoEmailHtml } from "@/lib/templates/clinical-notifications";
 import { getTenantEmailBranding } from "@/lib/tenant-branding";
+import { sendTenantWhatsappMessage } from "@/lib/whatsapp/send-whatsapp";
 
 const CENTRAL_AMERICA_OFFSET_MS = 6 * 60 * 60 * 1000;
 
@@ -965,7 +966,7 @@ export async function sendPagoEmail(
       include: {
         ordenCobro: {
           include: {
-            paciente: { select: { nombre: true, apellido: true, correo: true } },
+            paciente: { select: { nombre: true, apellido: true, correo: true, telefono: true } },
           },
         },
       },
@@ -1001,6 +1002,43 @@ export async function sendPagoEmail(
   } catch (error) {
     console.error(`Error al enviar pago por email ${id}:`, error);
     return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
+  }
+}
+
+export async function sendPagoWhatsapp(
+  id: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    if (!id) return { success: false, error: "ID del pago es requerido" };
+
+    const pago = await prisma.pago.findFirst({
+      where: await tenantWhere<Prisma.PagoWhereInput>({ id }),
+      include: {
+        ordenCobro: {
+          include: {
+            paciente: { select: { nombre: true, apellido: true, telefono: true } },
+          },
+        },
+      },
+    });
+
+    if (!pago) return { success: false, error: "Pago no encontrado en la clínica" };
+    const paciente = pago.ordenCobro?.paciente;
+    if (!paciente?.telefono || !pago.tenantId) {
+      return { success: false, error: "El paciente no tiene teléfono registrado para WhatsApp." };
+    }
+
+    const result = await sendTenantWhatsappMessage({
+      tenantId: pago.tenantId,
+      toPhone: paciente.telefono,
+      tipoEvento: "pago_documento",
+      body: `MediSoftCore | Documento de pago\nPaciente: ${paciente.nombre} ${paciente.apellido}\nMonto: ${Number(pago.monto).toFixed(2)}\nMétodo: ${getMetodoPagoLabel(pago.metodo)}\nFecha: ${new Date(pago.fechaPago).toLocaleString()}`,
+    });
+
+    if (!result.success) return result;
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "No se pudo enviar WhatsApp" };
   }
 }
 

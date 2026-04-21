@@ -4,6 +4,8 @@ import { Building2 } from "lucide-react";
 import { getSessionPermisos } from "@/auth";
 import MiClinicaForm from "./components/mi-clinica-form";
 import { getTenantClinicProfile } from "./actions";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default async function MiClinicaPage() {
 
@@ -25,6 +27,15 @@ export default async function MiClinicaPage() {
         description="Configura la información de tu clínica que se mostrará en la landing pública de tu subdominio."
         screenName="Mi Clínica"
       />
+      {permisos.includes("editar_tenant") ? (
+        <div>
+          <Button asChild variant="outline">
+            <Link href="/mi-clinica/whatsapp" prefetch={false}>
+              Configurar WhatsApp Business
+            </Link>
+          </Button>
+        </div>
+      ) : null}
       <MiClinicaForm tenant={tenant} canEdit={permisos.includes("editar_tenant")} />
     </div>
   );

@@ -18,7 +18,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PagoWithRelations } from "../schema";
 import { METODOS_PAGO, ESTADOS_PAGO } from "../schema";
-import { sendPagoEmail } from "../actions";
+import { sendPagoEmail, sendPagoWhatsapp } from "../actions";
 import { formatMoneyAmount, type TenantCurrencyDisplay } from "@/lib/currency-format";
 
 type GetColumnsOptions = {
@@ -148,6 +148,21 @@ function ActionsCell({
     });
   };
 
+  const handleSendWhatsapp = async () => {
+    const result = await sendPagoWhatsapp(pago.id);
+    if (result.success) {
+      toast.success("Pago enviado", {
+        description: "El documento de pago fue enviado por WhatsApp al paciente.",
+      });
+      router.refresh();
+      return;
+    }
+
+    toast.error("No se pudo enviar por WhatsApp", {
+      description: result.error,
+    });
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -159,6 +174,7 @@ function ActionsCell({
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
         <DropdownMenuItem onClick={handleSendEmail}>Enviar por email</DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSendWhatsapp}>Enviar por WhatsApp</DropdownMenuItem>
         <DropdownMenuSeparator />
         {onDownloadRecibo && (
           <DropdownMenuItem
