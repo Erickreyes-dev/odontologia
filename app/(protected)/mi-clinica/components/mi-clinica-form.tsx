@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useState, useTransition } from "react";
+import { FormEvent, useState, useTransition } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { TenantClinicProfile } from "../actions";
 import { updateTenantClinicProfile } from "../actions";
+import { UploadButton } from "@/components/UploadButton";
 
 interface MiClinicaFormProps {
   tenant: TenantClinicProfile;
@@ -26,23 +27,6 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
   const [horariosInfo, setHorariosInfo] = useState(tenant.horariosInfo ?? "");
   const [redesSociales, setRedesSociales] = useState(tenant.redesSociales ?? "");
   const [isPending, startTransition] = useTransition();
-
-  const handleLogoChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setLogoBase64("");
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Seleccione una imagen válida");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => setLogoBase64(String(reader.result || ""));
-    reader.readAsDataURL(file);
-  };
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -97,10 +81,33 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="logo">Logo</Label>
-            <Input id="logo" type="file" accept="image/*" onChange={handleLogoChange} disabled={!canEdit} />
-            {logoBase64 && <Image src={logoBase64} alt="Logo de la clínica" width={80} height={80} className="h-20 w-20 rounded border object-cover" unoptimized />}
+          <div className="space-y-3">
+            <Label>Logo de la clínica</Label>
+            {logoBase64 && (
+              <div className="flex items-center gap-4 p-3 rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/50 max-w-md">
+                <Image 
+                  src={logoBase64} 
+                  alt="Logo actual de la clínica" 
+                  width={80} 
+                  height={80} 
+                  className="h-20 w-20 rounded border object-cover bg-white shrink-0" 
+                  unoptimized 
+                />
+                <div className="text-xs text-neutral-500 overflow-hidden">
+                  <p className="font-semibold text-neutral-800 dark:text-neutral-200 mb-0.5">Logo Actual</p>
+                  <p className="truncate text-neutral-400 max-w-[250px]">{logoBase64.startsWith("data:") ? "Almacenado localmente (Base64)" : logoBase64}</p>
+                </div>
+              </div>
+            )}
+            {canEdit && (
+              <UploadButton
+                folder="logos"
+                onUploadSuccess={(data) => {
+                  setLogoBase64(data.url);
+                  toast.success("Nuevo logo cargado temporalmente. Presiona 'Guardar información' para guardar permanentemente.");
+                }}
+              />
+            )}
           </div>
 
           <div className="space-y-1">
