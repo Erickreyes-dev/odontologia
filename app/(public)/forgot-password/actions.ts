@@ -7,7 +7,6 @@ import bcrypt from "bcryptjs";
 import { randomBytes, randomUUID } from "crypto";
 import { addHours, isAfter } from "date-fns";
 import { headers } from "next/headers";
-import { normalizeLogoDataUri } from "@/lib/tenant-branding";
 
 const RESET_TOKEN_TTL_HOURS = 2; // Token válido por 2 horas
 
@@ -61,7 +60,7 @@ export async function requestPasswordReset(username: string): Promise<boolean> {
                 select: { correo: true, nombre: true, apellido: true },
             },
             tenant: {
-                select: { nombre: true, logoBase64: true },
+                select: { nombre: true, logoPath: true },
             },
         },
     });
@@ -97,7 +96,7 @@ export async function requestPasswordReset(username: string): Promise<boolean> {
         ? `${user.Empleados.nombre} ${user.Empleados.apellido}`
         : user.usuario;
     const html = generatePasswordResetEmailHtml(fullName, link, {
-        clinicLogoBase64: normalizeLogoDataUri(user.tenant?.logoBase64 ?? null),
+        clinicLogoBase64: null,
         clinicName: user.tenant?.nombre ?? null,
     });
     const mailPayload: MailPayload = {

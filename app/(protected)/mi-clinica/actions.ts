@@ -4,6 +4,7 @@ import { getSession } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { buildTenantPublicUrl } from "@/lib/tenant-url";
 import { revalidatePath } from "next/cache";
+import { mediaUrl, uploadTenantImageToS3 } from "@/lib/s3";
 
 export type TenantClinicScheduleItem = {
   dia: string;
@@ -16,7 +17,8 @@ export interface TenantClinicProfile {
   nombre: string;
   slug: string;
   tenantUrl: string;
-  logoBase64: string | null;
+  logoUrl: string | null;
+  landingImageUrl: string | null;
   contactoCorreo: string | null;
   telefono: string | null;
   mision: string | null;
@@ -73,7 +75,8 @@ export async function getTenantClinicProfile(): Promise<TenantClinicProfile | nu
     select: {
       nombre: true,
       slug: true,
-      logoBase64: true,
+      logoPath: true,
+      landingImagePath: true,
       contactoCorreo: true,
       telefono: true,
       mision: true,
@@ -91,6 +94,8 @@ export async function getTenantClinicProfile(): Promise<TenantClinicProfile | nu
 
   return {
     ...tenant,
+    logoUrl: mediaUrl(tenant.logoPath),
+    landingImageUrl: mediaUrl(tenant.landingImagePath),
     tenantUrl: buildTenantPublicUrl(tenant.slug),
   };
 }
@@ -98,7 +103,8 @@ export async function getTenantClinicProfile(): Promise<TenantClinicProfile | nu
 export async function updateTenantClinicProfile(input: {
   telefono?: string | null;
   correo?: string | null;
-  logoBase64?: string | null;
+  logoFile?: File | null;
+  landingImageFile?: File | null;
   mision?: string | null;
   vision?: string | null;
   horarios?: TenantClinicScheduleItem[] | null;
@@ -115,7 +121,8 @@ export async function updateTenantClinicProfile(input: {
 
     const telefonoRaw = input.telefono?.trim() ?? "";
     const correoRaw = input.correo?.trim().toLowerCase() ?? "";
-    const logoBase64 = input.logoBase64?.trim() || null;
+    const logoPath = input.logoFile?.size ? await uploadTenantImageToS3({ tenantId: session.TenantId, file: input.logoFile, folder: "logos" }) : undefined;
+    const landingImagePath = input.landingImageFile?.size ? await uploadTenantImageToS3({ tenantId: session.TenantId, file: input.landingImageFile, folder: "landing" }) : undefined;
     const mision = input.mision?.trim() || null;
     const vision = input.vision?.trim() || null;
     const horariosJson = sanitizeSchedule(input.horarios);
@@ -134,16 +141,13 @@ export async function updateTenantClinicProfile(input: {
       }
     }
 
-    if (logoBase64 && logoBase64.length > 2_800_000) {
-      return { success: false, error: "El logo es demasiado grande (máximo aproximado 2 MB)" };
-    }
-
     await prisma.tenant.update({
       where: { id: session.TenantId },
       data: {
         telefono: telefonoRaw || null,
         contactoCorreo: correoRaw || null,
-        logoBase64,
+        ...(logoPath ? { logoPath } : {}),
+        ...(landingImagePath ? { landingImagePath } : {}),
         mision,
         vision,
         horariosJson,
