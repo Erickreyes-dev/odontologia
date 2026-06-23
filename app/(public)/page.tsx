@@ -215,10 +215,8 @@ function parseLandingSchedule(value: string | null): LandingScheduleItem[] {
   }
 }
 
-function normalizeLogo(logoBase64: string | null): string | null {
-  if (!logoBase64) return null;
-  if (logoBase64.startsWith("data:image/")) return logoBase64;
-  return `data:image/png;base64,${logoBase64}`;
+function mediaUrl(path: string | null): string | null {
+  return path ? `/api/media/${path}` : null;
 }
 
 function parsePackageBenefits(description: string | null): string[] {
@@ -271,7 +269,8 @@ export default async function LandingPage({
         select: {
           nombre: true,
           slug: true,
-          logoBase64: true,
+          logoPath: true,
+          landingImagePath: true,
           mision: true,
           vision: true,
           horariosInfo: true,
@@ -314,7 +313,8 @@ export default async function LandingPage({
   }
 
   if (tenantLanding?.activo) {
-    const logo = normalizeLogo(tenantLanding.logoBase64);
+    const logo = mediaUrl(tenantLanding.logoPath);
+    const landingImage = mediaUrl(tenantLanding.landingImagePath) || "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1400&q=80";
     const tenantCurrency = resolveCurrencyByCountry(tenantLanding.paisCodigo);
     const landingSchedule = parseLandingSchedule(tenantLanding.horariosJson);
     const socialLinks = [
@@ -410,7 +410,7 @@ export default async function LandingPage({
             <div className="space-y-4">
               <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
                 <Image
-                  src="https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1400&q=80"
+                  src={landingImage}
                   alt={locale === "en" ? "Modern dental clinic" : "Consultorio odontológico moderno"}
                   width={1400}
                   height={900}

@@ -16,7 +16,8 @@ model Tenant {
   contactoNombre String?   @db.VarChar(120)
   contactoCorreo String?   @db.VarChar(150)
   telefono       String?   @db.VarChar(20)
-  logoBase64     String?   @db.LongText
+  logoPath       String?   @db.VarChar(500)
+  landingImagePath String? @db.VarChar(500)
   mision         String?   @db.LongText
   vision         String?   @db.LongText
   serviciosInfo  String?   @db.LongText

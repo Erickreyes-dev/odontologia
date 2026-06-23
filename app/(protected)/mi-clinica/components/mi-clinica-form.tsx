@@ -47,7 +47,10 @@ function parseSchedule(value: string | null): TenantClinicScheduleItem[] {
 export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
   const [telefono, setTelefono] = useState(tenant.telefono ?? "");
   const [correo, setCorreo] = useState(tenant.contactoCorreo ?? "");
-  const [logoBase64, setLogoBase64] = useState(tenant.logoBase64 ?? "");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState(tenant.logoUrl ?? "");
+  const [landingImageFile, setLandingImageFile] = useState<File | null>(null);
+  const [landingImagePreview, setLandingImagePreview] = useState(tenant.landingImageUrl ?? "");
   const [mision, setMision] = useState(tenant.mision ?? "");
   const [vision, setVision] = useState(tenant.vision ?? "");
   const [horarios, setHorarios] = useState<TenantClinicScheduleItem[]>(() => parseSchedule(tenant.horariosJson));
@@ -82,7 +85,8 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
   const handleLogoChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
-      setLogoBase64("");
+      setLogoFile(null);
+      setLogoPreview(tenant.logoUrl ?? "");
       return;
     }
 
@@ -91,9 +95,25 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => setLogoBase64(String(reader.result || ""));
-    reader.readAsDataURL(file);
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const handleLandingImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setLandingImageFile(null);
+      setLandingImagePreview(tenant.landingImageUrl ?? "");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Seleccione una imagen válida");
+      return;
+    }
+
+    setLandingImageFile(file);
+    setLandingImagePreview(URL.createObjectURL(file));
   };
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -103,7 +123,8 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
       const result = await updateTenantClinicProfile({
         telefono,
         correo,
-        logoBase64: logoBase64 || null,
+        logoFile,
+        landingImageFile,
         mision,
         vision,
         horarios,
@@ -162,7 +183,15 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
           <div className="space-y-1">
             <Label htmlFor="logo">Logo</Label>
             <Input id="logo" type="file" accept="image/*" onChange={handleLogoChange} disabled={!canEdit} />
-            {logoBase64 && <Image src={logoBase64} alt="Logo de la clínica" width={80} height={80} className="h-20 w-20 rounded border object-cover" unoptimized />}
+            {logoPreview && <Image src={logoPreview} alt="Logo de la clínica" width={80} height={80} className="h-20 w-20 rounded border object-cover" unoptimized />}
+          </div>
+
+
+          <div className="space-y-1">
+            <Label htmlFor="landingImage">Imagen de la landing</Label>
+            <Input id="landingImage" type="file" accept="image/*" onChange={handleLandingImageChange} disabled={!canEdit} />
+            <p className="text-xs text-muted-foreground">Se mostrará en la página pública de la clínica. Tamaño máximo: 2 MB.</p>
+            {landingImagePreview && <Image src={landingImagePreview} alt="Imagen de landing de la clínica" width={360} height={180} className="h-40 w-full max-w-xl rounded border object-cover" unoptimized />}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
