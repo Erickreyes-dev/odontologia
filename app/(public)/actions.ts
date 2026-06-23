@@ -5,7 +5,6 @@
 import { EmailService } from "@/lib/sendEmail";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
-import { normalizeLogoDataUri } from "@/lib/tenant-branding";
 import { generatePublicAppointmentRequestEmailHtml } from "@/lib/templates/clinical-notifications";
 import { requestPasswordReset } from "./forgot-password/actions";
 
@@ -152,7 +151,7 @@ export async function requestTenantAppointmentAction(
         id: true,
         nombre: true,
         contactoCorreo: true,
-        logoBase64: true,
+        logoPath: true,
       },
     });
 
@@ -202,7 +201,7 @@ Correo: ${cleanEmail}
 Teléfono: ${cleanTelefono}
 Motivo: ${cleanMotivo}`,
         html: generatePublicAppointmentRequestEmailHtml({
-          clinicLogoBase64: normalizeLogoDataUri(tenant.logoBase64),
+          clinicLogoBase64: null,
           clinicName: tenant.nombre,
           nombrePaciente: cleanNombre,
           correoPaciente: cleanEmail,

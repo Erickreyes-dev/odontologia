@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TenantAppointmentForm } from "@/components/tenant-appointment-form";
-import { CalendarClock, Check, HeartHandshake, Mail, PhoneCall, Sparkles, Stethoscope, Users } from "lucide-react";
+import { CalendarClock, Check, Facebook, HeartHandshake, Instagram, Mail, PhoneCall, Sparkles, Stethoscope, Twitter, Users } from "lucide-react";
 import { resolveCurrencyByCountry } from "@/lib/country-currency";
 
 type Lang = "es" | "en";
@@ -187,10 +187,36 @@ const landingByLang = {
   faqs: Array<{ question: string; answer: string }>;
 }>;
 
-function normalizeLogo(logoBase64: string | null): string | null {
-  if (!logoBase64) return null;
-  if (logoBase64.startsWith("data:image/")) return logoBase64;
-  return `data:image/png;base64,${logoBase64}`;
+
+type LandingScheduleItem = {
+  dia: string;
+  cerrado: boolean;
+  abre: string;
+  cierra: string;
+};
+
+function parseLandingSchedule(value: string | null): LandingScheduleItem[] {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((item) => ({
+        dia: typeof item.dia === "string" ? item.dia : "",
+        cerrado: Boolean(item.cerrado),
+        abre: typeof item.abre === "string" ? item.abre : "",
+        cierra: typeof item.cierra === "string" ? item.cierra : "",
+      }))
+      .filter((item) => item.dia.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function mediaUrl(path: string | null): string | null {
+  return path ? `/api/media/${path}` : null;
 }
 
 function parsePackageBenefits(description: string | null): string[] {
@@ -243,12 +269,15 @@ export default async function LandingPage({
         select: {
           nombre: true,
           slug: true,
-          logoBase64: true,
+          logoPath: true,
+          landingImagePath: true,
           mision: true,
           vision: true,
-          serviciosInfo: true,
           horariosInfo: true,
-          redesSociales: true,
+          horariosJson: true,
+          facebookUrl: true,
+          twitterUrl: true,
+          instagramUrl: true,
           contactoCorreo: true,
           telefono: true,
           activo: true,
@@ -284,8 +313,15 @@ export default async function LandingPage({
   }
 
   if (tenantLanding?.activo) {
-    const logo = normalizeLogo(tenantLanding.logoBase64);
+    const logo = mediaUrl(tenantLanding.logoPath);
+    const landingImage = mediaUrl(tenantLanding.landingImagePath) || "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1400&q=80";
     const tenantCurrency = resolveCurrencyByCountry(tenantLanding.paisCodigo);
+    const landingSchedule = parseLandingSchedule(tenantLanding.horariosJson);
+    const socialLinks = [
+      { label: "Facebook", href: tenantLanding.facebookUrl, Icon: Facebook },
+      { label: "Twitter / X", href: tenantLanding.twitterUrl, Icon: Twitter },
+      { label: "Instagram", href: tenantLanding.instagramUrl, Icon: Instagram },
+    ].filter((item): item is { label: string; href: string; Icon: typeof Facebook } => Boolean(item.href));
     const moneyFormatter = new Intl.NumberFormat(locale === "en" ? "en-US" : "es-ES", {
       style: "currency",
       currency: tenantLanding.monedaCodigo || tenantCurrency.currency,
@@ -374,7 +410,7 @@ export default async function LandingPage({
             <div className="space-y-4">
               <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
                 <Image
-                  src="https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1400&q=80"
+                  src={landingImage}
                   alt={locale === "en" ? "Modern dental clinic" : "Consultorio odontológico moderno"}
                   width={1400}
                   height={900}
@@ -386,8 +422,19 @@ export default async function LandingPage({
                 <CardHeader>
                   <CardTitle>{locale === "en" ? "Hours and care" : "Horario y atención"}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm text-muted-foreground whitespace-pre-line">
-                  <p><span className="font-medium text-foreground">{locale === "en" ? "Hours:" : "Horarios:"}</span> {tenantLanding.horariosInfo || (locale === "en" ? "Not defined yet." : "No definidos aún.")}</p>
+                <CardContent className="space-y-3 text-sm text-muted-foreground">
+                  {landingSchedule.length > 0 ? (
+                    <div className="space-y-1">
+                      {landingSchedule.map((item) => (
+                        <div key={item.dia} className="flex items-center justify-between gap-3 rounded-md border border-border/60 px-3 py-2">
+                          <span className="font-medium text-foreground">{item.dia}</span>
+                          <span>{item.cerrado ? (locale === "en" ? "Closed" : "Cerrado") : `${item.abre} - ${item.cierra}`}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p><span className="font-medium text-foreground">{locale === "en" ? "Hours:" : "Horarios:"}</span> {tenantLanding.horariosInfo || (locale === "en" ? "Not defined yet." : "No definidos aún.")}</p>
+                  )}
                   <p><span className="font-medium text-foreground">{locale === "en" ? "Email:" : "Correo:"}</span> {tenantLanding.contactoCorreo || (locale === "en" ? "Not specified" : "No especificado")}</p>
                   <p><span className="font-medium text-foreground">{locale === "en" ? "Phone:" : "Teléfono:"}</span> {tenantLanding.telefono || (locale === "en" ? "Not specified" : "No especificado")}</p>
                 </CardContent>
@@ -435,8 +482,8 @@ export default async function LandingPage({
             </div>
           ) : (
             <Card className="border-border bg-card shadow-sm">
-              <CardContent className="pt-6 text-sm text-muted-foreground whitespace-pre-line">
-                {tenantLanding.serviciosInfo || (locale === "en" ? "We are preparing the service details for you." : "Estamos preparando el detalle de servicios para ti.")}
+              <CardContent className="pt-6 text-sm text-muted-foreground">
+                {locale === "en" ? "There are no public services available right now." : "No hay servicios públicos disponibles en este momento."}
               </CardContent>
             </Card>
           )}
@@ -529,8 +576,20 @@ export default async function LandingPage({
               <CardHeader>
                 <CardTitle>{locale === "en" ? "Social and contact" : "Redes y contacto"}</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 text-sm text-muted-foreground whitespace-pre-line">
-                <p>{tenantLanding.redesSociales || (locale === "en" ? "No social media configured." : "Sin redes sociales configuradas.")}</p>
+              <CardContent className="space-y-4 text-sm text-muted-foreground">
+                {socialLinks.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {socialLinks.map(({ label, href, Icon }) => (
+                      <Button key={label} asChild variant="outline" size="sm">
+                        <Link href={href} target="_blank" rel="noopener noreferrer" className="gap-2">
+                          <Icon className="h-4 w-4" /> {label}
+                        </Link>
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <p>{locale === "en" ? "No social media configured." : "Sin redes sociales configuradas."}</p>
+                )}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
                     <p className="flex items-center gap-2"><Mail className="h-4 w-4" /> {tenantLanding.contactoCorreo || (locale === "en" ? "Not specified" : "No especificado")}</p>
