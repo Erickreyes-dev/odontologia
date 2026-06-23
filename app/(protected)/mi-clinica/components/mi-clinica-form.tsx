@@ -1,10 +1,6 @@
 "use client";
 
-<<<<<<< HEAD
-import { FormEvent, useState, useTransition } from "react";
-=======
 import { ChangeEvent, FormEvent, useMemo, useState, useTransition } from "react";
->>>>>>> 67d9881c9ad9b56aa935cdee316bb6d5583866f4
 import Image from "next/image";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -64,8 +60,6 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
   const [instagramUrl, setInstagramUrl] = useState(tenant.instagramUrl ?? "");
   const [isPending, startTransition] = useTransition();
 
-<<<<<<< HEAD
-=======
   const horariosOrdenados = useMemo(() => horarios, [horarios]);
 
   const updateHorario = (index: number, data: Partial<TenantClinicScheduleItem>) => {
@@ -123,7 +117,6 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
     setLandingImagePreview(URL.createObjectURL(file));
   };
 
->>>>>>> 67d9881c9ad9b56aa935cdee316bb6d5583866f4
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -188,40 +181,10 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
             </div>
           </div>
 
-<<<<<<< HEAD
-          <div className="space-y-3">
-            <Label>Logo de la clínica</Label>
-            {logoBase64 && (
-              <div className="flex items-center gap-4 p-3 rounded-lg border bg-neutral-50/50 dark:bg-neutral-900/50 max-w-md">
-                <Image 
-                  src={logoBase64} 
-                  alt="Logo actual de la clínica" 
-                  width={80} 
-                  height={80} 
-                  className="h-20 w-20 rounded border object-cover bg-white shrink-0" 
-                  unoptimized 
-                />
-                <div className="text-xs text-neutral-500 overflow-hidden">
-                  <p className="font-semibold text-neutral-800 dark:text-neutral-200 mb-0.5">Logo Actual</p>
-                  <p className="truncate text-neutral-400 max-w-[250px]">{logoBase64.startsWith("data:") ? "Almacenado localmente (Base64)" : logoBase64}</p>
-                </div>
-              </div>
-            )}
-            {canEdit && (
-              <UploadButton
-                folder="logos"
-                onUploadSuccess={(data) => {
-                  setLogoBase64(data.url);
-                  toast.success("Nuevo logo cargado temporalmente. Presiona 'Guardar información' para guardar permanentemente.");
-                }}
-              />
-            )}
-=======
           <div className="space-y-1">
             <Label htmlFor="logo">Logo</Label>
             <Input id="logo" type="file" accept="image/*" onChange={handleLogoChange} disabled={!canEdit} />
             {logoPreview && <Image src={logoPreview} alt="Logo de la clínica" width={80} height={80} className="h-20 w-20 rounded border object-cover" unoptimized />}
->>>>>>> 67d9881c9ad9b56aa935cdee316bb6d5583866f4
           </div>
 
 
