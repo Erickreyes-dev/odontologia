@@ -3,6 +3,7 @@
 type BrandingOptions = {
   clinicLogoBase64?: string | null;
   clinicName?: string | null;
+  loginUrl?: string | null;
 };
 
 function emailLayout(title: string, subtitle: string, content: string, branding?: BrandingOptions): string {
@@ -36,6 +37,9 @@ export function generateUserCreatedEmailHtml(
   tempPassword: string,
   branding?: BrandingOptions,
 ): string {
+  const clinicName = branding?.clinicName?.trim() || "Clínica";
+  const loginUrl = branding?.loginUrl?.trim() || "";
+
   return emailLayout(
     "Cuenta creada exitosamente",
     "Acceso inicial a la plataforma",
@@ -52,6 +56,8 @@ export function generateUserCreatedEmailHtml(
           <td style="padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background:#f1f5f9;">${tempPassword}</td>
         </tr>
       </table>
+      ${loginUrl ? `<p style="margin: 20px 0;"><a href="${loginUrl}" style="display:inline-block; background:#0f766e; color:#ffffff; text-decoration:none; padding:12px 18px; border-radius:10px; font-weight:700;">Ingresar a ${clinicName}</a></p>` : ""}
+      ${loginUrl ? `<p style="color:#475569; font-size:13px;">Enlace directo: <a href="${loginUrl}" style="color:#0f766e;">${loginUrl}</a></p>` : ""}
       <p>Por seguridad, cambia tu contraseña en tu primer ingreso.</p>
       <p style="margin-top:18px;">Saludos,<br/><strong>Equipo administrativo</strong></p>
     `,

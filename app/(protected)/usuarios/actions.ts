@@ -10,6 +10,7 @@ import { Prisma } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { getTenantEmailBranding } from "@/lib/tenant-branding";
 import { getSession } from "@/auth";
+import { buildTenantLoginUrl } from "@/lib/tenant-url";
 
 type TenantQuota = {
   tenantId: string;
@@ -158,6 +159,7 @@ export async function createUsuario(data: Usuario): Promise<Usuario> {
     // 5️⃣ Construir payload del correo usando sólo la plantilla HTML
     const { clinicLogoBase64, tenantName } = await getTenantEmailBranding();
 
+    const loginUrl = session.TenantSlug ? buildTenantLoginUrl(session.TenantSlug) : undefined;
     const html = generateUserCreatedEmailHtml(
       `${empleado.nombre} ${empleado.apellido}`,
       data.usuario,
@@ -165,6 +167,7 @@ export async function createUsuario(data: Usuario): Promise<Usuario> {
       {
         clinicLogoBase64,
         clinicName: tenantName,
+        loginUrl,
       },
     );
 

@@ -38,6 +38,32 @@ async function calcularTotalProductosVenta(
   }, 0);
 }
 
+
+function acumularCantidades(productos: { productoId: string; cantidad: number }[]) {
+  const cantidades = new Map<string, number>();
+  for (const producto of productos) {
+    cantidades.set(producto.productoId, (cantidades.get(producto.productoId) ?? 0) + producto.cantidad);
+  }
+  return cantidades;
+}
+
+function calcularAjustesStock(
+  productosAnteriores: { productoId: string; cantidad: number }[],
+  productosActuales: { productoId: string; cantidad: number }[]
+) {
+  const anteriores = acumularCantidades(productosAnteriores);
+  const actuales = acumularCantidades(productosActuales);
+  const productosIds = new Set([...anteriores.keys(), ...actuales.keys()]);
+  const ajustes = new Map<string, number>();
+
+  for (const productoId of productosIds) {
+    const delta = (actuales.get(productoId) ?? 0) - (anteriores.get(productoId) ?? 0);
+    if (delta !== 0) ajustes.set(productoId, delta);
+  }
+
+  return ajustes;
+}
+
 async function validarStockDisponible(
   tx: Prisma.TransactionClient,
   productos: { productoId: string; cantidad: number }[]
@@ -533,8 +559,6 @@ export async function finalizarConsulta(
         });
       }
 
-      await validarStockDisponible(tx, validatedData.productos ?? []);
-
       if (validatedData.servicios?.length) {
         await tx.consultaServicio.createMany({
           data: validatedData.servicios.map((servicio) => ({
@@ -569,19 +593,7 @@ export async function finalizarConsulta(
       }
 
       const productosActuales = validatedData.productos ?? [];
-      const stockAjustes = new Map<string, number>();
-      for (const producto of productosExistentes) {
-        stockAjustes.set(
-          producto.productoId,
-          (stockAjustes.get(producto.productoId) ?? 0) - producto.cantidad
-        );
-      }
-      for (const producto of productosActuales) {
-        stockAjustes.set(
-          producto.productoId,
-          (stockAjustes.get(producto.productoId) ?? 0) + producto.cantidad
-        );
-      }
+      const stockAjustes = calcularAjustesStock(productosExistentes, productosActuales);
 
       if (stockAjustes.size > 0) {
         const productosIds = Array.from(stockAjustes.keys());
