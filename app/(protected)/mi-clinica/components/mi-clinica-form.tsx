@@ -121,18 +121,23 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
     event.preventDefault();
 
     startTransition(async () => {
-      const result = await updateTenantClinicProfile({
-        telefono,
-        correo,
-        logoFile,
-        landingImageFile,
-        mision,
-        vision,
-        horarios,
-        facebookUrl,
-        twitterUrl,
-        instagramUrl,
-      });
+      const formData = new FormData();
+      formData.append("telefono", telefono);
+      formData.append("correo", correo);
+      if (logoFile) {
+        formData.append("logoFile", logoFile);
+      }
+      if (landingImageFile) {
+        formData.append("landingImageFile", landingImageFile);
+      }
+      formData.append("mision", mision);
+      formData.append("vision", vision);
+      formData.append("horarios", JSON.stringify(horarios));
+      formData.append("facebookUrl", facebookUrl);
+      formData.append("twitterUrl", twitterUrl);
+      formData.append("instagramUrl", instagramUrl);
+
+      const result = await updateTenantClinicProfile(formData);
 
       if (!result.success) {
         toast.error(result.error);

@@ -100,18 +100,9 @@ export async function getTenantClinicProfile(): Promise<TenantClinicProfile | nu
   };
 }
 
-export async function updateTenantClinicProfile(input: {
-  telefono?: string | null;
-  correo?: string | null;
-  logoFile?: File | null;
-  landingImageFile?: File | null;
-  mision?: string | null;
-  vision?: string | null;
-  horarios?: TenantClinicScheduleItem[] | null;
-  facebookUrl?: string | null;
-  twitterUrl?: string | null;
-  instagramUrl?: string | null;
-}): Promise<{ success: true } | { success: false; error: string }> {
+export async function updateTenantClinicProfile(
+  formData: FormData
+): Promise<{ success: true } | { success: false; error: string }> {
   try {
     const session = await getSession();
 
@@ -119,16 +110,36 @@ export async function updateTenantClinicProfile(input: {
       return { success: false, error: "No tiene permisos para editar la información de la clínica" };
     }
 
-    const telefonoRaw = input.telefono?.trim() ?? "";
-    const correoRaw = input.correo?.trim().toLowerCase() ?? "";
-    const logoPath = input.logoFile?.size ? await uploadTenantImageToS3({ tenantId: session.TenantId, file: input.logoFile, folder: "logos" }) : undefined;
-    const landingImagePath = input.landingImageFile?.size ? await uploadTenantImageToS3({ tenantId: session.TenantId, file: input.landingImageFile, folder: "landing" }) : undefined;
-    const mision = input.mision?.trim() || null;
-    const vision = input.vision?.trim() || null;
-    const horariosJson = sanitizeSchedule(input.horarios);
-    const facebookUrl = sanitizeOptionalUrl(input.facebookUrl, "Facebook");
-    const twitterUrl = sanitizeOptionalUrl(input.twitterUrl, "Twitter / X");
-    const instagramUrl = sanitizeOptionalUrl(input.instagramUrl, "Instagram");
+    const telefono = formData.get("telefono") as string | null;
+    const correo = formData.get("correo") as string | null;
+    const logoFile = formData.get("logoFile") as File | null;
+    const landingImageFile = formData.get("landingImageFile") as File | null;
+    const mision = formData.get("mision") as string | null;
+    const vision = formData.get("vision") as string | null;
+    const horariosRaw = formData.get("horarios") as string | null;
+    const facebookUrl = formData.get("facebookUrl") as string | null;
+    const twitterUrl = formData.get("twitterUrl") as string | null;
+    const instagramUrl = formData.get("instagramUrl") as string | null;
+
+    const telefonoRaw = telefono?.trim() ?? "";
+    const correoRaw = correo?.trim().toLowerCase() ?? "";
+    const logoPath = logoFile?.size ? await uploadTenantImageToS3({ tenantId: session.TenantId, file: logoFile, folder: "logos" }) : undefined;
+    const landingImagePath = landingImageFile?.size ? await uploadTenantImageToS3({ tenantId: session.TenantId, file: landingImageFile, folder: "landing" }) : undefined;
+    const misionClean = mision?.trim() || null;
+    const visionClean = vision?.trim() || null;
+
+    let horarios: TenantClinicScheduleItem[] | null = null;
+    if (horariosRaw) {
+      try {
+        horarios = JSON.parse(horariosRaw);
+      } catch (e) {
+        // ignore invalid JSON
+      }
+    }
+    const horariosJson = sanitizeSchedule(horarios);
+    const facebookUrlClean = sanitizeOptionalUrl(facebookUrl, "Facebook");
+    const twitterUrlClean = sanitizeOptionalUrl(twitterUrl, "Twitter / X");
+    const instagramUrlClean = sanitizeOptionalUrl(instagramUrl, "Instagram");
 
     if (telefonoRaw.length > 20) {
       return { success: false, error: "El teléfono debe tener máximo 20 caracteres" };
@@ -148,12 +159,12 @@ export async function updateTenantClinicProfile(input: {
         contactoCorreo: correoRaw || null,
         ...(logoPath ? { logoPath } : {}),
         ...(landingImagePath ? { landingImagePath } : {}),
-        mision,
-        vision,
+        mision: misionClean,
+        vision: visionClean,
         horariosJson,
-        facebookUrl,
-        twitterUrl,
-        instagramUrl,
+        facebookUrl: facebookUrlClean,
+        twitterUrl: twitterUrlClean,
+        instagramUrl: instagramUrlClean,
       },
     });
 
