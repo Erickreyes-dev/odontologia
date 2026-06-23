@@ -166,7 +166,6 @@ export async function postRol({
         activo: rol.activo ?? true,
         permisos: {
           create: rol.permisos.map((p: PermisosRol) => ({
-            id: p.id,
             permiso: { connect: { id: p.id } },
           })),
         },

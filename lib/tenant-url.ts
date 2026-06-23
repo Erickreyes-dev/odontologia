@@ -33,3 +33,12 @@ export function buildTenantLoginUrl(slug: string): string {
   const port = origin.port ? `:${origin.port}` : "";
   return `${origin.protocol}//${host}${port}/login`;
 }
+
+export function buildTenantPublicUrl(slug: string): string {
+  const origin = getPlatformOrigin();
+  const normalizedSlug = slug.trim().toLowerCase();
+  const rootHost = getRootHost(origin);
+  const host = `${normalizedSlug}.${rootHost}`;
+  const port = origin.port ? `:${origin.port}` : "";
+  return `${origin.protocol}//${host}${port}`;
+}

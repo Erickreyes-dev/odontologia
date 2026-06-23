@@ -21,7 +21,11 @@ model Tenant {
   vision         String?   @db.LongText
   serviciosInfo  String?   @db.LongText
   horariosInfo   String?   @db.LongText
+  horariosJson   String?   @db.LongText
   redesSociales  String?   @db.LongText
+  facebookUrl    String?   @db.VarChar(255)
+  twitterUrl     String?   @db.VarChar(255)
+  instagramUrl   String?   @db.VarChar(255)
   activo         Boolean   @default(true) @db.Bit(1)
   plan           String    @default("starter") @db.VarChar(30)
   maxUsuarios    Int       @default(20)
