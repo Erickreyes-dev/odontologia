@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
+const MAX_IMAGE_SIZE_BYTES = 150 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"]);
 
 function getS3Config() {
@@ -117,7 +117,7 @@ async function signedS3Request(method: "GET" | "PUT" | "DELETE", key: string, bo
 export async function uploadTenantImageToS3(params: { tenantId: string; file: File; folder: "logos" | "landing" }) {
   const { file, tenantId, folder } = params;
   if (!ALLOWED_IMAGE_TYPES.has(file.type)) throw new Error("Seleccione una imagen PNG, JPG, WEBP, GIF o SVG.");
-  if (file.size > MAX_IMAGE_SIZE_BYTES) throw new Error("La imagen es demasiado grande (máximo 2 MB).");
+  if (file.size > MAX_IMAGE_SIZE_BYTES) throw new Error("La imagen es demasiado grande");
 
   const extension = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || file.type.split("/").pop() || "bin";
   const key = `tenants/${tenantId}/${folder}/${crypto.randomUUID()}.${extension}`;
