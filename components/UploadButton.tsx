@@ -41,10 +41,10 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
       return;
     }
 
-    // Validar tamaño de archivo (150MB)
-    const maxSize = 150 * 1024 * 1024;
+    // Validar tamaño de archivo (1GB)
+    const maxSize = 1024 * 1024 * 1024;
     if (selectedFile.size > maxSize) {
-      toast.error("El tamaño del archivo supera el límite de 150MB");
+      toast.error("El tamaño del archivo supera el límite de 1GB");
       return;
     }
 
@@ -239,8 +239,8 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
               </p>
               <p className="text-xs text-neutral-400 mt-1">
                 {isImageFolder 
-                  ? "Soporta PNG, JPEG, WEBP de hasta 150MB" 
-                  : "Soporta cualquier archivo de hasta 150MB"}
+                  ? "Soporta PNG, JPEG, WEBP de hasta 1GB" 
+                  : "Soporta cualquier archivo de hasta 1GB"}
               </p>
             </div>
           </div>
