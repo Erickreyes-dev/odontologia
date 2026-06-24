@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useMemo, useState, useTransition } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Trash2 } from "lucide-react";
 import type { TenantClinicProfile, TenantClinicScheduleItem } from "../actions";
 import { updateTenantClinicProfile } from "../actions";
-import { UploadButton } from "@/components/UploadButton";
 
 interface MiClinicaFormProps {
   tenant: TenantClinicProfile;
@@ -50,8 +50,10 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
   const [correo, setCorreo] = useState(tenant.contactoCorreo ?? "");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState(tenant.logoUrl ?? "");
+  const [logoDeleted, setLogoDeleted] = useState(false);
   const [landingImageFile, setLandingImageFile] = useState<File | null>(null);
   const [landingImagePreview, setLandingImagePreview] = useState(tenant.landingImageUrl ?? "");
+  const [landingImageDeleted, setLandingImageDeleted] = useState(false);
   const [mision, setMision] = useState(tenant.mision ?? "");
   const [vision, setVision] = useState(tenant.vision ?? "");
   const [horarios, setHorarios] = useState<TenantClinicScheduleItem[]>(() => parseSchedule(tenant.horariosJson));
@@ -59,6 +61,24 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
   const [twitterUrl, setTwitterUrl] = useState(tenant.twitterUrl ?? "");
   const [instagramUrl, setInstagramUrl] = useState(tenant.instagramUrl ?? "");
   const [isPending, startTransition] = useTransition();
+
+  // Sincronizar el estado interno cuando los datos del servidor cambian
+  useEffect(() => {
+    setTelefono(tenant.telefono ?? "");
+    setCorreo(tenant.contactoCorreo ?? "");
+    setLogoPreview(tenant.logoUrl ?? "");
+    setLandingImagePreview(tenant.landingImageUrl ?? "");
+    setMision(tenant.mision ?? "");
+    setVision(tenant.vision ?? "");
+    setFacebookUrl(tenant.facebookUrl ?? "");
+    setTwitterUrl(tenant.twitterUrl ?? "");
+    setInstagramUrl(tenant.instagramUrl ?? "");
+    setHorarios(parseSchedule(tenant.horariosJson));
+    setLogoFile(null);
+    setLandingImageFile(null);
+    setLogoDeleted(false);
+    setLandingImageDeleted(false);
+  }, [tenant]);
 
   const horariosOrdenados = useMemo(() => horarios, [horarios]);
 
@@ -87,7 +107,7 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
     const file = event.target.files?.[0];
     if (!file) {
       setLogoFile(null);
-      setLogoPreview(tenant.logoUrl ?? "");
+      setLogoPreview(logoDeleted ? "" : (tenant.logoUrl ?? ""));
       return;
     }
 
@@ -98,13 +118,22 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
 
     setLogoFile(file);
     setLogoPreview(URL.createObjectURL(file));
+    setLogoDeleted(false);
+  };
+
+  const handleDeleteLogo = () => {
+    setLogoFile(null);
+    setLogoPreview("");
+    setLogoDeleted(true);
+    const input = document.getElementById("logo") as HTMLInputElement;
+    if (input) input.value = "";
   };
 
   const handleLandingImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
       setLandingImageFile(null);
-      setLandingImagePreview(tenant.landingImageUrl ?? "");
+      setLandingImagePreview(landingImageDeleted ? "" : (tenant.landingImageUrl ?? ""));
       return;
     }
 
@@ -115,6 +144,15 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
 
     setLandingImageFile(file);
     setLandingImagePreview(URL.createObjectURL(file));
+    setLandingImageDeleted(false);
+  };
+
+  const handleDeleteLandingImage = () => {
+    setLandingImageFile(null);
+    setLandingImagePreview("");
+    setLandingImageDeleted(true);
+    const input = document.getElementById("landingImage") as HTMLInputElement;
+    if (input) input.value = "";
   };
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -130,6 +168,8 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
       if (landingImageFile) {
         formData.append("landingImageFile", landingImageFile);
       }
+      formData.append("deleteLogo", logoDeleted ? "true" : "false");
+      formData.append("deleteLandingImage", landingImageDeleted ? "true" : "false");
       formData.append("mision", mision);
       formData.append("vision", vision);
       formData.append("horarios", JSON.stringify(horarios));
@@ -186,18 +226,69 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="logo">Logo</Label>
-            <Input id="logo" type="file" accept="image/*" onChange={handleLogoChange} disabled={!canEdit} />
-            {logoPreview && <Image src={logoPreview} alt="Logo de la clínica" width={80} height={80} className="h-20 w-20 rounded border object-cover" unoptimized />}
+          <div className="space-y-2">
+            <Label htmlFor="logo">Logo de la clínica</Label>
+            <div className="flex items-center gap-4">
+              {logoPreview ? (
+                <div className="relative group h-20 w-20 rounded border overflow-hidden bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                  <Image src={logoPreview} alt="Logo de la clínica" width={80} height={80} className="h-20 w-20 object-cover" unoptimized />
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteLogo}
+                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity duration-200"
+                      title="Eliminar logo"
+                    >
+                      <Trash2 className="size-5 text-red-500 hover:scale-110 transition-transform" />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="h-20 w-20 rounded border border-dashed flex items-center justify-center text-muted-foreground text-[10px] bg-neutral-50/50 dark:bg-neutral-900/50">
+                  Sin logo
+                </div>
+              )}
+              {canEdit && (
+                <div className="flex-1">
+                  <Input id="logo" type="file" accept="image/*" onChange={handleLogoChange} className="max-w-xs" />
+                  <p className="text-[10px] text-muted-foreground mt-1">Soporta PNG, JPEG, WEBP de hasta 2MB.</p>
+                </div>
+              )}
+            </div>
           </div>
 
-
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="landingImage">Imagen de la landing</Label>
-            <Input id="landingImage" type="file" accept="image/*" onChange={handleLandingImageChange} disabled={!canEdit} />
-            <p className="text-xs text-muted-foreground">Se mostrará en la página pública de la clínica. Tamaño máximo: 2 MB.</p>
-            {landingImagePreview && <Image src={landingImagePreview} alt="Imagen de landing de la clínica" width={360} height={180} className="h-40 w-full max-w-xl rounded border object-cover" unoptimized />}
+            <div className="flex flex-col gap-3">
+              {landingImagePreview ? (
+                <div className="relative group w-full max-w-xl aspect-[2/1] rounded border overflow-hidden bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                  <Image src={landingImagePreview} alt="Imagen de landing de la clínica" width={512} height={256} className="w-full h-full object-cover" unoptimized />
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteLandingImage}
+                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity duration-200"
+                      title="Eliminar imagen de landing"
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        <Trash2 className="size-6 text-red-500 hover:scale-110 transition-transform" />
+                        <span className="text-xs font-medium text-red-500">Eliminar imagen</span>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="w-full max-w-xl aspect-[2/1] rounded border border-dashed flex items-center justify-center text-muted-foreground text-xs bg-neutral-50/50 dark:bg-neutral-900/50">
+                  Sin imagen de landing
+                </div>
+              )}
+              {canEdit && (
+                <div className="flex items-center gap-3">
+                  <Input id="landingImage" type="file" accept="image/*" onChange={handleLandingImageChange} className="max-w-xs" />
+                  <p className="text-[10px] text-muted-foreground">Tamaño máximo: 2 MB.</p>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">

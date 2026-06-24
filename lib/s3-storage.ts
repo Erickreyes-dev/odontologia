@@ -54,7 +54,7 @@ export async function uploadImageToS3(file: File, folder: string) {
 /**
  * Genera una URL firmada de tipo PUT para que el cliente (frontend) pueda subir
  * el archivo directamente a S3, ideal para mejorar rendimiento en archivos grandes.
- * Expira en 15 minutos (900 segundos).
+ * Expira en 1 hora (3600 segundos) para permitir subidas lentas de archivos grandes.
  */
 export async function createPresignedPutUrl(originalName: string, folder: string, contentType: string) {
   const sanitized = sanitizeFileName(originalName || "imagen");
@@ -71,7 +71,7 @@ export async function createPresignedPutUrl(originalName: string, folder: string
     ContentType: contentType,
   });
 
-  const url = await getSignedUrl(s3Client, command, { expiresIn: 900 });
+  const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
   return { url, key, name: sanitized };
 }
 

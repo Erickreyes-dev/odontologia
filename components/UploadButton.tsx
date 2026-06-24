@@ -2,7 +2,7 @@
 
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
 import { toast } from "sonner";
-import { UploadCloud, FileImage, Trash2, Loader2, Sparkles } from "lucide-react";
+import { UploadCloud, FileImage, Trash2, Loader2, Sparkles, FileText, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +23,8 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isImageFolder = ["logos", "imagenes", "perfiles"].includes(folder);
+
   // Manejar la selección manual del archivo
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -33,24 +35,33 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
 
   // Procesar archivo seleccionado o arrastrado
   const processFile = (selectedFile: File) => {
-    // Validar tipo de archivo
-    if (!selectedFile.type.startsWith("image/")) {
+    // Validar tipo de archivo si es una carpeta que requiere imágenes
+    if (isImageFolder && !selectedFile.type.startsWith("image/")) {
       toast.error("Por favor selecciona un archivo de tipo imagen (JPEG, PNG, WEBP, etc.)");
       return;
     }
 
-    // Validar tamaño de archivo (e.g. 5MB)
-    const maxSize = 5 * 1024 * 1024;
+    // Validar tamaño de archivo (150MB)
+    const maxSize = 150 * 1024 * 1024;
     if (selectedFile.size > maxSize) {
-      toast.error("El tamaño del archivo supera el límite de 5MB");
+      toast.error("El tamaño del archivo supera el límite de 150MB");
       return;
     }
 
     setFile(selectedFile);
 
-    // Generar URL de vista previa local
-    const objectUrl = URL.createObjectURL(selectedFile);
-    setPreviewUrl(objectUrl);
+    // Generar URL de vista previa local si es imagen
+    if (selectedFile.type.startsWith("image/")) {
+      const objectUrl = URL.createObjectURL(selectedFile);
+      setPreviewUrl(objectUrl);
+    } else {
+      setPreviewUrl("document-placeholder");
+    }
+
+    // Si el archivo es mayor a 4MB, seleccionar automáticamente el método presigned
+    if (selectedFile.size > 4 * 1024 * 1024) {
+      setUploadMethod("presigned");
+    }
   };
 
   // Manejadores de Drag & Drop
@@ -75,10 +86,10 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
   // Resetear el estado
   const resetUpload = () => {
     setFile(null);
-    if (previewUrl) {
+    if (previewUrl && previewUrl !== "document-placeholder") {
       URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
     }
+    setPreviewUrl(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -89,7 +100,7 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
     if (!file) return;
 
     setLoading(true);
-    const toastId = toast.loading("Subiendo imagen a S3...");
+    const toastId = toast.loading("Subiendo archivo a S3...");
 
     try {
       if (uploadMethod === "server") {
@@ -105,7 +116,7 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Error al subir al servidor");
 
-        toast.success("¡Imagen subida con éxito mediante el servidor!", { id: toastId });
+        toast.success("¡Archivo subido con éxito mediante el servidor!", { id: toastId });
         if (onUploadSuccess) {
           onUploadSuccess({ key: data.key, url: data.url, nombre: data.nombre });
         }
@@ -117,7 +128,7 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             filename: file.name,
-            contentType: file.type,
+            contentType: file.type || "application/octet-stream",
           }),
         });
 
@@ -130,7 +141,7 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
         const s3Response = await fetch(presignedUrl, {
           method: "PUT",
           headers: {
-            "Content-Type": file.type,
+            "Content-Type": file.type || "application/octet-stream",
           },
           body: file,
         });
@@ -142,7 +153,7 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
         // Construir la URL pública aproximada
         const publicUrl = presignedUrl.split("?")[0];
 
-        toast.success("¡Imagen subida con éxito de forma directa a S3!", { id: toastId });
+        toast.success("¡Archivo subido con éxito de forma directa a S3!", { id: toastId });
         if (onUploadSuccess) {
           onUploadSuccess({ key, url: publicUrl, nombre: name });
         }
@@ -164,10 +175,13 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
         <button
           type="button"
           onClick={() => setUploadMethod("server")}
+          disabled={file ? file.size > 4 * 1024 * 1024 : false}
           className={cn(
             "flex-1 py-1.5 rounded-md transition-all flex items-center justify-center gap-1",
-            uploadMethod === "server" ? "bg-white dark:bg-neutral-800 shadow text-neutral-900 dark:text-neutral-50" : "text-neutral-500 hover:text-neutral-800"
+            uploadMethod === "server" ? "bg-white dark:bg-neutral-800 shadow text-neutral-900 dark:text-neutral-50" : "text-neutral-500 hover:text-neutral-800",
+            file && file.size > 4 * 1024 * 1024 && "opacity-40 cursor-not-allowed"
           )}
+          title={file && file.size > 4 * 1024 * 1024 ? "No disponible para archivos >4MB" : ""}
         >
           Servidor Next.js
         </button>
@@ -184,18 +198,25 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
         </button>
       </div>
 
+      {file && file.size > 4 * 1024 * 1024 && (
+        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-200 text-[10px] border border-amber-200 dark:border-amber-900/50">
+          <AlertCircle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span>Para archivos mayores a 4MB, se requiere subida directa a S3 para evitar restricciones del servidor.</span>
+        </div>
+      )}
+
       {/* Input de tipo file oculto */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept="image/*"
+        accept={isImageFolder ? "image/*" : "*/*"}
         className="hidden"
         disabled={loading}
       />
 
       {/* Zona de Drop o Vista previa */}
-      {!previewUrl ? (
+      {!file ? (
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -213,20 +234,33 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
               <UploadCloud className="size-8" />
             </div>
             <div>
-              <p className="text-sm font-medium">Arrastra tu imagen aquí o haz clic</p>
-              <p className="text-xs text-neutral-400 mt-1">Soporta PNG, JPEG, WEBP de hasta 5MB</p>
+              <p className="text-sm font-medium">
+                {isImageFolder ? "Arrastra tu imagen aquí o haz clic" : "Arrastra tu archivo aquí o haz clic"}
+              </p>
+              <p className="text-xs text-neutral-400 mt-1">
+                {isImageFolder 
+                  ? "Soporta PNG, JPEG, WEBP de hasta 150MB" 
+                  : "Soporta cualquier archivo de hasta 150MB"}
+              </p>
             </div>
           </div>
         </div>
       ) : (
         <div className="relative border rounded-lg overflow-hidden bg-neutral-50 dark:bg-neutral-950/40 p-3 flex flex-col gap-3 min-h-48 justify-center">
           <div className="relative aspect-video w-full max-h-36 rounded-md overflow-hidden bg-white dark:bg-neutral-900 border flex items-center justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewUrl}
-              alt="Vista previa de carga"
-              className="object-contain h-full w-full"
-            />
+            {previewUrl && previewUrl !== "document-placeholder" ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={previewUrl}
+                alt="Vista previa de carga"
+                className="object-contain h-full w-full"
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <FileText className="size-12 text-primary" />
+                <span className="text-xs font-semibold text-neutral-500">Archivo no imagen listo</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between gap-2 px-1">
@@ -234,10 +268,10 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
               <FileImage className="size-4 shrink-0 text-primary" />
               <div className="overflow-hidden">
                 <p className="text-xs font-semibold truncate max-w-[200px]">
-                  {file?.name}
+                  {file.name}
                 </p>
                 <p className="text-[10px] text-neutral-400">
-                  {file ? (file.size / 1024 / 1024).toFixed(2) + " MB" : ""}
+                  {(file.size / 1024 / 1024).toFixed(2) + " MB"}
                 </p>
               </div>
             </div>
@@ -257,7 +291,7 @@ export function UploadButton({ folder, onUploadSuccess, className }: UploadButto
       )}
 
       {/* Botones de acción */}
-      {previewUrl && (
+      {file && (
         <div className="flex items-center gap-2 mt-1">
           <Button
             type="button"

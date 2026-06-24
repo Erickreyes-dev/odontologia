@@ -72,7 +72,7 @@ async function getCredentials(): Promise<AwsCredentials> {
   throw new Error("Credenciales AWS no disponibles. Use un rol IAM en producción o variables AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY en desarrollo.");
 }
 
-async function signedS3Request(method: "GET" | "PUT", key: string, body?: Buffer, contentType?: string) {
+async function signedS3Request(method: "GET" | "PUT" | "DELETE", key: string, body?: Buffer, contentType?: string) {
   const { bucket, region } = getS3Config();
   const { accessKeyId, secretAccessKey, sessionToken } = await getCredentials();
   const now = new Date();
@@ -128,6 +128,10 @@ export async function uploadTenantImageToS3(params: { tenantId: string; file: Fi
 
 export async function getTenantImageFromS3(key: string) {
   return signedS3Request("GET", key);
+}
+
+export async function deleteTenantImageFromS3(key: string) {
+  return signedS3Request("DELETE", key);
 }
 
 export function mediaUrl(key: string | null | undefined) {

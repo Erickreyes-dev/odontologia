@@ -4,7 +4,7 @@ import { getSession } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { buildTenantPublicUrl } from "@/lib/tenant-url";
 import { revalidatePath } from "next/cache";
-import { mediaUrl, uploadTenantImageToS3 } from "@/lib/s3";
+import { mediaUrl, uploadTenantImageToS3, deleteTenantImageFromS3 } from "@/lib/s3";
 
 export type TenantClinicScheduleItem = {
   dia: string;
@@ -114,6 +114,8 @@ export async function updateTenantClinicProfile(
     const correo = formData.get("correo") as string | null;
     const logoFile = formData.get("logoFile") as File | null;
     const landingImageFile = formData.get("landingImageFile") as File | null;
+    const deleteLogo = formData.get("deleteLogo") === "true";
+    const deleteLandingImage = formData.get("deleteLandingImage") === "true";
     const mision = formData.get("mision") as string | null;
     const vision = formData.get("vision") as string | null;
     const horariosRaw = formData.get("horarios") as string | null;
@@ -123,8 +125,55 @@ export async function updateTenantClinicProfile(
 
     const telefonoRaw = telefono?.trim() ?? "";
     const correoRaw = correo?.trim().toLowerCase() ?? "";
-    const logoPath = logoFile?.size ? await uploadTenantImageToS3({ tenantId: session.TenantId, file: logoFile, folder: "logos" }) : undefined;
-    const landingImagePath = landingImageFile?.size ? await uploadTenantImageToS3({ tenantId: session.TenantId, file: landingImageFile, folder: "landing" }) : undefined;
+
+    // Obtener la información actual del tenant para gestionar el borrado/reemplazo de imágenes
+    const currentTenant = await prisma.tenant.findUnique({
+      where: { id: session.TenantId },
+      select: { logoPath: true, landingImagePath: true },
+    });
+
+    let logoPath: string | null | undefined = undefined;
+    if (logoFile?.size) {
+      if (currentTenant?.logoPath) {
+        try {
+          await deleteTenantImageFromS3(currentTenant.logoPath);
+        } catch (err) {
+          console.error("Error al eliminar logo anterior de S3:", err);
+        }
+      }
+      logoPath = await uploadTenantImageToS3({ tenantId: session.TenantId, file: logoFile, folder: "logos" });
+    } else if (deleteLogo) {
+      if (currentTenant?.logoPath) {
+        try {
+          await deleteTenantImageFromS3(currentTenant.logoPath);
+        } catch (err) {
+          console.error("Error al eliminar logo de S3:", err);
+        }
+      }
+      logoPath = null;
+    }
+
+    let landingImagePath: string | null | undefined = undefined;
+    if (landingImageFile?.size) {
+      if (currentTenant?.landingImagePath) {
+        try {
+          await deleteTenantImageFromS3(currentTenant.landingImagePath);
+        } catch (err) {
+          console.error("Error al eliminar imagen de landing anterior de S3:", err);
+        }
+      }
+      landingImagePath = await uploadTenantImageToS3({ tenantId: session.TenantId, file: landingImageFile, folder: "landing" });
+    } else if (deleteLandingImage) {
+      if (currentTenant?.landingImagePath) {
+        try {
+          await deleteTenantImageFromS3(currentTenant.landingImagePath);
+        } catch (err) {
+          console.error("Error al eliminar imagen de landing de S3:", err);
+        }
+      }
+      landingImagePath = null;
+    }
+
     const misionClean = mision?.trim() || null;
     const visionClean = vision?.trim() || null;
 
@@ -157,8 +206,8 @@ export async function updateTenantClinicProfile(
       data: {
         telefono: telefonoRaw || null,
         contactoCorreo: correoRaw || null,
-        ...(logoPath ? { logoPath } : {}),
-        ...(landingImagePath ? { landingImagePath } : {}),
+        ...(logoPath !== undefined ? { logoPath } : {}),
+        ...(landingImagePath !== undefined ? { landingImagePath } : {}),
         mision: misionClean,
         vision: visionClean,
         horariosJson,
