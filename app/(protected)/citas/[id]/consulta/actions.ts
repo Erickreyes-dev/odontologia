@@ -19,6 +19,16 @@ const parsePiezasTratadas = (value: string | null | undefined): number[] => {
   }
 };
 
+const parseOdontogramaDetalle = (value: string | null | undefined): Consulta["odontogramaDetalle"] => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 async function calcularTotalProductosVenta(
   tx: Prisma.TransactionClient | typeof prisma,
   productos: { productoId: string; cantidad: number }[]
@@ -144,6 +154,7 @@ export async function getConsultaByCitaId(citaId: string): Promise<Consulta | nu
       notas: r.notas,
       observacionesClinicas: r.observacionesClinicas,
       piezasTratadas: parsePiezasTratadas(r.piezasTratadas),
+      odontogramaDetalle: parseOdontogramaDetalle(r.odontogramaDetalle),
       total: Number(r.total),
       descuento: r.descuento !== null ? Number(r.descuento) : null,
       seguimientoId: r.seguimientoId ?? null,
@@ -223,6 +234,7 @@ export async function getConsultaById(id: string): Promise<Consulta | null> {
       notas: r.notas,
       observacionesClinicas: r.observacionesClinicas,
       piezasTratadas: parsePiezasTratadas(r.piezasTratadas),
+      odontogramaDetalle: parseOdontogramaDetalle(r.odontogramaDetalle),
       total: Number(r.total),
       descuento: r.descuento !== null ? Number(r.descuento) : null,
       seguimientoId: r.seguimientoId ?? null,
@@ -319,6 +331,7 @@ export async function upsertConsulta(
             notas: validatedData.notas,
             observacionesClinicas: validatedData.observacionesClinicas,
             piezasTratadas: JSON.stringify(validatedData.piezasTratadas ?? []),
+            odontogramaDetalle: JSON.stringify(validatedData.odontogramaDetalle ?? []),
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
@@ -395,6 +408,7 @@ export async function upsertConsulta(
             notas: validatedData.notas,
             observacionesClinicas: validatedData.observacionesClinicas,
             piezasTratadas: JSON.stringify(validatedData.piezasTratadas ?? []),
+            odontogramaDetalle: JSON.stringify(validatedData.odontogramaDetalle ?? []),
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
@@ -530,6 +544,7 @@ export async function finalizarConsulta(
             notas: validatedData.notas,
             observacionesClinicas: validatedData.observacionesClinicas,
             piezasTratadas: JSON.stringify(validatedData.piezasTratadas ?? []),
+            odontogramaDetalle: JSON.stringify(validatedData.odontogramaDetalle ?? []),
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
@@ -550,6 +565,7 @@ export async function finalizarConsulta(
             notas: validatedData.notas,
             observacionesClinicas: validatedData.observacionesClinicas,
             piezasTratadas: JSON.stringify(validatedData.piezasTratadas ?? []),
+            odontogramaDetalle: JSON.stringify(validatedData.odontogramaDetalle ?? []),
             seguimientoId: validatedData.seguimientoId ?? null,
             financiamientoId: validatedData.financiamientoId ?? null,
             promocionId: validatedData.promocionId ?? null,
