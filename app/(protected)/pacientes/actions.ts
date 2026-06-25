@@ -511,3 +511,108 @@ export async function updateConstanciaMedica({
         return { success: false, error: "Error desconocido al actualizar la constancia médica." };
     }
 }
+
+export type ExpedienteClinicoPaciente = {
+    id?: string;
+    pacienteId: string;
+    tiempoEnfermedad?: string | null;
+    signosSintomasPrincipales?: string | null;
+    relatoCronologico?: string | null;
+    funcionesBiologicas?: string | null;
+    antecedentesFamiliares?: string | null;
+    antecedentesPersonales?: string | null;
+    presionAlta?: boolean | null;
+    presionBaja?: boolean | null;
+    hepatitis?: boolean | null;
+    gastritis?: boolean | null;
+    vih?: boolean | null;
+    diabetes?: boolean | null;
+    asma?: boolean | null;
+    fuma?: boolean | null;
+    comentarioAdicional?: string | null;
+    enfermedadesSanguineas?: boolean | null;
+    enfermedadesSanguineasCuales?: string | null;
+    problemasCardiacos?: boolean | null;
+    problemasCardiacosCuales?: string | null;
+    otraEnfermedad?: string | null;
+    cepilladoDentalFrecuencia?: string | null;
+    sangranEncias?: boolean | null;
+    hemorragiasExtraccion?: boolean | null;
+    bruxismo?: boolean | null;
+    otraMolestiaBoca?: string | null;
+    alergias?: string | null;
+    operacionGrandeReciente?: string | null;
+    medicacionPermanente?: string | null;
+    presionArterial?: string | null;
+    frecuenciaCardiaca?: string | null;
+    temperatura?: string | null;
+    frecuenciaRespiratoria?: string | null;
+    examenExtraoral?: string | null;
+    examenIntraoral?: string | null;
+};
+
+const expedienteTextFields = [
+    'tiempoEnfermedad', 'signosSintomasPrincipales', 'relatoCronologico', 'funcionesBiologicas',
+    'antecedentesFamiliares', 'antecedentesPersonales', 'comentarioAdicional', 'enfermedadesSanguineasCuales',
+    'problemasCardiacosCuales', 'otraEnfermedad', 'cepilladoDentalFrecuencia', 'otraMolestiaBoca', 'alergias',
+    'operacionGrandeReciente', 'medicacionPermanente', 'presionArterial', 'frecuenciaCardiaca', 'temperatura',
+    'frecuenciaRespiratoria', 'examenExtraoral', 'examenIntraoral',
+] as const;
+
+const expedienteBooleanFields = [
+    'presionAlta', 'presionBaja', 'hepatitis', 'gastritis', 'vih', 'diabetes', 'asma', 'fuma',
+    'enfermedadesSanguineas', 'problemasCardiacos', 'sangranEncias', 'hemorragiasExtraccion', 'bruxismo',
+] as const;
+
+function optionalText(formData: FormData, key: string) {
+    const value = formData.get(key)?.toString().trim() ?? '';
+    return value ? value : null;
+}
+
+function optionalBoolean(formData: FormData, key: string) {
+    const value = formData.get(key)?.toString();
+    if (value === 'si') return true;
+    if (value === 'no') return false;
+    return null;
+}
+
+export async function getExpedienteClinicoByPaciente(pacienteId: string): Promise<ExpedienteClinicoPaciente | null> {
+    try {
+        const expediente = await prisma.expedienteClinicoPaciente.findFirst({
+            where: await tenantWhere<Prisma.ExpedienteClinicoPacienteWhereInput>({ pacienteId }),
+        });
+
+        return expediente;
+    } catch (error) {
+        console.error('Error al obtener expediente clínico del paciente:', error);
+        return null;
+    }
+}
+
+export async function saveExpedienteClinicoPaciente(pacienteId: string, formData: FormData) {
+    const paciente = await prisma.paciente.findFirst({
+        where: await tenantWhere<Prisma.PacienteWhereInput>({ id: pacienteId }),
+        select: { id: true },
+    });
+
+    if (!paciente) {
+        throw new Error('Paciente no encontrado en este tenant.');
+    }
+
+    const data: Record<string, string | boolean | null> = {};
+    for (const field of expedienteTextFields) data[field] = optionalText(formData, field);
+    for (const field of expedienteBooleanFields) data[field] = optionalBoolean(formData, field);
+
+    await prisma.expedienteClinicoPaciente.upsert({
+        where: { pacienteId: paciente.id },
+        create: await withTenantData({
+            id: randomUUID(),
+            pacienteId: paciente.id,
+            ...data,
+        }),
+        update: data,
+    });
+
+    revalidatePath(`/pacientes/${pacienteId}/perfil`);
+    revalidatePath(`/pacientes/${pacienteId}/expediente-clinico`);
+}
