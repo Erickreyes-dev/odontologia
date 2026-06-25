@@ -130,6 +130,7 @@ export function ConsultaForm({
       notas: consulta?.notas || "",
       observacionesClinicas: consulta?.observacionesClinicas || "",
       piezasTratadas: consulta?.piezasTratadas ?? [],
+      odontogramaDetalle: consulta?.odontogramaDetalle ?? [],
       servicios: consulta?.servicios ?? [],
       productos: consulta?.productos ?? [],
       seguimientoId: consulta?.seguimientoId ?? null,
@@ -168,8 +169,9 @@ export function ConsultaForm({
   const promocionId = useWatch({ control: form.control, name: "promocionId" });
   const descuentoPorcentaje = useWatch({ control: form.control, name: "descuento" }) ?? 0;
   const piezasTratadas = useWatch({ control: form.control, name: "piezasTratadas" }) ?? [];
+  const odontogramaDetalle = useWatch({ control: form.control, name: "odontogramaDetalle" }) ?? [];
   const [usarOdontograma, setUsarOdontograma] = useState(
-    (consulta?.piezasTratadas?.length ?? 0) > 0
+    (consulta?.piezasTratadas?.length ?? 0) > 0 || (consulta?.odontogramaDetalle?.length ?? 0) > 0
   );
   const [mostrarProductos, setMostrarProductos] = useState(
     (consulta?.productos?.length ?? 0) > 0
@@ -1018,6 +1020,10 @@ export function ConsultaForm({
                         shouldDirty: true,
                         shouldValidate: true,
                       });
+                      form.setValue("odontogramaDetalle", [], {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
                     }
                   }}
                 />
@@ -1035,12 +1041,14 @@ export function ConsultaForm({
                       <OdontogramaSelector
                         value={field.value ?? []}
                         onChange={(nextValue) => field.onChange(nextValue)}
+                        detailValue={odontogramaDetalle}
+                        onDetailChange={(nextValue) => form.setValue("odontogramaDetalle", nextValue, { shouldDirty: true, shouldValidate: true })}
                       />
                     </FieldContent>
                     <FieldDescription>
-                      Haga clic en una pieza para marcarla o desmarcarla.
+                      Seleccione tratamiento y superficie; haga clic en una capa del diente para aplicar el SVG clínico.
                       {piezasTratadas.length > 0
-                        ? ` Seleccionadas: ${piezasTratadas.join(", ")}.`
+                        ? ` Piezas con capas: ${piezasTratadas.join(", ")} (${odontogramaDetalle.length} registros).`
                         : " Sin piezas seleccionadas aún."}
                     </FieldDescription>
                   </Field>
