@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
@@ -8,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { TenantAppointmentForm } from "@/components/tenant-appointment-form";
 import { CalendarClock, Check, Facebook, HeartHandshake, Instagram, Mail, PhoneCall, Sparkles, Stethoscope, Twitter, Users } from "lucide-react";
 import { resolveCurrencyByCountry } from "@/lib/country-currency";
+import { buildTenantPublicUrl } from "@/lib/tenant-url";
 
 type Lang = "es" | "en";
 
@@ -187,6 +189,67 @@ const landingByLang = {
   faqs: Array<{ question: string; answer: string }>;
 }>;
 
+
+function getRequestOrigin() {
+  const requestHeaders = headers();
+  const host = requestHeaders.get("host");
+  const protocol = requestHeaders.get("x-forwarded-proto") || "https";
+
+  return host ? `${protocol}://${host}` : "https://medisoftcore.com";
+}
+
+function absoluteUrl(pathOrUrl: string, origin: string) {
+  return new URL(pathOrUrl, origin).toString();
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const requestHeaders = headers();
+  const tenantSlug = requestHeaders.get("x-tenant-slug");
+
+  if (!tenantSlug) return {};
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { slug: tenantSlug },
+    select: { nombre: true, slug: true, logoPath: true, activo: true },
+  });
+
+  if (!tenant?.activo) return {};
+
+  const origin = getRequestOrigin();
+  const publicUrl = buildTenantPublicUrl(tenant.slug);
+  const title = `${tenant.nombre} | MediSoftCore`;
+  const description = `Agenda tu cita y conoce los servicios de ${tenant.nombre}.`;
+  const logo = mediaUrl(tenant.logoPath);
+  const imageUrl = logo ? absoluteUrl(logo, origin) : absoluteUrl("/opengraph-image", origin);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: publicUrl },
+    openGraph: {
+      type: "website",
+      locale: "es_DO",
+      url: publicUrl,
+      siteName: tenant.nombre,
+      title,
+      description,
+      images: [
+        {
+          url: imageUrl,
+          width: logo ? 800 : 1200,
+          height: logo ? 800 : 630,
+          alt: `Logo ${tenant.nombre}`,
+        },
+      ],
+    },
+    twitter: {
+      card: logo ? "summary" : "summary_large_image",
+      title,
+      description,
+      images: [imageUrl],
+    },
+  };
+}
 
 type LandingScheduleItem = {
   dia: string;
