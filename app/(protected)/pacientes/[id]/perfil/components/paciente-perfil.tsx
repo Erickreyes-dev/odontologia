@@ -70,6 +70,7 @@ interface PacientePerfilProps {
   constancias: ConstanciaMedicaResumen[];
   piezasTratadasHistoricas: number[];
   totalConsultasConOdontograma: number;
+  odontogramaDetalleHistorico: { toothId: number; surface: "M" | "D" | "V" | "L" | "O"; treatmentId: string; treatmentName: string; category: string; color: string; icon: string }[];
   seguroNombre?: string;
 }
 
@@ -254,6 +255,7 @@ export function PacientePerfil({
   constancias,
   piezasTratadasHistoricas,
   totalConsultasConOdontograma,
+  odontogramaDetalleHistorico,
   seguroNombre,
   clinicInfo,
 }: PacientePerfilProps) {
@@ -707,6 +709,7 @@ export function PacientePerfil({
           <PacienteOdontogramaResumen
             treatedTeeth={piezasTratadasHistoricas}
             totalConsultasConOdontograma={totalConsultasConOdontograma}
+            odontogramaDetalle={odontogramaDetalleHistorico}
           />
         </CardContent>
       </Card>

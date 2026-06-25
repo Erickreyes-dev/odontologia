@@ -59,6 +59,22 @@ const toothNames: Record<number, string> = Object.fromEntries([
   ...[18,28,38,48].map((id) => [id, "Tercer molar"]),
 ]);
 
+const getToothSvg = (toothId: number) => {
+  const lastDigit = toothId % 10;
+  if (lastDigit === 3) return "/images/svg/odontograma/piezas/canino.svg";
+  if ([4, 5].includes(lastDigit) && toothId < 50) return "/images/svg/odontograma/piezas/premolar.svg";
+  if (lastDigit >= 4) return "/images/svg/odontograma/piezas/molar.svg";
+  return "/images/svg/odontograma/piezas/incisivo.svg";
+};
+
+const surfaceCenters: Record<Surface, { x: number; y: number }> = {
+  V: { x: 50, y: 30 },
+  L: { x: 50, y: 77 },
+  M: { x: 27, y: 54 },
+  D: { x: 73, y: 54 },
+  O: { x: 50, y: 54 },
+};
+
 const treatments = [
   ["caries", "Caries dental", "Diagnóstico", "#dc2626", "/images/svg/odontograma/caries.svg"],
   ["caries-profunda", "Caries profunda", "Diagnóstico", "#b91c1c", "/images/svg/odontograma/caries.svg"],
@@ -112,16 +128,21 @@ const treatments = [
 
 function ToothSvg({ toothId, entries, selected, onSurfaceClick }: { toothId: number; entries: OdontogramaEntry[]; selected: boolean; onSurfaceClick: (surface: Surface) => void }) {
   const bySurface = (surface: Surface) => entries.find((entry) => entry.surface === surface);
-  const fill = (surface: Surface) => bySurface(surface)?.color ?? "#ffffff";
+  const fill = (surface: Surface) => bySurface(surface)?.color ?? "transparent";
   return (
     <div className={`rounded-xl border bg-white p-2 shadow-sm transition ${selected ? "ring-2 ring-primary" : "hover:border-primary/50"}`}>
-      <svg viewBox="0 0 100 100" className="h-20 w-20">
-        <path d="M20 20h60L62 38H38z" fill={fill("V")} stroke="#334155" onClick={() => onSurfaceClick("V")} className="cursor-pointer" />
-        <path d="M20 80h60L62 62H38z" fill={fill("L")} stroke="#334155" onClick={() => onSurfaceClick("L")} className="cursor-pointer" />
-        <path d="M20 20v60l18-18V38z" fill={fill("M")} stroke="#334155" onClick={() => onSurfaceClick("M")} className="cursor-pointer" />
-        <path d="M80 20v60L62 62V38z" fill={fill("D")} stroke="#334155" onClick={() => onSurfaceClick("D")} className="cursor-pointer" />
-        <rect x="38" y="38" width="24" height="24" rx="4" fill={fill("O")} stroke="#334155" onClick={() => onSurfaceClick("O")} className="cursor-pointer" />
-        <text x="50" y="55" textAnchor="middle" className="fill-slate-800 text-[16px] font-bold pointer-events-none">{toothId}</text>
+      <svg viewBox="0 0 100 120" className="h-24 w-20">
+        <image href={getToothSvg(toothId)} x="0" y="0" width="100" height="120" preserveAspectRatio="xMidYMid meet" />
+        <path d="M24 22h52L61 42H39z" fill={fill("V")} fillOpacity="0.72" stroke="#334155" strokeOpacity="0.25" onClick={() => onSurfaceClick("V")} className="cursor-pointer" />
+        <path d="M24 88h52L61 66H39z" fill={fill("L")} fillOpacity="0.72" stroke="#334155" strokeOpacity="0.25" onClick={() => onSurfaceClick("L")} className="cursor-pointer" />
+        <path d="M24 22v66l16-22V42z" fill={fill("M")} fillOpacity="0.72" stroke="#334155" strokeOpacity="0.25" onClick={() => onSurfaceClick("M")} className="cursor-pointer" />
+        <path d="M76 22v66L60 66V42z" fill={fill("D")} fillOpacity="0.72" stroke="#334155" strokeOpacity="0.25" onClick={() => onSurfaceClick("D")} className="cursor-pointer" />
+        <rect x="39" y="42" width="22" height="24" rx="5" fill={fill("O")} fillOpacity="0.72" stroke="#334155" strokeOpacity="0.25" onClick={() => onSurfaceClick("O")} className="cursor-pointer" />
+        {entries.map((entry) => {
+          const center = surfaceCenters[entry.surface];
+          return <image key={`${entry.toothId}-${entry.surface}-${entry.treatmentId}`} href={entry.icon} x={center.x - 7} y={center.y - 7} width="14" height="14" className="pointer-events-none" />;
+        })}
+        <text x="50" y="116" textAnchor="middle" className="fill-slate-800 text-[13px] font-bold pointer-events-none">{toothId}</text>
       </svg>
       <div className="mt-1 text-center text-[11px] text-muted-foreground">{toothNames[toothId]}</div>
     </div>

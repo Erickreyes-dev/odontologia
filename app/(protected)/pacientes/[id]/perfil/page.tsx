@@ -48,7 +48,18 @@ export default async function PacientePerfilPage({
     select: {
       id: true,
       piezasTratadas: true,
+      odontogramaDetalle: true,
     },
+  });
+
+  const odontogramaDetalleHistorico = consultasConOdontograma.flatMap((consulta) => {
+    if (!consulta.odontogramaDetalle) return [];
+    try {
+      const parsed = JSON.parse(consulta.odontogramaDetalle);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   });
 
   const piezasTratadasHistoricas = Array.from(
@@ -107,6 +118,7 @@ export default async function PacientePerfilPage({
         constancias={constancias}
         piezasTratadasHistoricas={piezasTratadasHistoricas}
         totalConsultasConOdontograma={consultasConOdontograma.length}
+        odontogramaDetalleHistorico={odontogramaDetalleHistorico}
       />
     </div>
   );
