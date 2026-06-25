@@ -35,6 +35,7 @@ import {
   Eye,
   DollarSign,
   HandCoins,
+  ClipboardPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { calcularEdad } from "@/lib/utils";
@@ -436,6 +437,13 @@ export function PacientePerfil({
                 <Button variant="outline" className="w-full">
                   <Pencil className="h-4 w-4 mr-2" />
                   Editar
+                </Button>
+              </Link>
+
+              <Link href={`/pacientes/${paciente.id}/expediente-clinico`} className="flex-1 sm:flex-none">
+                <Button variant="outline" className="w-full">
+                  <ClipboardPlus className="h-4 w-4 mr-2" />
+                  Expediente Clínico
                 </Button>
               </Link>
 
