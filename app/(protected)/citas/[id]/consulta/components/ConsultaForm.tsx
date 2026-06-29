@@ -45,6 +45,8 @@ import {
 import { ConsultaSchema, Consulta } from "../schema";
 import { finalizarConsulta, upsertConsulta } from "../actions";
 import { OdontogramaSelector } from "./OdontogramaSelector";
+import { ArchivoUploader } from "@/components/archivo-uploader";
+import { eliminarArchivoConsulta, registrarArchivoConsulta } from "../actions";
 
 interface CitaData {
   id: string;
@@ -99,6 +101,7 @@ interface ConsultaFormProps {
     pacienteId: string;
     cuotasLista?: { id: string; numero: number; monto: number; pagada: boolean }[];
   }[];
+  archivosConsulta: { id: string; nombre: string; key: string; mimeType: string | null; size: number | null; createAt: Date }[];
   promociones: {
     id: string;
     nombre: string;
@@ -116,6 +119,7 @@ export function ConsultaForm({
   seguimientos,
   financiamientos,
   promociones,
+  archivosConsulta,
 }: ConsultaFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -401,6 +405,19 @@ export function ConsultaForm({
 
   return (
     <div className="space-y-6">
+      {consulta?.id ? (
+        <ArchivoUploader
+          title="Archivos de la consulta"
+          folder="consultas"
+          ownerId={consulta.id}
+          initialArchivos={archivosConsulta}
+          onRegister={registrarArchivoConsulta}
+          onDelete={eliminarArchivoConsulta}
+        />
+      ) : (
+        <Card><CardContent className="pt-6 text-sm text-muted-foreground">Guarde la consulta una vez para habilitar la carga de archivos.</CardContent></Card>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">

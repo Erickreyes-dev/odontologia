@@ -3,7 +3,7 @@ import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import { User } from "lucide-react";
 import { redirect } from "next/navigation";
-import { getConstanciasMedicasByPaciente, getPacienteById } from "../../actions";
+import { getArchivosPaciente, getConstanciasMedicasByPaciente, getPacienteById } from "../../actions";
 import { getCitasByPaciente } from "@/app/(protected)/citas/actions";
 import { getCotizacionesByPaciente } from "@/app/(protected)/cotizaciones/actions";
 import { getPlanesByPaciente } from "@/app/(protected)/planes-tratamiento/actions";
@@ -25,7 +25,7 @@ export default async function PacientePerfilPage({
     return <NoAcceso />;
   }
 
-  const [paciente, citas, cotizaciones, planes, pagos, financiamientos, seguros, constancias] = await Promise.all([
+  const [paciente, citas, cotizaciones, planes, pagos, financiamientos, seguros, constancias, archivosPaciente] = await Promise.all([
     getPacienteById(params.id),
     getCitasByPaciente(params.id),
     getCotizacionesByPaciente(params.id),
@@ -34,6 +34,7 @@ export default async function PacientePerfilPage({
     getFinanciamientosPorPaciente(params.id),
     getSegurosActivos(),
     getConstanciasMedicasByPaciente(params.id),
+    getArchivosPaciente(params.id),
   ]);
 
   const consultasConOdontograma = await prisma.consulta.findMany({
@@ -119,6 +120,7 @@ export default async function PacientePerfilPage({
         piezasTratadasHistoricas={piezasTratadasHistoricas}
         totalConsultasConOdontograma={consultasConOdontograma.length}
         odontogramaDetalleHistorico={odontogramaDetalleHistorico}
+        archivosPaciente={archivosPaciente}
       />
     </div>
   );

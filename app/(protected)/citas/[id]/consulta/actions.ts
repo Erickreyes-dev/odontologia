@@ -896,3 +896,37 @@ export async function getCitaParaConsulta(citaId: string) {
     return null;
   }
 }
+
+export async function getArchivosConsulta(consultaId: string) {
+  return prisma.consultaArchivo.findMany({
+    where: await tenantWhere<Prisma.ConsultaArchivoWhereInput>({ consultaId }),
+    orderBy: { createAt: "desc" },
+  });
+}
+
+export async function registrarArchivoConsulta(input: { ownerId: string; nombre: string; key: string; mimeType?: string; size?: number }) {
+  try {
+    const { tenantId } = await getTenantContext();
+    const consulta = await prisma.consulta.findFirst({ where: await tenantWhere<Prisma.ConsultaWhereInput>({ id: input.ownerId }), select: { id: true } });
+    if (!consulta) return { success: false as const, error: "Consulta no encontrada" };
+    const archivo = await prisma.consultaArchivo.create({
+      data: { id: randomUUID(), tenantId, consultaId: consulta.id, nombre: input.nombre, key: input.key, mimeType: input.mimeType || null, size: input.size ?? null },
+    });
+    revalidatePath("/citas");
+    return { success: true as const, archivo };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "No se pudo registrar el archivo" };
+  }
+}
+
+export async function eliminarArchivoConsulta(id: string) {
+  try {
+    const archivo = await prisma.consultaArchivo.findFirst({ where: await tenantWhere<Prisma.ConsultaArchivoWhereInput>({ id }) });
+    if (!archivo) return { success: false as const, error: "Archivo no encontrado" };
+    await prisma.consultaArchivo.delete({ where: { id: archivo.id } });
+    revalidatePath("/citas");
+    return { success: true as const };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "No se pudo eliminar el archivo" };
+  }
+}

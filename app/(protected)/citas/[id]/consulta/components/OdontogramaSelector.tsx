@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Surface = "M" | "D" | "V" | "L" | "O";
@@ -59,12 +59,12 @@ const toothNames: Record<number, string> = Object.fromEntries([
   ...[18,28,38,48].map((id) => [id, "Tercer molar"]),
 ]);
 
-const getToothSvg = (toothId: number) => {
+const getToothShape = (toothId: number) => {
   const lastDigit = toothId % 10;
-  if (lastDigit === 3) return "/images/svg/odontograma/piezas/canino.svg";
-  if ([4, 5].includes(lastDigit) && toothId < 50) return "/images/svg/odontograma/piezas/premolar.svg";
-  if (lastDigit >= 4) return "/images/svg/odontograma/piezas/molar.svg";
-  return "/images/svg/odontograma/piezas/incisivo.svg";
+  if (lastDigit === 3) return { crown: "M35 18 Q50 4 65 18 L62 82 Q50 106 38 82 Z", root: "M41 78 Q50 112 59 78" };
+  if ([4, 5].includes(lastDigit) && toothId < 50) return { crown: "M28 20 H72 L66 84 H34 Z", root: "M40 80 Q50 104 60 80" };
+  if (lastDigit >= 4) return { crown: "M24 22 H76 V86 H24 Z", root: "M36 82 Q42 106 48 82 M52 82 Q58 106 64 82" };
+  return { crown: "M32 16 H68 L61 86 H39 Z", root: "M42 82 Q50 110 58 82" };
 };
 
 const surfaceCenters: Record<Surface, { x: number; y: number }> = {
@@ -132,7 +132,7 @@ function ToothSvg({ toothId, entries, selected, onSurfaceClick }: { toothId: num
   return (
     <div className={`rounded-xl border bg-white p-2 shadow-sm transition ${selected ? "ring-2 ring-primary" : "hover:border-primary/50"}`}>
       <svg viewBox="0 0 100 120" className="h-24 w-20">
-        <image href={getToothSvg(toothId)} x="0" y="0" width="100" height="120" preserveAspectRatio="xMidYMid meet" />
+        {(() => { const shape = getToothShape(toothId); return <><path d={shape.crown} fill="#f8fafc" stroke="#64748b" strokeWidth="2" /><path d={shape.root} fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" /></>; })()}
         <path d="M24 22h52L61 42H39z" fill={fill("V")} fillOpacity="0.72" stroke="#334155" strokeOpacity="0.25" onClick={() => onSurfaceClick("V")} className="cursor-pointer" />
         <path d="M24 88h52L61 66H39z" fill={fill("L")} fillOpacity="0.72" stroke="#334155" strokeOpacity="0.25" onClick={() => onSurfaceClick("L")} className="cursor-pointer" />
         <path d="M24 22v66l16-22V42z" fill={fill("M")} fillOpacity="0.72" stroke="#334155" strokeOpacity="0.25" onClick={() => onSurfaceClick("M")} className="cursor-pointer" />
@@ -140,7 +140,7 @@ function ToothSvg({ toothId, entries, selected, onSurfaceClick }: { toothId: num
         <rect x="39" y="42" width="22" height="24" rx="5" fill={fill("O")} fillOpacity="0.72" stroke="#334155" strokeOpacity="0.25" onClick={() => onSurfaceClick("O")} className="cursor-pointer" />
         {entries.map((entry) => {
           const center = surfaceCenters[entry.surface];
-          return <image key={`${entry.toothId}-${entry.surface}-${entry.treatmentId}`} href={entry.icon} x={center.x - 7} y={center.y - 7} width="14" height="14" className="pointer-events-none" />;
+          return <circle key={`${entry.toothId}-${entry.surface}-${entry.treatmentId}`} cx={center.x} cy={center.y} r="6" fill={entry.color} stroke="white" strokeWidth="2" className="pointer-events-none" />;
         })}
         <text x="50" y="116" textAnchor="middle" className="fill-slate-800 text-[13px] font-bold pointer-events-none">{toothId}</text>
       </svg>
@@ -154,9 +154,15 @@ export function OdontogramaSelector({ value, onChange, detailValue = [], onDetai
   const [selectedTooth, setSelectedTooth] = useState<number | null>(value[0] ?? null);
   const [selectedSurface, setSelectedSurface] = useState<Surface>("O");
   const [selectedTreatmentId, setSelectedTreatmentId] = useState(treatments[0].id);
+  const [treatmentSearch, setTreatmentSearch] = useState("");
   const selectedTreatment = treatments.find((item) => item.id === selectedTreatmentId) ?? treatments[0];
   const quadrants = dentition === "permanente" ? permanentQuadrants : temporaryQuadrants;
   const selectedEntries = useMemo(() => detailValue.filter((entry) => entry.toothId === selectedTooth), [detailValue, selectedTooth]);
+  const filteredTreatments = useMemo(() => {
+    const query = treatmentSearch.trim().toLowerCase();
+    if (!query) return treatments;
+    return treatments.filter((item) => `${item.category} ${item.name}`.toLowerCase().includes(query));
+  }, [treatmentSearch]);
 
   const syncValue = (entries: OdontogramaEntry[]) => onChange(Array.from(new Set(entries.map((entry) => entry.toothId))).sort((a, b) => a - b));
 
@@ -204,7 +210,11 @@ export function OdontogramaSelector({ value, onChange, detailValue = [], onDetai
             <Select value={selectedTreatmentId} onValueChange={setSelectedTreatmentId}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-80">
-                {treatments.map((item) => <SelectItem key={item.id} value={item.id}>{item.category} · {item.name}</SelectItem>)}
+                <div className="sticky top-0 z-10 bg-popover p-2">
+                  <Input placeholder="Buscar tratamiento..." value={treatmentSearch} onChange={(event) => setTreatmentSearch(event.target.value)} onKeyDown={(event) => event.stopPropagation()} />
+                </div>
+                {filteredTreatments.map((item) => <SelectItem key={item.id} value={item.id}>{item.category} · {item.name}</SelectItem>)}
+                {!filteredTreatments.length ? <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div> : null}
               </SelectContent>
             </Select>
           </div>
@@ -216,8 +226,8 @@ export function OdontogramaSelector({ value, onChange, detailValue = [], onDetai
           </div>
           <Button type="button" className="w-full" disabled={!selectedTooth} onClick={() => applyTreatment()}>Aplicar a pieza {selectedTooth ?? "—"}</Button>
           <div className="rounded-md border p-2 text-sm">
-            <div className="flex items-center gap-2"><Image src={selectedTreatment.icon} alt="" width={28} height={28} /><span>{selectedTreatment.name}</span></div>
-            <p className="mt-1 text-xs text-muted-foreground">SVG usado desde public/images/svg/odontograma.</p>
+            <div className="flex items-center gap-2"><span className="h-7 w-7 rounded-full border-2 border-white shadow" style={{ backgroundColor: selectedTreatment.color }} /><span>{selectedTreatment.name}</span></div>
+            <p className="mt-1 text-xs text-muted-foreground">Iconos vectoriales ligeros generados en línea, sin cargar SVG externos.</p>
           </div>
           {selectedTooth ? <div className="space-y-2"><p className="text-sm font-semibold">Capas en pieza {selectedTooth}</p>{selectedEntries.length ? selectedEntries.map((entry) => <div key={`${entry.toothId}-${entry.surface}`} className="flex items-center justify-between rounded border p-2 text-xs"><span><b>{entry.surface}</b> {entry.treatmentName}</span><Button type="button" variant="ghost" size="sm" onClick={() => removeEntry(entry.toothId, entry.surface)}>Quitar</Button></div>) : <p className="text-xs text-muted-foreground">Sin capas.</p>}<Button type="button" variant="outline" size="sm" onClick={() => removeEntry(selectedTooth)}>Limpiar pieza</Button></div> : null}
         </aside>
