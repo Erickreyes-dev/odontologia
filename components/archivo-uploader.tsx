@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { mediaUrl } from "@/lib/s3-storage";
+import { mediaUrl } from "@/lib/media-url";
 
 type Archivo = { id: string; nombre: string; key: string; mimeType?: string | null; size?: number | null; createAt?: Date | string };
 
@@ -23,18 +23,14 @@ export function ArchivoUploader({ title, folder, ownerId, initialArchivos, onReg
   const inputRef = useRef<HTMLInputElement>(null);
 
   const upload = async (file: File) => {
-    const presignResponse = await fetch(`/api/uploads/${folder}?presign=true`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: file.name, contentType: file.type || "application/octet-stream" }),
-    });
-    const presigned = await presignResponse.json();
-    if (!presignResponse.ok) throw new Error(presigned.error || "No se pudo preparar la subida");
+    const formData = new FormData();
+    formData.append("file", file);
 
-    const putResponse = await fetch(presigned.url, { method: "PUT", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file });
-    if (!putResponse.ok) throw new Error("No se pudo subir el archivo a S3");
+    const uploadResponse = await fetch(`/api/uploads/${folder}`, { method: "POST", body: formData });
+    const uploaded = await uploadResponse.json();
+    if (!uploadResponse.ok) throw new Error(uploaded.error || "No se pudo subir el archivo a S3");
 
-    const result = await onRegister({ ownerId, nombre: file.name, key: presigned.key, mimeType: file.type, size: file.size });
+    const result = await onRegister({ ownerId, nombre: uploaded.nombre || file.name, key: uploaded.key, mimeType: file.type, size: file.size });
     if (!result.success) throw new Error(result.error);
     setArchivos((current) => [result.archivo, ...current]);
   };
@@ -59,9 +55,15 @@ export function ArchivoUploader({ title, folder, ownerId, initialArchivos, onReg
         </div>
         <div className="space-y-2">
           {archivos.length ? archivos.map((archivo) => (
-            <div key={archivo.id} className="flex items-center justify-between gap-3 rounded-md border p-2 text-sm">
-              <span className="truncate">{archivo.nombre}</span>
-              <div className="flex gap-1">
+            <div key={archivo.id} className="flex flex-col gap-3 rounded-md border p-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                {archivo.mimeType?.startsWith("image/") ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={mediaUrl(archivo.key) ?? ""} alt={archivo.nombre} className="h-14 w-14 rounded-md border object-cover" />
+                ) : <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />}
+                <span className="truncate">{archivo.nombre}</span>
+              </div>
+              <div className="flex gap-1 self-end sm:self-auto">
                 <Button asChild type="button" variant="ghost" size="sm"><a href={mediaUrl(archivo.key) ?? "#"} target="_blank" rel="noreferrer"><Download className="h-4 w-4" /></a></Button>
                 <Button type="button" variant="ghost" size="sm" onClick={() => startTransition(async () => { const result = await onDelete(archivo.id); if (result.success) setArchivos((c) => c.filter((a) => a.id !== archivo.id)); else toast.error(result.error); })}><Trash2 className="h-4 w-4" /></Button>
               </div>

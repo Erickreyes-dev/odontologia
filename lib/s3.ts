@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 
 const MAX_IMAGE_SIZE_BYTES = 150 * 1024 * 1024;
+const MAX_FILE_SIZE_BYTES = 1024 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"]);
 
 function getS3Config() {
@@ -81,11 +82,7 @@ async function signedS3Request(method: "GET" | "PUT" | "DELETE", key: string, bo
   const host = `${bucket}.s3.${region}.amazonaws.com`;
   const payloadHash = sha256(body ?? "");
   const canonicalUri = `/${encodeKey(key)}`;
-  const headers: Record<string, string> = {
-    host,
-    "x-amz-content-sha256": payloadHash,
-    "x-amz-date": amzDate,
-  };
+  const headers: Record<string, string> = { host, "x-amz-content-sha256": payloadHash, "x-amz-date": amzDate };
 
   if (contentType) headers["content-type"] = contentType;
   if (sessionToken) headers["x-amz-security-token"] = sessionToken;
@@ -99,12 +96,7 @@ async function signedS3Request(method: "GET" | "PUT" | "DELETE", key: string, bo
   const signature = crypto.createHmac("sha256", signingKey).update(stringToSign).digest("hex");
   const authorization = `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
-  const response = await fetch(`https://${host}${canonicalUri}`, {
-    method,
-    body: body ? new Uint8Array(body) : undefined,
-    headers: { ...headers, authorization },
-    cache: "no-store",
-  });
+  const response = await fetch(`https://${host}${canonicalUri}`, { method, body: body ? new Uint8Array(body) : undefined, headers: { ...headers, authorization }, cache: "no-store" });
 
   if (!response.ok) {
     const message = await response.text().catch(() => "");
@@ -114,26 +106,42 @@ async function signedS3Request(method: "GET" | "PUT" | "DELETE", key: string, bo
   return response;
 }
 
+function sanitizeFileName(name: string) {
+  const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return normalized.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "archivo";
+}
+
+function extensionFor(file: File, fallback = "bin") {
+  return sanitizeFileName(file.name).split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || file.type.split("/").pop() || fallback;
+}
+
 export async function uploadTenantImageToS3(params: { tenantId: string; file: File; folder: "logos" | "landing" }) {
   const { file, tenantId, folder } = params;
   if (!ALLOWED_IMAGE_TYPES.has(file.type)) throw new Error("Seleccione una imagen PNG, JPG, WEBP, GIF o SVG.");
   if (file.size > MAX_IMAGE_SIZE_BYTES) throw new Error("La imagen es demasiado grande");
 
-  const extension = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || file.type.split("/").pop() || "bin";
+  const extension = extensionFor(file);
   const key = `tenants/${tenantId}/${folder}/${crypto.randomUUID()}.${extension}`;
   const buffer = Buffer.from(await file.arrayBuffer());
   await signedS3Request("PUT", key, buffer, file.type);
   return key;
 }
 
-export async function getTenantImageFromS3(key: string) {
-  return signedS3Request("GET", key);
+export async function uploadTenantFileToS3(params: { tenantFolder: string; file: File; folder: "consultas" | "pacientes" }) {
+  const { file, tenantFolder, folder } = params;
+  if (file.size > MAX_FILE_SIZE_BYTES) throw new Error("El archivo supera el límite de 1GB.");
+
+  const safeName = sanitizeFileName(file.name || "archivo");
+  const baseName = safeName.includes(".") ? safeName.slice(0, safeName.lastIndexOf(".")) : safeName;
+  const extension = safeName.includes(".") ? safeName.split(".").pop() : extensionFor(file);
+  const key = `tenants/${tenantFolder}/${folder}/${crypto.randomUUID()}-${baseName}${extension ? `.${extension}` : ""}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await signedS3Request("PUT", key, buffer, file.type || "application/octet-stream");
+  return { key, originalName: file.name, nombre: safeName };
 }
 
-export async function deleteTenantImageFromS3(key: string) {
-  return signedS3Request("DELETE", key);
-}
-
-export function mediaUrl(key: string | null | undefined) {
-  return key ? `/api/media/${key}` : null;
-}
+export async function getTenantImageFromS3(key: string) { return signedS3Request("GET", key); }
+export async function getTenantFileFromS3(key: string) { return signedS3Request("GET", key); }
+export async function deleteTenantImageFromS3(key: string) { return signedS3Request("DELETE", key); }
+export async function deleteTenantFileFromS3(key: string) { return signedS3Request("DELETE", key); }
+export function mediaUrl(key: string | null | undefined) { return key ? `/api/media/${encodeKey(key)}` : null; }
