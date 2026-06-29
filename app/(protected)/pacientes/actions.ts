@@ -1,5 +1,6 @@
 "use server";
 
+import { deleteTenantFileFromS3 } from "@/lib/s3";
 import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
@@ -642,6 +643,7 @@ export async function eliminarArchivoPaciente(id: string) {
   try {
     const archivo = await prisma.pacienteArchivo.findFirst({ where: await tenantWhere<Prisma.PacienteArchivoWhereInput>({ id }) });
     if (!archivo) return { success: false as const, error: "Archivo no encontrado" };
+    await deleteTenantFileFromS3(archivo.key);
     await prisma.pacienteArchivo.delete({ where: { id: archivo.id } });
     revalidatePath(`/pacientes/${archivo.pacienteId}/perfil`);
     return { success: true as const };

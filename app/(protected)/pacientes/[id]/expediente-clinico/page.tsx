@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, ClipboardPlus, Save } from "lucide-react";
+import { ArchivoUploader } from "@/components/archivo-uploader";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getExpedienteClinicoByPaciente, getPacienteById, saveExpedienteClinicoPaciente } from "../../actions";
+import { eliminarArchivoPaciente, getArchivosPaciente, getExpedienteClinicoByPaciente, getPacienteById, registrarArchivoPaciente, saveExpedienteClinicoPaciente } from "../../actions";
 
 function YesNoSelect({ name, label, value }: { name: string; label: string; value?: boolean | null }) {
   return (
@@ -54,9 +55,10 @@ export default async function ExpedienteClinicoPage({ params }: { params: { id: 
     return <NoAcceso />;
   }
 
-  const [paciente, expediente] = await Promise.all([
+  const [paciente, expediente, archivosPaciente] = await Promise.all([
     getPacienteById(params.id),
     getExpedienteClinicoByPaciente(params.id),
+    getArchivosPaciente(params.id),
   ]);
 
   if (!paciente) redirect("/pacientes");
@@ -87,6 +89,15 @@ export default async function ExpedienteClinicoPage({ params }: { params: { id: 
           </Button>
         </Link>
       </div>
+
+      <ArchivoUploader
+        title="Archivos del expediente"
+        folder="pacientes"
+        ownerId={params.id}
+        initialArchivos={archivosPaciente}
+        onRegister={registrarArchivoPaciente}
+        onDelete={eliminarArchivoPaciente}
+      />
 
       <form action={saveAction} className="space-y-6">
         <Card>

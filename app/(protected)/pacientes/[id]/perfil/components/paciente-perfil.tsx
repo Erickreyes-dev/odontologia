@@ -601,6 +601,15 @@ export function PacientePerfil({
         </CardContent>
       </Card>
 
+      <ArchivoUploader
+        title="Archivos del paciente"
+        folder="pacientes"
+        ownerId={paciente.id ?? ""}
+        initialArchivos={archivosPaciente}
+        onRegister={registrarArchivoPaciente}
+        onDelete={eliminarArchivoPaciente}
+      />
+
       {/* Stats Cards */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         <Card>
