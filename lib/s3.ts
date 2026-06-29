@@ -27,6 +27,7 @@ function encodeKey(key: string) {
 }
 
 type AwsCredentials = { accessKeyId: string; secretAccessKey: string; sessionToken?: string };
+type S3UploadFile = { name?: string; type?: string; size: number; arrayBuffer: () => Promise<ArrayBuffer> };
 
 async function getCredentials(): Promise<AwsCredentials> {
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
@@ -111,13 +112,14 @@ function sanitizeFileName(name: string) {
   return normalized.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "archivo";
 }
 
-function extensionFor(file: File, fallback = "bin") {
-  return sanitizeFileName(file.name).split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || file.type.split("/").pop() || fallback;
+function extensionFor(file: S3UploadFile, fallback = "bin") {
+  const fileName = file.name ? sanitizeFileName(file.name) : "";
+  return fileName.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || file.type?.split("/").pop() || fallback;
 }
 
-export async function uploadTenantImageToS3(params: { tenantId: string; file: File; folder: "logos" | "landing" }) {
+export async function uploadTenantImageToS3(params: { tenantId: string; file: S3UploadFile; folder: "logos" | "landing" }) {
   const { file, tenantId, folder } = params;
-  if (!ALLOWED_IMAGE_TYPES.has(file.type)) throw new Error("Seleccione una imagen PNG, JPG, WEBP, GIF o SVG.");
+  if (!file.type || !ALLOWED_IMAGE_TYPES.has(file.type)) throw new Error("Seleccione una imagen PNG, JPG, WEBP, GIF o SVG.");
   if (file.size > MAX_IMAGE_SIZE_BYTES) throw new Error("La imagen es demasiado grande");
 
   const extension = extensionFor(file);
@@ -127,7 +129,7 @@ export async function uploadTenantImageToS3(params: { tenantId: string; file: Fi
   return key;
 }
 
-export async function uploadTenantFileToS3(params: { tenantFolder: string; file: File; folder: "consultas" | "pacientes" }) {
+export async function uploadTenantFileToS3(params: { tenantFolder: string; file: S3UploadFile; folder: "consultas" | "pacientes" }) {
   const { file, tenantFolder, folder } = params;
   if (file.size > MAX_FILE_SIZE_BYTES) throw new Error("El archivo supera el límite de 1GB.");
 
@@ -137,7 +139,7 @@ export async function uploadTenantFileToS3(params: { tenantFolder: string; file:
   const key = `tenants/${tenantFolder}/${folder}/${crypto.randomUUID()}-${baseName}${extension ? `.${extension}` : ""}`;
   const buffer = Buffer.from(await file.arrayBuffer());
   await signedS3Request("PUT", key, buffer, file.type || "application/octet-stream");
-  return { key, originalName: file.name, nombre: safeName };
+  return { key, originalName: file.name || safeName, nombre: safeName };
 }
 
 export async function getTenantImageFromS3(key: string) { return signedS3Request("GET", key); }

@@ -5,6 +5,24 @@ import { deleteTenantFileFromS3, uploadTenantFileToS3 } from "@/lib/s3";
 // Lista blanca de carpetas permitidas en el sistema
 const ALLOWED_FOLDERS = ["logos", "imagenes", "perfiles", "ventas", "documentos", "notas", "consultas", "pacientes"];
 
+type UploadFile = {
+  name?: string;
+  type?: string;
+  size: number;
+  arrayBuffer: () => Promise<ArrayBuffer>;
+};
+
+function isUploadFile(value: unknown): value is UploadFile {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "arrayBuffer" in value &&
+    typeof value.arrayBuffer === "function" &&
+    "size" in value &&
+    typeof value.size === "number"
+  );
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ folder: string }> }
@@ -30,7 +48,7 @@ export async function POST(
     const formData = await request.formData();
     const file = formData.get("file");
 
-    if (!(file instanceof File)) {
+    if (!isUploadFile(file)) {
       return NextResponse.json({ error: "Archivo no proporcionado" }, { status: 400 });
     }
 
