@@ -62,10 +62,10 @@ const pieChartConfig = {
 } satisfies ChartConfig;
 
 export function DashboardClient({ data }: { data: DashboardData }) {
-  const [range, setRange] = useState<DateRange | undefined>({
+  const [range, setRange] = useState<DateRange | undefined>(() => ({
     from: startOfDay(subMonths(new Date(), 1)),
     to: endOfDay(new Date()),
-  });
+  }));
   const currency = useTenantCurrency();
   const isMobile = useIsMobile();
 
@@ -154,7 +154,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     return Object.entries(map)
       .map(([name, cantidad]) => ({ name, cantidad }))
       .sort((a, b) => b.cantidad - a.cantidad)
-      .slice(0, 8);
+      .slice(0, 5);
   }, [consultasFiltradas]);
 
   const direcciones = data.pacientes.filter((p) => Boolean(p.direccion?.trim())).length;
@@ -276,7 +276,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                     <Cell key={entry.name} fill={`hsl(var(--chart-${(index % 5) + 1}))`} />
                   ))}
                 </Pie>
-                <Legend />
+                <Legend layout="vertical" align="right" verticalAlign="middle" />
               </PieChart>
             </ChartContainer>
           </CardContent>
@@ -294,14 +294,16 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                   data={serviciosPieData}
                   dataKey="cantidad"
                   nameKey="name"
-                  outerRadius={90}
-                  label
+                  outerRadius={80}
+                  cx="40%"
+                  label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
                 >
                   {serviciosPieData.map((entry, index) => (
                     <Cell key={entry.name} fill={`hsl(var(--chart-${(index % 5) + 1}))`} />
                   ))}
                 </Pie>
-                <Legend />
+                <Legend layout="vertical" align="right" verticalAlign="middle" />
               </PieChart>
             </ChartContainer>
           </CardContent>
