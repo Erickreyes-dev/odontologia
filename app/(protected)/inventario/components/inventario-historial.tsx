@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import * as XLSX from "xlsx";
+import { Download } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 
@@ -24,13 +27,29 @@ export default function InventarioHistorial({ data }: { data: Historial[] }) {
     [data, selected]
   );
 
+  const descargarExcel = () => {
+    const rows = data.flatMap((item) => {
+      const servicios = Object.entries(item.servicios);
+      return servicios.length ? servicios.map(([servicio, cantidad]) => ({ Material: item.productoNombre, "Total usado": item.totalUsado, Servicio: servicio, Cantidad: cantidad })) : [{ Material: item.productoNombre, "Total usado": item.totalUsado, Servicio: "Sin servicio", Cantidad: 0 }];
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Materiales utilizados");
+    XLSX.writeFile(wb, "materiales-utilizados.xlsx");
+  };
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Historial de uso de inventario</CardTitle>
-        <CardDescription>
-          Toque una barra para ver en qué servicios se consumió cada producto.
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <div>
+          <CardTitle>Historial de uso de inventario</CardTitle>
+          <CardDescription>
+            La gráfica incluye todos los materiales utilizados en el rango seleccionado.
+          </CardDescription>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={descargarExcel}>
+          <Download className="mr-2 h-4 w-4" /> Descargar
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <ChartContainer config={config} className="h-[260px] w-full">

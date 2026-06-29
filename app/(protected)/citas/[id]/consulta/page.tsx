@@ -6,6 +6,7 @@ import {
   getProductosActivos,
   getPromocionesActivas,
   getServiciosActivos,
+  getArchivosConsulta,
 } from "./actions";
 import HeaderComponent from "@/components/HeaderComponent";
 import { Calendar } from "lucide-react";
@@ -37,12 +38,13 @@ export default async function ConsultaPage({
     notFound();
   }
 
-  const [servicios, productos, seguimientos, financiamientos, promociones] = await Promise.all([
+  const [servicios, productos, seguimientos, financiamientos, promociones, archivosConsulta] = await Promise.all([
     getServiciosActivos(),
     getProductosActivos(),
     cita.paciente?.id ? getSeguimientosPendientes(cita.paciente.id) : Promise.resolve([]),
     cita.paciente?.id ? getFinanciamientosPorPaciente(cita.paciente.id) : Promise.resolve([]),
     getPromocionesActivas(),
+    consulta?.id ? getArchivosConsulta(consulta.id) : Promise.resolve([]),
   ]);
 
   return (
@@ -66,6 +68,7 @@ export default async function ConsultaPage({
         seguimientos={seguimientos.map(s => ({ ...s, id: s.id ?? '' }))}
         financiamientos={financiamientos}
         promociones={promociones}
+        archivosConsulta={archivosConsulta}
       />
     </div>
   );

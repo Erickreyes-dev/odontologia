@@ -3,7 +3,7 @@ import { getSession } from "@/auth";
 import { uploadImageToS3, createPresignedPutUrl, deleteImageFromS3 } from "@/lib/s3-storage";
 
 // Lista blanca de carpetas permitidas en el sistema
-const ALLOWED_FOLDERS = ["logos", "imagenes", "perfiles", "ventas", "documentos", "notas"];
+const ALLOWED_FOLDERS = ["logos", "imagenes", "perfiles", "ventas", "documentos", "notas", "consultas", "pacientes"];
 
 export async function POST(
   request: Request,

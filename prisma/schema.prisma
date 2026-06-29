@@ -50,6 +50,7 @@ model Tenant {
   usuarios               Usuarios[]
   seguros                Seguro[]
   pacientes              Paciente[]
+  pacienteArchivos       PacienteArchivo[]
   profesiones            Profesion[]
   servicios              Servicio[]
   promociones            Promocion[]
@@ -58,6 +59,7 @@ model Tenant {
   consultorios           Consultorio[]
   citas                  Cita[]
   consultas              Consulta[]
+  consultaArchivos       ConsultaArchivo[]
   consultaServicios      ConsultaServicio[]
   productos              Producto[]
   consultaProductos      ConsultaProducto[]
@@ -313,6 +315,7 @@ model Paciente {
   ordenesCobro       OrdenDeCobro[]
   constanciasMedicas ConstanciaMedica[]
   expedienteClinico  ExpedienteClinicoPaciente?
+  archivos           PacienteArchivo[]
 
   @@unique([tenantId, identidad])
   @@index([tenantId])
@@ -481,6 +484,7 @@ model Consulta {
   productos    ConsultaProducto[]
   planEtapas   PlanEtapa[]
   ordenesCobro OrdenDeCobro[]
+  archivos     ConsultaArchivo[]
 
   @@index([tenantId])
   @@index([seguimientoId])
@@ -586,6 +590,40 @@ model ConsultaProducto {
   @@index([tenantId])
   @@index([consultaId])
   @@index([productoId])
+}
+
+model ConsultaArchivo {
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  tenantId   String?  @db.VarChar(36)
+  consultaId String   @db.VarChar(36)
+  nombre     String   @db.VarChar(255)
+  key        String   @db.VarChar(500)
+  mimeType   String?  @db.VarChar(120)
+  size       Int?
+  createAt   DateTime @default(now())
+
+  tenant   Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  consulta Consulta @relation(fields: [consultaId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([consultaId])
+}
+
+model PacienteArchivo {
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  tenantId   String?  @db.VarChar(36)
+  pacienteId String   @db.VarChar(36)
+  nombre     String   @db.VarChar(255)
+  key        String   @db.VarChar(500)
+  mimeType   String?  @db.VarChar(120)
+  size       Int?
+  createAt   DateTime @default(now())
+
+  tenant   Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  paciente Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([pacienteId])
 }
 
 enum TipoProducto {

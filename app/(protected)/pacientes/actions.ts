@@ -8,6 +8,7 @@ import { paginate } from '@/app/type';
 import { Prisma } from '@/lib/generated/prisma';
 import { tenantWhere, withTenantData } from '@/lib/tenant-query';
 import { getSession } from '@/auth';
+import { getTenantContext } from '@/lib/tenant';
 
 function normalizeOptionalEmail(value?: string | null): string | null {
     if (value == null) return null;
@@ -615,4 +616,36 @@ export async function saveExpedienteClinicoPaciente(pacienteId: string, formData
 
     revalidatePath(`/pacientes/${pacienteId}/perfil`);
     revalidatePath(`/pacientes/${pacienteId}/expediente-clinico`);
+}
+
+export async function getArchivosPaciente(pacienteId: string) {
+  return prisma.pacienteArchivo.findMany({
+    where: await tenantWhere<Prisma.PacienteArchivoWhereInput>({ pacienteId }),
+    orderBy: { createAt: "desc" },
+  });
+}
+
+export async function registrarArchivoPaciente(input: { ownerId: string; nombre: string; key: string; mimeType?: string; size?: number }) {
+  try {
+    const { tenantId } = await getTenantContext();
+    const paciente = await prisma.paciente.findFirst({ where: await tenantWhere<Prisma.PacienteWhereInput>({ id: input.ownerId }), select: { id: true } });
+    if (!paciente) return { success: false as const, error: "Paciente no encontrado" };
+    const archivo = await prisma.pacienteArchivo.create({ data: { id: randomUUID(), tenantId, pacienteId: paciente.id, nombre: input.nombre, key: input.key, mimeType: input.mimeType || null, size: input.size ?? null } });
+    revalidatePath(`/pacientes/${paciente.id}/perfil`);
+    return { success: true as const, archivo };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "No se pudo registrar el archivo" };
+  }
+}
+
+export async function eliminarArchivoPaciente(id: string) {
+  try {
+    const archivo = await prisma.pacienteArchivo.findFirst({ where: await tenantWhere<Prisma.PacienteArchivoWhereInput>({ id }) });
+    if (!archivo) return { success: false as const, error: "Archivo no encontrado" };
+    await prisma.pacienteArchivo.delete({ where: { id: archivo.id } });
+    revalidatePath(`/pacientes/${archivo.pacienteId}/perfil`);
+    return { success: true as const };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "No se pudo eliminar el archivo" };
+  }
 }

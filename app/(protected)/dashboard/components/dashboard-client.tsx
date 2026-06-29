@@ -22,7 +22,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { Cell, Pie, PieChart } from "recharts";
+import { Cell, Legend, Pie, PieChart } from "recharts";
 import { PagosUltimos12MesesChart } from "./pagos-ultimos-12-meses-chart";
 import { ProyeccionVentasRadialChart } from "./proyeccion-ventas-radial-chart";
 
@@ -46,6 +46,7 @@ type DashboardData = {
     fechaPago: string;
     monto: number;
   }[];
+  inventarioBajo: { id: string; nombre: string; stock: number; stockMinimo: number; unidad: string | null }[];
   cuotasPendientes: {
     cliente: string;
     cuotasFaltantes: number;
@@ -110,6 +111,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   const serviciosHechos = consultasFiltradas.reduce((acc, item) => acc + item.servicios, 0);
   const consultasHechas = consultasFiltradas.length;
   const totalPagos = pagosFiltrados.reduce((acc, item) => acc + item.monto, 0);
+  const ticketPromedio = serviciosHechos > 0 ? totalPagos / serviciosHechos : 0;
 
   const edadesPieData = useMemo(() => {
     const rangos = {
@@ -248,9 +250,9 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Direcciones registradas</CardTitle>
+            <CardTitle className="text-sm">Ticket promedio</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">{direcciones}</CardContent>
+          <CardContent className="text-2xl font-bold">{formatMoneyAmount(ticketPromedio, currency)}</CardContent>
         </Card>
         <Card>
           <CardHeader>
@@ -274,6 +276,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                     <Cell key={entry.name} fill={`hsl(var(--chart-${(index % 5) + 1}))`} />
                   ))}
                 </Pie>
+                <Legend />
               </PieChart>
             </ChartContainer>
           </CardContent>
@@ -298,6 +301,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                     <Cell key={entry.name} fill={`hsl(var(--chart-${(index % 5) + 1}))`} />
                   ))}
                 </Pie>
+                <Legend />
               </PieChart>
             </ChartContainer>
           </CardContent>
@@ -306,6 +310,20 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         <PagosUltimos12MesesChart data={data.pagos} />
         <ProyeccionVentasRadialChart data={data.pagos} />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Inventario con stock bajo</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {data.inventarioBajo.length ? data.inventarioBajo.map((item) => (
+            <div key={item.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
+              <span>{item.nombre}</span>
+              <Badge variant="destructive">{item.stock} / min. {item.stockMinimo} {item.unidad ?? ""}</Badge>
+            </div>
+          )) : <p className="text-sm text-muted-foreground">No hay materiales con stock bajo.</p>}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">

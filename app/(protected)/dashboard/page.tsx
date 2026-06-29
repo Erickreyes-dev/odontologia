@@ -13,7 +13,7 @@ export default async function DashboardPage() {
     return <NoAcceso />;
   }
 
-  const [pacientes, consultas, pagos, financiamientos] = await Promise.all([
+  const [pacientes, consultas, pagos, financiamientos, inventarioBajo] = await Promise.all([
     prisma.paciente.findMany({
       where: await tenantWhere({ activo: true }),
       select: {
@@ -65,6 +65,11 @@ export default async function DashboardPage() {
         },
       },
     }),
+    prisma.producto.findMany({
+      where: await tenantWhere({ activo: true, stock: { lte: prisma.producto.fields.stockMinimo } }),
+      select: { id: true, nombre: true, stock: true, stockMinimo: true, unidad: true },
+      orderBy: { stock: "asc" },
+    }),
   ]);
 
   const cuotasPendientes = financiamientos
@@ -103,6 +108,7 @@ export default async function DashboardPage() {
           monto: Number(pago.monto),
         })),
         cuotasPendientes,
+        inventarioBajo,
       }}
     />
   );

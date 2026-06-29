@@ -54,6 +54,8 @@ import { ConstanciaMedicaResumen, createConstanciaMedica, updateConstanciaMedica
 import { generateConstanciaMedicaPDF } from "@/lib/pdf/constancia-medica-pdf";
 import { FinanciamientoCard } from "@/app/(protected)/pagos/components/FinanciamientoCard";
 import { PacienteOdontogramaResumen } from "./PacienteOdontogramaResumen";
+import { ArchivoUploader } from "@/components/archivo-uploader";
+import { eliminarArchivoPaciente, registrarArchivoPaciente } from "@/app/(protected)/pacientes/actions";
 
 interface PacientePerfilProps {
   paciente: Paciente;
@@ -70,6 +72,7 @@ interface PacientePerfilProps {
   constancias: ConstanciaMedicaResumen[];
   piezasTratadasHistoricas: number[];
   totalConsultasConOdontograma: number;
+  archivosPaciente: { id: string; nombre: string; key: string; mimeType: string | null; size: number | null; createAt: Date }[];
   odontogramaDetalleHistorico: { toothId: number; surface: "M" | "D" | "V" | "L" | "O"; treatmentId: string; treatmentName: string; category: string; color: string; icon: string }[];
   seguroNombre?: string;
 }
@@ -257,6 +260,7 @@ export function PacientePerfil({
   totalConsultasConOdontograma,
   odontogramaDetalleHistorico,
   seguroNombre,
+  archivosPaciente,
   clinicInfo,
 }: PacientePerfilProps) {
   const initials = `${paciente.nombre?.charAt(0) ?? ""}${paciente.apellido?.charAt(0) ?? ""}`;
