@@ -1,9 +1,27 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/auth";
-import { uploadImageToS3, createPresignedPutUrl, deleteImageFromS3 } from "@/lib/s3-storage";
+import { deleteTenantFileFromS3, uploadTenantFileToS3 } from "@/lib/s3";
 
 // Lista blanca de carpetas permitidas en el sistema
 const ALLOWED_FOLDERS = ["logos", "imagenes", "perfiles", "ventas", "documentos", "notas", "consultas", "pacientes"];
+
+type UploadFile = {
+  name?: string;
+  type?: string;
+  size: number;
+  arrayBuffer: () => Promise<ArrayBuffer>;
+};
+
+function isUploadFile(value: unknown): value is UploadFile {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "arrayBuffer" in value &&
+    typeof value.arrayBuffer === "function" &&
+    "size" in value &&
+    typeof value.size === "number"
+  );
+}
 
 export async function POST(
   request: Request,
@@ -23,50 +41,28 @@ export async function POST(
       return NextResponse.json({ error: "Carpeta de destino no válida" }, { status: 400 });
     }
 
-    // Estructurar la ruta en S3 para aislar los archivos por Tenant (clínica)
-    // tenants/slug-de-clinica/carpeta-destino
-    const folderPrefix = `tenants/${session.TenantSlug}/${folder}`;
-
-    const url = new URL(request.url);
-    const usePresign = url.searchParams.get("presign") === "true";
-
-    // Opción A: Generar URL Firmada para que el cliente suba directo a S3
-    if (usePresign) {
-      const payload = await request.json().catch(() => ({}));
-      const { filename, contentType } = payload;
-
-      if (!filename || !contentType) {
-        return NextResponse.json(
-          { error: "Se requieren 'filename' y 'contentType' para generar la URL firmada." },
-          { status: 400 }
-        );
-      }
-
-      const presigned = await createPresignedPutUrl(filename, folderPrefix, contentType);
-      return NextResponse.json({
-        success: true,
-        ...presigned,
-      });
+    if (folder !== "consultas" && folder !== "pacientes") {
+      return NextResponse.json({ error: "Esta carga de archivos solo está disponible para consultas y pacientes" }, { status: 400 });
     }
 
-    // Opción B: Subir mediante el Servidor de Next.js
     const formData = await request.formData();
     const file = formData.get("file");
-    
-    if (!(file instanceof File)) {
+
+    if (!isUploadFile(file)) {
       return NextResponse.json({ error: "Archivo no proporcionado" }, { status: 400 });
     }
 
-    const uploaded = await uploadImageToS3(file, folderPrefix);
-    
-    // URL pública aproximada (asume permisos de lectura correspondientes o lectura directa con ACL)
-    const publicUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || "us-east-1"}.amazonaws.com/${uploaded.key}`;
+    const uploaded = await uploadTenantFileToS3({
+      tenantFolder: session.TenantSlug || session.TenantNombre || session.TenantId,
+      file,
+      folder: folder as "consultas" | "pacientes",
+    });
 
     return NextResponse.json({
       success: true,
       key: uploaded.key,
       nombre: uploaded.originalName,
-      url: publicUrl
+      url: `/api/media/${uploaded.key}`,
     });
   } catch (error) {
     console.error("Error en el endpoint de subida S3:", error);
@@ -109,7 +105,7 @@ export async function DELETE(
     }
 
     // 4. Eliminar el archivo de S3
-    await deleteImageFromS3(key);
+    await deleteTenantFileFromS3(key);
 
     return NextResponse.json({ success: true });
   } catch (error) {
