@@ -56,7 +56,7 @@ export default function ServicioListMobile({ servicios }: ServicioListMobileProp
                       {servicio.activo ? "Activo" : "Inactivo"}
                     </Badge>
                     <Badge variant={servicio.mostrarEnLanding ? "default" : "secondary"} className="text-xs">
-                      {servicio.mostrarEnLanding ? "En landing" : "Fuera de landing"}
+                      {servicio.mostrarEnLanding ? "En sitio web" : "Fuera del sitio web"}
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-2">

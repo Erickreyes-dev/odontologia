@@ -29,6 +29,7 @@ export interface TenantClinicProfile {
   facebookUrl: string | null;
   twitterUrl: string | null;
   instagramUrl: string | null;
+  whatsappUrl: string | null;
 }
 
 function sanitizeOptionalUrl(value: string | null | undefined, label: string) {
@@ -87,6 +88,7 @@ export async function getTenantClinicProfile(): Promise<TenantClinicProfile | nu
       facebookUrl: true,
       twitterUrl: true,
       instagramUrl: true,
+      whatsappUrl: true,
     },
   });
 
@@ -122,6 +124,7 @@ export async function updateTenantClinicProfile(
     const facebookUrl = formData.get("facebookUrl") as string | null;
     const twitterUrl = formData.get("twitterUrl") as string | null;
     const instagramUrl = formData.get("instagramUrl") as string | null;
+    const whatsappUrl = formData.get("whatsappUrl") as string | null;
 
     const telefonoRaw = telefono?.trim() ?? "";
     const correoRaw = correo?.trim().toLowerCase() ?? "";
@@ -189,6 +192,7 @@ export async function updateTenantClinicProfile(
     const facebookUrlClean = sanitizeOptionalUrl(facebookUrl, "Facebook");
     const twitterUrlClean = sanitizeOptionalUrl(twitterUrl, "Twitter / X");
     const instagramUrlClean = sanitizeOptionalUrl(instagramUrl, "Instagram");
+    const whatsappUrlClean = sanitizeOptionalUrl(whatsappUrl, "WhatsApp");
 
     if (telefonoRaw.length > 20) {
       return { success: false, error: "El teléfono debe tener máximo 20 caracteres" };
@@ -214,6 +218,7 @@ export async function updateTenantClinicProfile(
         facebookUrl: facebookUrlClean,
         twitterUrl: twitterUrlClean,
         instagramUrl: instagramUrlClean,
+        whatsappUrl: whatsappUrlClean,
       },
     });
 

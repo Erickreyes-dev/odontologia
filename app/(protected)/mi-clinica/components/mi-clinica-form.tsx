@@ -60,6 +60,7 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
   const [facebookUrl, setFacebookUrl] = useState(tenant.facebookUrl ?? "");
   const [twitterUrl, setTwitterUrl] = useState(tenant.twitterUrl ?? "");
   const [instagramUrl, setInstagramUrl] = useState(tenant.instagramUrl ?? "");
+  const [whatsappUrl, setWhatsappUrl] = useState(tenant.whatsappUrl ?? "");
   const [isPending, startTransition] = useTransition();
 
   // Sincronizar el estado interno cuando los datos del servidor cambian
@@ -73,6 +74,7 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
     setFacebookUrl(tenant.facebookUrl ?? "");
     setTwitterUrl(tenant.twitterUrl ?? "");
     setInstagramUrl(tenant.instagramUrl ?? "");
+    setWhatsappUrl(tenant.whatsappUrl ?? "");
     setHorarios(parseSchedule(tenant.horariosJson));
     setLogoFile(null);
     setLandingImageFile(null);
@@ -176,6 +178,7 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
       formData.append("facebookUrl", facebookUrl);
       formData.append("twitterUrl", twitterUrl);
       formData.append("instagramUrl", instagramUrl);
+      formData.append("whatsappUrl", whatsappUrl);
 
       const result = await updateTenantClinicProfile(formData);
 
@@ -335,7 +338,7 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1">
               <Label htmlFor="facebookUrl">Facebook</Label>
               <Input id="facebookUrl" type="url" value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} placeholder="https://facebook.com/tu-clinica" disabled={!canEdit} />
@@ -347,6 +350,10 @@ export default function MiClinicaForm({ tenant, canEdit }: MiClinicaFormProps) {
             <div className="space-y-1">
               <Label htmlFor="instagramUrl">Instagram</Label>
               <Input id="instagramUrl" type="url" value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} placeholder="https://instagram.com/tu-clinica" disabled={!canEdit} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="whatsappUrl">WhatsApp</Label>
+              <Input id="whatsappUrl" type="url" value={whatsappUrl} onChange={(e) => setWhatsappUrl(e.target.value)} placeholder="https://wa.me/50499999999" disabled={!canEdit} />
             </div>
           </div>
 

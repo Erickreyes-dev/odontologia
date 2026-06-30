@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TenantAppointmentForm } from "@/components/tenant-appointment-form";
-import { CalendarClock, Check, Facebook, HeartHandshake, Instagram, Mail, PhoneCall, Sparkles, Stethoscope, Twitter, Users } from "lucide-react";
+import { CalendarClock, Check, Facebook, HeartHandshake, Instagram, Mail, MessageCircle, PhoneCall, Sparkles, Stethoscope, Twitter, Users } from "lucide-react";
 import { resolveCurrencyByCountry } from "@/lib/country-currency";
 import { buildTenantPublicUrl } from "@/lib/tenant-url";
 
@@ -341,6 +341,7 @@ export default async function LandingPage({
           facebookUrl: true,
           twitterUrl: true,
           instagramUrl: true,
+          whatsappUrl: true,
           contactoCorreo: true,
           telefono: true,
           activo: true,
@@ -354,6 +355,7 @@ export default async function LandingPage({
               descripcion: true,
               precioBase: true,
               duracionMin: true,
+              mostrarPrecio: true,
             },
             orderBy: { nombre: "asc" },
           },
@@ -384,6 +386,7 @@ export default async function LandingPage({
       { label: "Facebook", href: tenantLanding.facebookUrl, Icon: Facebook },
       { label: "Twitter / X", href: tenantLanding.twitterUrl, Icon: Twitter },
       { label: "Instagram", href: tenantLanding.instagramUrl, Icon: Instagram },
+      { label: "WhatsApp", href: tenantLanding.whatsappUrl, Icon: MessageCircle },
     ].filter((item): item is { label: string; href: string; Icon: typeof Facebook } => Boolean(item.href));
     const moneyFormatter = new Intl.NumberFormat(locale === "en" ? "en-US" : "es-ES", {
       style: "currency",
@@ -448,7 +451,7 @@ export default async function LandingPage({
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button asChild className="transition-transform hover:scale-[1.02] bg-cyan-600 text-white hover:bg-cyan-500">
-                  <Link href="#contacto">{locale === "en" ? "Book evaluation" : "Agendar valoración"}</Link>
+                  <Link href="#contacto">{locale === "en" ? "Book appointment" : "Agendar cita"}</Link>
                 </Button>
                 <Button asChild variant="outline" className="transition-transform hover:scale-[1.02]">
                   <Link href="#servicios">{locale === "en" ? "See treatments" : "Ver tratamientos"}</Link>
@@ -537,7 +540,7 @@ export default async function LandingPage({
                     </p>
                     <div className="flex items-center justify-between rounded-xl border border-border/70 bg-muted/40 px-3 py-2">
                       <p className="text-xs text-muted-foreground">{locale === "en" ? "Starting at" : "Precio desde"}</p>
-                      <p className="text-base font-bold text-foreground">{moneyFormatter.format(Number(servicio.precioBase))}</p>
+                      <p className="text-base font-bold text-foreground">{servicio.mostrarPrecio ? moneyFormatter.format(Number(servicio.precioBase)) : (locale === "en" ? "Upon evaluation" : "Según evaluación")}</p>
                     </div>
                   </CardContent>
                 </Card>

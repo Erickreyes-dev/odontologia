@@ -32,7 +32,7 @@ export const columns: ColumnDef<Servicio>[] = [
   },
   {
     accessorKey: "mostrarEnLanding",
-    header: "Landing",
+    header: "Sitio web",
     cell: ({ row }) => (row.getValue("mostrarEnLanding") ? "Visible" : "Oculto"),
   },
   {
