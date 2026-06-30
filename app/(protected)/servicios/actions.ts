@@ -29,6 +29,7 @@ export async function getServicios(): Promise<Servicio[]> {
         duracionMin: s.duracionMin,
         activo: s.activo,
         mostrarEnLanding: s.mostrarEnLanding,
+        mostrarPrecio: s.mostrarPrecio,
         medicos: s.medicosServicios.map(ms => ({
             idEmpleado: ms.medico.idEmpleado,
             nombre: ms.medico.empleado.nombre,
@@ -53,6 +54,7 @@ export async function getServicioById(id: string): Promise<Servicio | null> {
         duracionMin: s.duracionMin,
         activo: s.activo,
         mostrarEnLanding: s.mostrarEnLanding,
+        mostrarPrecio: s.mostrarPrecio,
         medicos: s.medicosServicios.map(ms => ({
             idEmpleado: ms.medico.idEmpleado,
             nombre: ms.medico.empleado.nombre,
@@ -72,6 +74,7 @@ export async function postServicio(data: Servicio) {
             duracionMin: data.duracionMin,
             activo: data.activo ?? true,
             mostrarEnLanding: data.mostrarEnLanding ?? false,
+            mostrarPrecio: data.mostrarPrecio ?? true,
             // Solo incluimos medicosServicios si hay medicos
             medicosServicios: data.medicos && data.medicos.length > 0
                 ? {
@@ -100,6 +103,7 @@ export async function putServicio(data: Servicio) {
             duracionMin: data.duracionMin,
             activo: data.activo,
             mostrarEnLanding: data.mostrarEnLanding ?? false,
+            mostrarPrecio: data.mostrarPrecio ?? true,
             medicosServicios: {
                 deleteMany: {},
                 create: data.medicos?.map(m => ({ medicoId: m.idEmpleado })),

@@ -26,7 +26,7 @@ export function FormularioServicio({
 
   const form = useForm<Servicio>({
     resolver: zodResolver(ServicioSchema),
-    defaultValues: initialData || { medicos: [], mostrarEnLanding: false },
+    defaultValues: initialData || { medicos: [], mostrarEnLanding: false, mostrarPrecio: true },
   });
 
   async function onSubmit(data: Servicio) {
@@ -118,9 +118,22 @@ export function FormularioServicio({
         control={form.control}
         render={({ field }) => (
           <Field>
-            <FieldLabel>Mostrar en landing del tenant</FieldLabel>
+            <FieldLabel>Mostrar en sitio web</FieldLabel>
             <FieldContent>
               <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} />
+            </FieldContent>
+          </Field>
+        )}
+      />
+
+      <Controller
+        name="mostrarPrecio"
+        control={form.control}
+        render={({ field }) => (
+          <Field>
+            <FieldLabel>Mostrar precio</FieldLabel>
+            <FieldContent>
+              <Switch checked={field.value ?? true} onCheckedChange={field.onChange} />
             </FieldContent>
           </Field>
         )}
