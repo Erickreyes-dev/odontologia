@@ -73,7 +73,7 @@ interface PacientePerfilProps {
   piezasTratadasHistoricas: number[];
   totalConsultasConOdontograma: number;
   archivosPaciente: { id: string; nombre: string; key: string; mimeType: string | null; size: number | null; createAt: Date }[];
-  odontogramaDetalleHistorico: { toothId: number; surface: "M" | "D" | "V" | "L" | "O"; treatmentId: string; treatmentName: string; category: string; color: string; icon: string }[];
+  odontogramaDetalleHistorico: { toothId: number; surface: "M" | "D" | "V" | "L" | "O" | "FULL"; state?: "bueno" | "malo"; treatmentId: string; treatmentName: string; category: string; color: string; icon: string }[];
   seguroNombre?: string;
 }
 

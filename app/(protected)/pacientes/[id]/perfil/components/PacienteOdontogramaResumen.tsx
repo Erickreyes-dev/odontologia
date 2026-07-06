@@ -4,11 +4,13 @@ import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-type Surface = "M" | "D" | "V" | "L" | "O";
+type Surface = "M" | "D" | "V" | "L" | "O" | "FULL";
+type EstadoTratamiento = "bueno" | "malo";
 
 type OdontogramaEntry = {
   toothId: number;
   surface: Surface;
+  state?: EstadoTratamiento;
   treatmentId: string;
   treatmentName: string;
   category: string;
@@ -25,7 +27,7 @@ interface PacienteOdontogramaResumenProps {
 /* =========================
    SUPERFICIES CENTRO
 ========================= */
-const surfaceCenters: Record<Surface, { x: number; y: number }> = {
+const surfaceCenters: Record<Exclude<Surface, "FULL">, { x: number; y: number }> = {
   V: { x: 50, y: 28 },
   L: { x: 50, y: 78 },
   M: { x: 28, y: 54 },
@@ -73,10 +75,12 @@ function ToothSummary({
   selected: boolean;
   onClick: () => void;
 }) {
-  const bySurface = (s: Surface) =>
-    entries.find((e) => e.surface === s);
+  const surfaceEntries = entries.filter((e): e is OdontogramaEntry & { surface: Exclude<Surface, "FULL"> } => e.surface !== "FULL");
+  const fullEntry = entries.find((e) => e.surface === "FULL");
+  const bySurface = (s: Exclude<Surface, "FULL">) =>
+    surfaceEntries.find((e) => e.surface === s);
 
-  const fill = (s: Surface) =>
+  const fill = (s: Exclude<Surface, "FULL">) =>
     bySurface(s)?.color ?? "transparent";
 
   const shape = getToothShape(toothId);
@@ -158,7 +162,7 @@ function ToothSummary({
         />
 
         {/* indicadores clínicos */}
-        {entries.map((entry) => {
+        {surfaceEntries.map((entry) => {
           const c = surfaceCenters[entry.surface];
           return (
             <g key={`${entry.toothId}-${entry.surface}-${entry.treatmentId}`}>
@@ -180,6 +184,13 @@ function ToothSummary({
             </g>
           );
         })}
+
+        {fullEntry && (
+          <g>
+            <rect x="18" y="16" width="64" height="76" rx="12" fill="none" stroke={fullEntry.color} strokeWidth="3" strokeDasharray="6 4" opacity="0.7" />
+            <circle cx="78" cy="18" r="7" fill={fullEntry.color} stroke="white" strokeWidth="2" />
+          </g>
+        )}
 
         {/* número */}
         <text
@@ -305,7 +316,7 @@ export function PacienteOdontogramaResumen({
                 className="rounded-md border p-2 text-xs"
               >
                 <p className="font-medium">
-                  {e.surface} · {e.treatmentName}
+                  {e.surface === "FULL" ? "Toda la pieza" : e.surface} · {e.treatmentName}
                 </p>
                 <p className="text-muted-foreground">
                   {e.category}

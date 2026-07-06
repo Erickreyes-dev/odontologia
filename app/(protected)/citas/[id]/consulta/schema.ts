@@ -10,7 +10,8 @@ export const ConsultaSchema = z.object({
   piezasTratadas: z.array(z.number()).optional().nullable(),
   odontogramaDetalle: z.array(z.object({
     toothId: z.number(),
-    surface: z.enum(["M", "D", "V", "L", "O"]),
+    surface: z.enum(["M", "D", "V", "L", "O", "FULL"]),
+    state: z.enum(["bueno", "malo"]).optional(),
     treatmentId: z.string(),
     treatmentName: z.string(),
     category: z.string(),
