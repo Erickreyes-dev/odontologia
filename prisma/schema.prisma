@@ -80,6 +80,7 @@ model Tenant {
   reciboDetalles         ReciboDetalle[]
   solicitudesCitaPublica SolicitudCitaPublica[]
   tenantInvoices         TenantInvoice[]
+  whatsappConnections    WhatsappConnection[]
   paquete                Paquete?                    @relation(fields: [paqueteId], references: [id])
 
   @@index([paqueteId])
@@ -137,6 +138,32 @@ model TenantInvoice {
 
   @@index([tenantId, estado])
   @@index([paypalOrderId])
+}
+
+
+model WhatsappConnection {
+  id                String    @id @default(uuid()) @db.VarChar(36)
+  tenantId          String    @db.VarChar(36)
+  businessAccountId String    @db.VarChar(80)
+  wabaId            String    @db.VarChar(80)
+  phoneNumberId     String    @db.VarChar(80)
+  displayPhone      String?   @db.VarChar(40)
+  verifiedName      String?   @db.VarChar(150)
+  qualityRating     String?   @db.VarChar(40)
+  messagingLimit    String?   @db.VarChar(80)
+  status            String    @default("connected") @db.VarChar(30)
+  rawSignupPayload  Json?
+  rawPhonePayload   Json?
+  connectedAt       DateTime  @default(now())
+  disconnectedAt    DateTime?
+  createAt          DateTime  @default(now())
+  updateAt          DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, phoneNumberId])
+  @@index([tenantId, status])
+  @@index([wabaId])
 }
 
 model Permiso {
