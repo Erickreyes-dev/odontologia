@@ -166,6 +166,7 @@ model WhatsappConnection {
   @@index([wabaId])
 }
 
+
 model Permiso {
   id          String       @id @default(uuid())
   nombre      String       @db.VarChar(100)
