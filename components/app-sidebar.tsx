@@ -18,7 +18,7 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import {  Boxes, Building2, Calendar, CalendarCheck, ChevronDown, ChevronUp, CreditCard, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
+import {  Boxes, Building2, Calendar, CalendarCheck, ChevronDown, ChevronUp, CreditCard, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, MessageCircle, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
 import Link from "next/link";
 import Image from "next/image";
 import { NavUser } from "./nav-user";
@@ -187,6 +187,12 @@ const items = [
     titleKey: "sidebar.myClinic",
     url: "/mi-clinica",
     icon: Building2,
+    permiso: "editar_tenant",
+  },
+  {
+    titleKey: "WhatsApp",
+    url: "/whatsapp",
+    icon: MessageCircle,
     permiso: "editar_tenant",
   },
 ];
