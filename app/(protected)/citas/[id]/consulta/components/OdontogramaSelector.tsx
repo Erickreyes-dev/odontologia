@@ -266,7 +266,7 @@ function ToothSvg({
 
   return (
     <div
-      className={`w-full rounded-md border bg-white p-0.5 shadow-sm transition cursor-pointer ${selected ? "ring-2 ring-primary" : "hover:border-primary/50"}`}
+      className={`w-full rounded-lg border bg-white p-1 shadow-sm transition cursor-pointer ${selected ? "ring-2 ring-primary" : "hover:border-primary/50"}`}
       onClick={onWholeToothClick}
       title={`${toothId} · ${toothNames[toothId]}`}
     >
@@ -413,13 +413,13 @@ export function OdontogramaSelector({ value, onChange, detailValue = [], onDetai
             </span>
           </div>
 
-          <div className="min-w-0 space-y-3 rounded-lg border bg-white p-3">
+          <div className="min-w-0 space-y-3 overflow-x-auto rounded-lg border bg-white p-3">
             {arches.map((arch) => (
               <div key={arch.title} className="min-w-0">
                 <h4 className="mb-2 text-sm font-semibold">{arch.title}</h4>
-                <div className="grid min-w-0 gap-0.5" style={{ gridTemplateColumns: `repeat(${arch.teeth.length}, minmax(0, 1fr))` }}>
+                <div className="grid min-w-[960px] gap-1.5 lg:min-w-0" style={{ gridTemplateColumns: `repeat(${arch.teeth.length}, minmax(3.5rem, 1fr))` }}>
                   {arch.teeth.map((toothId, index) => (
-                    <div key={toothId} className={index === half ? "border-l-2 border-slate-300 pl-0.5" : ""}>
+                    <div key={toothId} className={index === half ? "border-l-2 border-slate-300 pl-1.5" : ""}>
                       <ToothSvg
                         toothId={toothId}
                         selected={selectedTooth === toothId}
