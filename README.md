@@ -92,3 +92,63 @@ npx prisma generate
 ```
 
 > Nota: los logos antiguos guardados como base64 no se pueden convertir automáticamente desde la base de datos a S3 sin un script de migración de archivos. Después de desplegar, cada tenant debe volver a subir su logo desde **Mi clínica**.
+
+## Integración de Meta / WhatsApp Embedded Signup
+
+El repositorio ya incluye una pantalla de tenant en `/whatsapp` para que cada clínica conecte su propio negocio/número de WhatsApp mediante Embedded Signup de Meta. La conexión queda guardada en `WhatsappConnection` con `businessAccountId`, `wabaId` y `phoneNumberId`; no se crea ni se usa un WABA del dueño del sistema para enviar mensajes de los tenants.
+
+No se requiere una migración adicional para webhooks: la migración existente `20260706120000_whatsapp_embedded_signup` ya creó la tabla necesaria para guardar la conexión del tenant. El webhook agregado en `/api/meta/whatsapp/webhook` solo valida que Meta pueda llamar a la plataforma y confirma la recepción de eventos; cuando se necesite historial de mensajes o auditoría persistente, se puede agregar una tabla específica en otra iteración.
+
+### Variables de entorno del dueño del sistema
+
+Configura estas variables en el runtime de Medisoft Core:
+
+```bash
+NEXT_PUBLIC_META_APP_ID=tu_app_id_publico
+NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID=tu_configuration_id_de_embedded_signup
+NEXT_PUBLIC_META_GRAPH_VERSION=v21.0
+META_GRAPH_VERSION=v21.0
+META_APP_ID=tu_app_id
+META_APP_SECRET=tu_app_secret
+META_SYSTEM_USER_ACCESS_TOKEN=token_de_system_user_para_embedded_signup_y_consulta_graph
+META_WEBHOOK_VERIFY_TOKEN=un_token_largo_generado_por_ti
+```
+
+`NEXT_PUBLIC_META_APP_ID` y `NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID` habilitan el botón del SDK en el navegador. `META_APP_SECRET`, `META_SYSTEM_USER_ACCESS_TOKEN` y `META_WEBHOOK_VERIFY_TOKEN` deben permanecer solo en servidor. El token del system user pertenece al negocio dueño de la app y se usa para completar/consultar el alta; los tenants autorizan su propio negocio y número durante el signup.
+
+### URLs que debes registrar en Meta
+
+- Dominio de la app: `medisoftcore.com`
+- Términos y condiciones: `https://medisoftcore.com/terminos-y-condiciones`
+- Política de privacidad: `https://medisoftcore.com/politicas-de-privacidad`
+- Webhook callback URL principal: `https://medisoftcore.com/api/meta/whatsapp/webhook`
+- Webhook callback URL alternativa: `https://medisoftcore.com/api/webhooks/meta/whatsapp`
+- Verify token del webhook: el valor de `META_WEBHOOK_VERIFY_TOKEN`
+
+### Paso a paso en Meta for Developers
+
+1. Entra a Meta for Developers y crea una app de tipo **Business** para Medisoft Core.
+2. En **App settings > Basic** configura nombre, correo de contacto, dominio `medisoftcore.com`, URL de privacidad y URL de términos.
+3. Agrega el producto **WhatsApp** a la app.
+4. En **WhatsApp > Configuration / Embedded Signup** crea una configuración para Embedded Signup y copia su **Configuration ID** a `NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID`.
+5. En la configuración de Embedded Signup habilita que el cliente seleccione o cree su propio Meta Business, WABA y número; esa es la parte que hace que cada tenant conecte su API/número, no el WABA del dueño del sistema.
+6. Configura los permisos requeridos por Meta para el flujo: `whatsapp_business_management` y `whatsapp_business_messaging`.
+7. En **Webhooks** selecciona el objeto **WhatsApp Business Account**, registra la Callback URL principal (`https://medisoftcore.com/api/meta/whatsapp/webhook`) y el Verify Token, y suscribe al menos `messages`. Agrega también campos de calidad/plantillas si los vas a usar.
+8. Cambia la app a **Live Mode** y completa **App Review** para los permisos si Meta lo solicita antes de permitir negocios externos reales.
+
+### Paso a paso en Meta Business Suite / Business Settings
+
+1. Abre el Business Manager dueño de Medisoft Core y verifica el negocio si Meta lo requiere.
+2. Asocia la app Business creada en Developers al negocio dueño del sistema.
+3. Crea un **System User** para la integración de Medisoft Core.
+4. Genera un token permanente del System User con `whatsapp_business_management` y `whatsapp_business_messaging`; guárdalo como `META_SYSTEM_USER_ACCESS_TOKEN`.
+5. Asegúrate de que el System User tenga acceso a la app y activos necesarios para operar Embedded Signup. Esto no significa que los tenants usarán tu número; solo permite a tu app completar el flujo y consultar Graph API después de la autorización.
+6. Define un valor aleatorio y largo para `META_WEBHOOK_VERIFY_TOKEN`, guárdalo en tu hosting y usa exactamente el mismo valor al verificar el webhook en Meta.
+
+### Paso a paso para cada tenant en Medisoft Core
+
+1. El administrador del tenant entra a `/whatsapp` con permiso `editar_tenant`.
+2. Hace clic en **Conectar WhatsApp**.
+3. Meta abre Embedded Signup para que el tenant inicie sesión, seleccione o cree su negocio, WABA y número.
+4. Medisoft Core recibe el resultado, consulta Graph API y guarda la conexión del tenant en `WhatsappConnection`.
+5. Los envíos futuros deben usar el `phoneNumberId` guardado para ese tenant y un token válido autorizado para ese negocio/número.
