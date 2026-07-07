@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, Loader2, MessageCircle, PlugZap, Unplug, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Loader2, MessageCircle, PlugZap, Send, Unplug, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { completeWhatsappEmbeddedSignup, disconnectWhatsappConnection } from "../actions";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { completeWhatsappEmbeddedSignup, disconnectWhatsappConnection, sendWhatsappTestMessage } from "../actions";
 
 type FacebookLoginResponse = {
   authResponse?: { code?: string };
@@ -52,6 +55,8 @@ export function WhatsappSettingsClient({ appId, configId, graphVersion, connecti
   const [isPending, startTransition] = useTransition();
   const [sdkReady, setSdkReady] = useState(false);
   const [signupPayload, setSignupPayload] = useState<Record<string, unknown> | null>(null);
+  const [testPhone, setTestPhone] = useState("");
+  const [testMessage, setTestMessage] = useState("Mensaje de prueba desde MedisoftCore.");
 
   const isConfigured = useMemo(() => Boolean(appId && configId), [appId, configId]);
 
@@ -101,10 +106,19 @@ export function WhatsappSettingsClient({ appId, configId, graphVersion, connecti
 
     window.FB.login(
       (response) => {
-        const payload = { ...(signupPayload ?? {}), code: response.authResponse?.code };
+        if (!response.authResponse?.code) {
+          toast.info("Se canceló el inicio de sesión de Meta. No se guardó ninguna conexión.");
+          return;
+        }
+
+        const payload = { ...(signupPayload ?? {}), code: response.authResponse.code };
         startTransition(async () => {
           const result = await completeWhatsappEmbeddedSignup(payload);
-          if (result.ok) toast.success("WhatsApp conectado correctamente.");
+          if (result.ok) {
+            toast.success("WhatsApp conectado correctamente.");
+          } else {
+            toast.error("No se pudo conectar WhatsApp", { description: result.error });
+          }
         });
       },
       {
@@ -120,6 +134,17 @@ export function WhatsappSettingsClient({ appId, configId, graphVersion, connecti
     startTransition(async () => {
       const result = await disconnectWhatsappConnection();
       if (result.ok) toast.success("Conexión de WhatsApp desactivada.");
+    });
+  };
+
+  const sendTest = () => {
+    startTransition(async () => {
+      const result = await sendWhatsappTestMessage({ to: testPhone, message: testMessage });
+      if (result.success) {
+        toast.success("Mensaje de prueba enviado por WhatsApp.");
+        return;
+      }
+      toast.error("No se pudo enviar el WhatsApp", { description: result.error });
     });
   };
 
@@ -181,6 +206,29 @@ export function WhatsappSettingsClient({ appId, configId, graphVersion, connecti
           ) : (
             <p className="text-muted-foreground">Aún no hay una cuenta de WhatsApp conectada para esta clínica.</p>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Send className="h-5 w-5 text-emerald-600" /> Mensaje de prueba</CardTitle>
+          <CardDescription>Envía un texto libre usando el Phone Number ID conectado para validar que la integración de Cloud API responde.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-[260px_1fr]">
+            <div className="space-y-2">
+              <Label htmlFor="testPhone">Número destino</Label>
+              <Input id="testPhone" value={testPhone} onChange={(event) => setTestPhone(event.target.value)} placeholder="50499999999" disabled={!connection || isPending} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="testMessage">Mensaje</Label>
+              <Textarea id="testMessage" value={testMessage} onChange={(event) => setTestMessage(event.target.value)} rows={3} disabled={!connection || isPending} />
+            </div>
+          </div>
+          <Button onClick={sendTest} disabled={!connection || isPending || !testPhone.trim() || !testMessage.trim()}>
+            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+            Enviar prueba
+          </Button>
         </CardContent>
       </Card>
     </div>
