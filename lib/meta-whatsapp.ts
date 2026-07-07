@@ -96,3 +96,54 @@ export async function fetchMetaPhoneNumber(phoneNumberId: string, accessToken = 
 
   return body;
 }
+
+type MetaSendMessageResponse = {
+  messages?: Array<{ id?: string }>;
+  error?: { message?: string };
+};
+
+export function normalizeWhatsappRecipientPhone(phone: string) {
+  const trimmed = phone.trim();
+  if (!trimmed) return "";
+  return trimmed.replace(/\D/g, "");
+}
+
+export async function sendWhatsappTextMessage({
+  phoneNumberId,
+  to,
+  body,
+  accessToken = getRequiredMetaSystemUserToken(),
+}: {
+  phoneNumberId: string;
+  to: string;
+  body: string;
+  accessToken?: string;
+}) {
+  const recipient = normalizeWhatsappRecipientPhone(to);
+  if (!recipient) {
+    throw new Error("El número de destino es requerido para enviar WhatsApp.");
+  }
+
+  const response = await fetch(`${META_GRAPH_BASE_URL}/${phoneNumberId}/messages`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: recipient,
+      type: "text",
+      text: { preview_url: false, body },
+    }),
+  });
+  const payload = (await response.json()) as MetaSendMessageResponse;
+
+  if (!response.ok) {
+    throw new Error(payload.error?.message || "No se pudo enviar el mensaje por WhatsApp.");
+  }
+
+  return payload;
+}
