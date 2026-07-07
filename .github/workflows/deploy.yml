@@ -59,6 +59,7 @@ jobs:
           SMTP_SECURE=${{ secrets.SMTP_SECURE }}
           SMTP_USER=${{ secrets.SMTP_USER }}
           META_WEBHOOK_VERIFY_TOKEN=${{ secrets.META_WEBHOOK_VERIFY_TOKEN }}
+          NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID=${{ secrets.NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID }}
           SMTP_PASS=${{ secrets.SMTP_PASS }}
           EOF
 
