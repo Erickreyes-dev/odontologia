@@ -121,7 +121,8 @@ META_WEBHOOK_VERIFY_TOKEN=un_token_largo_generado_por_ti
 - Dominio de la app: `medisoftcore.com`
 - Términos y condiciones: `https://medisoftcore.com/terminos-y-condiciones`
 - Política de privacidad: `https://medisoftcore.com/politicas-de-privacidad`
-- Webhook callback URL: `https://medisoftcore.com/api/meta/whatsapp/webhook`
+- Webhook callback URL principal: `https://medisoftcore.com/api/meta/whatsapp/webhook`
+- Webhook callback URL alternativa: `https://medisoftcore.com/api/webhooks/meta/whatsapp`
 - Verify token del webhook: el valor de `META_WEBHOOK_VERIFY_TOKEN`
 
 ### Paso a paso en Meta for Developers
@@ -132,7 +133,7 @@ META_WEBHOOK_VERIFY_TOKEN=un_token_largo_generado_por_ti
 4. En **WhatsApp > Configuration / Embedded Signup** crea una configuración para Embedded Signup y copia su **Configuration ID** a `NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID`.
 5. En la configuración de Embedded Signup habilita que el cliente seleccione o cree su propio Meta Business, WABA y número; esa es la parte que hace que cada tenant conecte su API/número, no el WABA del dueño del sistema.
 6. Configura los permisos requeridos por Meta para el flujo: `whatsapp_business_management` y `whatsapp_business_messaging`.
-7. En **Webhooks** selecciona el objeto **WhatsApp Business Account**, registra la Callback URL y el Verify Token, y suscribe al menos `messages`. Agrega también campos de calidad/plantillas si los vas a usar.
+7. En **Webhooks** selecciona el objeto **WhatsApp Business Account**, registra la Callback URL principal (`https://medisoftcore.com/api/meta/whatsapp/webhook`) y el Verify Token, y suscribe al menos `messages`. Agrega también campos de calidad/plantillas si los vas a usar.
 8. Cambia la app a **Live Mode** y completa **App Review** para los permisos si Meta lo solicita antes de permitir negocios externos reales.
 
 ### Paso a paso en Meta Business Suite / Business Settings
