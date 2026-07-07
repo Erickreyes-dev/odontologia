@@ -1,0 +1,100 @@
+name: Deploy Odontologia
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Descargar código
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Instalar Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Instalar dependencias
+      - name: Install dependencies
+        run: npm ci
+
+      # Crear .env para el build
+      - name: Create .env
+        run: |
+          cat > .env <<EOF
+          AWS_REGION=${{ secrets.AWS_REGION }}
+          AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+
+          EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+
+          META_APP_ID=${{ secrets.META_APP_ID }}
+          META_APP_SECRET=${{ secrets.META_APP_SECRET }}
+
+          NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
+
+          NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_META_APP_ID=${{ secrets.NEXT_PUBLIC_META_APP_ID }}
+
+          PAYPAL_CLIENT_ID=${{ secrets.PAYPAL_CLIENT_ID }}
+          PAYPAL_MODE=${{ secrets.PAYPAL_MODE }}
+          PAYPAL_SECRET=${{ secrets.PAYPAL_SECRET }}
+
+          ROOT_DOMAIN=${{ secrets.ROOT_DOMAIN }}
+          ROOT_NOTIFICATION_EMAIL=${{ secrets.ROOT_NOTIFICATION_EMAIL }}
+
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_SECURE=${{ secrets.SMTP_SECURE }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          META_WEBHOOK_VERIFY_TOKEN=${{ secrets.META_WEBHOOK_VERIFY_TOKEN }}
+          NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID=${{ secrets.NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+          EOF
+
+      # Generar Prisma Client
+      - name: Prisma Generate
+        run: npx prisma generate
+
+      # Compilar Next.js
+      - name: Build Next.js
+        run: npm run build
+
+      # Subir archivos al servidor
+      - name: Deploy files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: ".next,public,package.json,package-lock.json,prisma"
+          target: "/var/www/odontologia"
+
+      # Ejecutar deploy en EC2
+      - name: Restart application
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /var/www/odontologia
+
+            npm ci --omit=dev
+
+            npx prisma generate
+
+            npx prisma migrate deploy
+
+            pm2 reload odontologia --update-env
