@@ -12,8 +12,7 @@ import { EmailService } from "@/lib/sendEmail";
 import { generateAppointmentEmailHtml } from "@/lib/templates/clinical-notifications";
 import { getTenantEmailBranding } from "@/lib/tenant-branding";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
-import { getTenantContext } from "@/lib/tenant";
-import { sendWhatsappTextMessage } from "@/lib/meta-whatsapp";
+import { formatWhatsappDate, sendTenantWhatsappTextMessage } from "@/lib/tenant-whatsapp";
 
 /**
  * Obtiene todas las citas con paginacion
@@ -652,34 +651,22 @@ export async function sendCitaWhatsapp(
   try {
     if (!id) return { success: false, error: "ID de la cita es requerido" };
 
-    const { tenantId } = await getTenantContext();
-    const [connection, cita] = await Promise.all([
-      prisma.whatsappConnection.findFirst({
-        where: { tenantId, status: "connected" },
-        orderBy: { updateAt: "desc" },
-      }),
-      prisma.cita.findFirst({
-        where: await tenantWhere<Prisma.CitaWhereInput>({ id }),
-        include: {
-          paciente: { select: { nombre: true, apellido: true, telefono: true } },
-          medico: { include: { empleado: { select: { nombre: true, apellido: true } } } },
-          consultorio: { select: { nombre: true } },
-        },
-      }),
-    ]);
+    const cita = await prisma.cita.findFirst({
+      where: await tenantWhere<Prisma.CitaWhereInput>({ id }),
+      include: {
+        paciente: { select: { nombre: true, apellido: true, telefono: true } },
+        medico: { include: { empleado: { select: { nombre: true, apellido: true } } } },
+        consultorio: { select: { nombre: true } },
+      },
+    });
 
-    if (!connection) return { success: false, error: "No hay una conexión de WhatsApp activa para esta clínica." };
     if (!cita) return { success: false, error: "Cita no encontrada en la clínica" };
     if (!cita.paciente?.telefono) return { success: false, error: "El paciente no tiene teléfono registrado para WhatsApp." };
 
     const doctorName = `${cita.medico?.empleado?.nombre ?? ""} ${cita.medico?.empleado?.apellido ?? ""}`.trim() || "Por asignar";
-    const fecha = new Intl.DateTimeFormat("es-HN", {
-      dateStyle: "full",
-      timeStyle: "short",
-    }).format(new Date(cita.fechaHora));
+    const fecha = formatWhatsappDate(new Date(cita.fechaHora));
 
-    await sendWhatsappTextMessage({
-      phoneNumberId: connection.phoneNumberId,
+    const result = await sendTenantWhatsappTextMessage({
       to: cita.paciente.telefono,
       body: [
         `Hola ${cita.paciente.nombre} ${cita.paciente.apellido}.`,
@@ -692,7 +679,7 @@ export async function sendCitaWhatsapp(
       ].filter(Boolean).join("\n"),
     });
 
-    return { success: true };
+    return result;
   } catch (error) {
     console.error(`Error al enviar cita por WhatsApp ${id}:`, error);
     return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };

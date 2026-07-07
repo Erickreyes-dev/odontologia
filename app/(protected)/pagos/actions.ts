@@ -21,6 +21,7 @@ import { EmailService } from "@/lib/sendEmail";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
 import { generatePagoEmailHtml } from "@/lib/templates/clinical-notifications";
 import { getTenantEmailBranding } from "@/lib/tenant-branding";
+import { formatWhatsappDate, formatWhatsappMoney, sendTenantWhatsappTextMessage } from "@/lib/tenant-whatsapp";
 
 const CENTRAL_AMERICA_OFFSET_MS = 6 * 60 * 60 * 1000;
 
@@ -1000,6 +1001,54 @@ export async function sendPagoEmail(
     return { success: true };
   } catch (error) {
     console.error(`Error al enviar pago por email ${id}:`, error);
+    return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
+  }
+}
+
+
+/**
+ * Envía por WhatsApp el detalle de un pago existente
+ */
+export async function sendPagoWhatsapp(
+  id: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    if (!id) return { success: false, error: "ID del pago es requerido" };
+
+    const pago = await prisma.pago.findFirst({
+      where: await tenantWhere<Prisma.PagoWhereInput>({ id }),
+      include: {
+        recibo: { select: { numero: true } },
+        ordenCobro: {
+          include: {
+            paciente: { select: { nombre: true, apellido: true, telefono: true } },
+          },
+        },
+      },
+    });
+
+    if (!pago) return { success: false, error: "Pago no encontrado en la clínica" };
+    const paciente = pago.ordenCobro?.paciente;
+    if (!paciente?.telefono) {
+      return { success: false, error: "El paciente no tiene teléfono registrado para WhatsApp." };
+    }
+
+    return sendTenantWhatsappTextMessage({
+      to: paciente.telefono,
+      body: [
+        `Hola ${paciente.nombre} ${paciente.apellido}.`,
+        "Te confirmamos el registro de tu pago:",
+        `Fecha: ${formatWhatsappDate(new Date(pago.fechaPago))}`,
+        `Monto: ${formatWhatsappMoney(Number(pago.monto))}`,
+        `Método: ${getMetodoPagoLabel(pago.metodo)}`,
+        pago.referencia ? `Referencia: ${pago.referencia}` : null,
+        pago.recibo?.numero ? `Recibo: ${pago.recibo.numero}` : null,
+        pago.ordenCobro?.concepto ? `Concepto: ${pago.ordenCobro.concepto}` : null,
+        pago.comentario ? `Comentario: ${pago.comentario}` : null,
+      ].filter(Boolean).join("\n"),
+    });
+  } catch (error) {
+    console.error(`Error al enviar pago por WhatsApp ${id}:`, error);
     return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
   }
 }
