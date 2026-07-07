@@ -63,6 +63,7 @@ function summarizeWebhookPayload(payload: MetaWebhookPayload) {
 }
 
 export async function verifyMetaWhatsappWebhook(request: Request) {
+  console.log("DEBUG verify token env:", JSON.stringify(getVerifyToken()));
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get("hub.mode");
   const token = searchParams.get("hub.verify_token")?.trim();
