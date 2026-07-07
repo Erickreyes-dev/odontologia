@@ -21,7 +21,7 @@ type MetaWebhookPayload = {
 };
 
 function getVerifyToken() {
-  return process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || "";
+  return (process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || "").trim();
 }
 
 function getAppSecret() {
@@ -65,14 +65,32 @@ function summarizeWebhookPayload(payload: MetaWebhookPayload) {
 export async function verifyMetaWhatsappWebhook(request: Request) {
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get("hub.mode");
-  const token = searchParams.get("hub.verify_token");
+  const token = searchParams.get("hub.verify_token")?.trim();
   const challenge = searchParams.get("hub.challenge");
+  const verifyToken = getVerifyToken();
 
-  if (mode === "subscribe" && token && token === getVerifyToken() && challenge) {
-    return new NextResponse(challenge, { status: 200 });
+  if (mode === "subscribe" && token && token === verifyToken && challenge) {
+    return new NextResponse(challenge, {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   }
 
-  return NextResponse.json({ error: "Webhook de Meta no verificado." }, { status: 403 });
+  return NextResponse.json(
+    {
+      error: "Webhook de Meta no verificado.",
+      reason: !verifyToken
+        ? "missing_verify_token_env"
+        : mode !== "subscribe"
+          ? "invalid_mode"
+          : !token
+            ? "missing_hub_verify_token"
+            : token !== verifyToken
+              ? "verify_token_mismatch"
+              : "missing_hub_challenge",
+    },
+    { status: 403 }
+  );
 }
 
 export async function receiveMetaWhatsappWebhook(request: Request) {
