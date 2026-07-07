@@ -92,10 +92,35 @@ jobs:
           script: |
             cd /var/www/odontologia
 
+            cat > .env <<EOF
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            META_APP_ID=${{ secrets.META_APP_ID }}
+            META_APP_SECRET=${{ secrets.META_APP_SECRET }}
+            META_GRAPH_VERSION=${{ secrets.META_GRAPH_VERSION }}
+            NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
+            NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+            NEXT_PUBLIC_META_APP_ID=${{ secrets.NEXT_PUBLIC_META_APP_ID }}
+            NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID=${{ secrets.NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID }}
+            PAYPAL_CLIENT_ID=${{ secrets.PAYPAL_CLIENT_ID }}
+            PAYPAL_MODE=${{ secrets.PAYPAL_MODE }}
+            PAYPAL_SECRET=${{ secrets.PAYPAL_SECRET }}
+            ROOT_DOMAIN=${{ secrets.ROOT_DOMAIN }}
+            ROOT_NOTIFICATION_EMAIL=${{ secrets.ROOT_NOTIFICATION_EMAIL }}
+            SMTP_HOST=${{ secrets.SMTP_HOST }}
+            SMTP_PORT=${{ secrets.SMTP_PORT }}
+            SMTP_SECURE=${{ secrets.SMTP_SECURE }}
+            SMTP_USER=${{ secrets.SMTP_USER }}
+            SMTP_PASS=${{ secrets.SMTP_PASS }}
+            META_WEBHOOK_VERIFY_TOKEN=${{ secrets.META_WEBHOOK_VERIFY_TOKEN }}
+            WHATSAPP_WEBHOOK_VERIFY_TOKEN=${{ secrets.WHATSAPP_WEBHOOK_VERIFY_TOKEN }}
+            EOF
+
             npm ci --omit=dev
-
             npx prisma generate
-
             npx prisma migrate deploy
-
             pm2 reload odontologia --update-env
