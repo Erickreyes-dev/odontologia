@@ -11,6 +11,7 @@ import { EmailService } from "@/lib/sendEmail";
 import { generateCotizacionEmailHtml } from "@/lib/templates/clinical-notifications";
 import { getTenantEmailBranding } from "@/lib/tenant-branding";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
+import { formatWhatsappDate, formatWhatsappMoney, sendTenantWhatsappTextMessage } from "@/lib/tenant-whatsapp";
 
 /**
  * Obtiene todas las cotizaciones
@@ -451,6 +452,56 @@ export async function sendCotizacionEmail(
     return { success: true };
   } catch (error) {
     console.error(`Error al enviar cotización por email ${id}:`, error);
+    return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
+  }
+}
+
+
+/**
+ * Envía una cotización por WhatsApp desde la tabla de acciones
+ */
+export async function sendCotizacionWhatsapp(
+  id: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    if (!id) return { success: false, error: "ID de la cotización es requerido" };
+
+    const cotizacion = await prisma.cotizacion.findFirst({
+      where: await tenantWhere<Prisma.CotizacionWhereInput>({ id }),
+      include: {
+        paciente: { select: { nombre: true, apellido: true, telefono: true } },
+        detalles: { include: { servicio: { select: { nombre: true } } } },
+      },
+    });
+
+    if (!cotizacion) return { success: false, error: "Cotización no encontrada en la clínica" };
+    if (!cotizacion.paciente?.telefono) {
+      return { success: false, error: "El paciente no tiene teléfono registrado para WhatsApp." };
+    }
+
+    const servicios = cotizacion.detalles
+      .slice(0, 8)
+      .map((detalle) => `• ${detalle.servicio.nombre} x${detalle.cantidad}`);
+    const serviciosResumen = [
+      ...servicios,
+      cotizacion.detalles.length > 8 ? `• Y ${cotizacion.detalles.length - 8} servicio(s) adicional(es)` : null,
+    ].filter(Boolean);
+
+    return sendTenantWhatsappTextMessage({
+      to: cotizacion.paciente.telefono,
+      body: [
+        `Hola ${cotizacion.paciente.nombre} ${cotizacion.paciente.apellido}.`,
+        "Te compartimos tu cotización dental:",
+        `Fecha: ${formatWhatsappDate(new Date(cotizacion.fecha))}`,
+        `Estado: ${cotizacion.estado}`,
+        `Total: ${formatWhatsappMoney(Number(cotizacion.total))}`,
+        serviciosResumen.length ? "Servicios:" : null,
+        ...serviciosResumen,
+        cotizacion.observacion ? `Observación: ${cotizacion.observacion}` : null,
+      ].filter(Boolean).join("\n"),
+    });
+  } catch (error) {
+    console.error(`Error al enviar cotización por WhatsApp ${id}:`, error);
     return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
   }
 }

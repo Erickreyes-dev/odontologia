@@ -152,3 +152,44 @@ META_WEBHOOK_VERIFY_TOKEN=un_token_largo_generado_por_ti
 3. Meta abre Embedded Signup para que el tenant inicie sesión, seleccione o cree su negocio, WABA y número.
 4. Medisoft Core recibe el resultado, consulta Graph API y guarda la conexión del tenant en `WhatsappConnection`.
 5. Los envíos futuros deben usar el `phoneNumberId` guardado para ese tenant y un token válido autorizado para ese negocio/número.
+
+### Guía de revisión de Meta para permisos de WhatsApp
+
+Para el flujo multi-tenant de Medisoft Core, la app usa WhatsApp Business Platform para que cada clínica conecte su propio Business Portfolio/WABA/número mediante Embedded Signup y luego pueda enviar comunicaciones transaccionales a sus pacientes desde el sistema.
+
+#### Permisos usados directamente por la aplicación
+
+- `whatsapp_business_management`: necesario para completar Embedded Signup, consultar el número conectado (`phoneNumberId`) y guardar la conexión del tenant.
+- `whatsapp_business_messaging`: necesario para enviar mensajes transaccionales desde el número conectado del tenant, por ejemplo mensajes de prueba, datos de citas, cotizaciones y comprobantes de pago.
+
+Video sugerido para App Review:
+
+1. Iniciar sesión como administrador de una clínica en Medisoft Core.
+2. Ir a `/whatsapp` y mostrar el botón **Conectar WhatsApp**.
+3. Abrir Embedded Signup, seleccionar negocio/WABA/número y mostrar el estado conectado.
+4. Enviar un **Mensaje de prueba** desde `/whatsapp`.
+5. Ir a **Citas** y usar **Enviar por WhatsApp** en una cita.
+6. Ir a **Cotizaciones** y usar **Enviar por WhatsApp** en una cotización.
+7. Ir a **Pagos** y usar **Enviar por WhatsApp** en un pago.
+
+Descripción sugerida para `whatsapp_business_messaging`:
+
+> Medisoft Core usa este permiso para enviar mensajes transaccionales solicitados por la clínica desde el número de WhatsApp Business conectado por cada tenant. Los mensajes incluyen pruebas de conexión, información de citas, cotizaciones dentales y confirmaciones de pagos. Estos mensajes ayudan a que los pacientes reciban información operativa de su atención odontológica directamente desde la clínica. La app no usa este permiso para spam ni para envíos no solicitados.
+
+Descripción sugerida para `whatsapp_business_management`:
+
+> Medisoft Core usa este permiso para completar el Embedded Signup de WhatsApp Business Platform, consultar los datos del número conectado por el tenant y guardar `businessAccountId`, `wabaId` y `phoneNumberId` por clínica. Esto permite que cada clínica administre su propia conexión de WhatsApp sin copiar credenciales manualmente y que los mensajes se envíen desde el número autorizado del tenant.
+
+#### Permisos de proveedor tecnológico
+
+Si Meta solicita `manage_app_solution`, úsalo únicamente si Medisoft Core está aplicando como Tech Provider/Solution Partner para administrar soluciones de socios entre proveedores tecnológicos y socios de soluciones. Si el permiso es aprobado, Medisoft Core lo usará para listar y administrar las soluciones/apps asociadas al onboarding de WhatsApp de clientes y para completar los flujos requeridos por Meta para proveedores tecnológicos. No se debe solicitar si no se está completando el proceso de Tech Provider.
+
+Descripción sugerida para `manage_app_solution`:
+
+> Medisoft Core solicita este permiso para soportar el flujo de proveedor tecnológico de Meta requerido para que clínicas externas conecten sus propias cuentas de WhatsApp Business a través de Embedded Signup. El permiso se usa para administrar la solución de partner asociada a la app de Medisoft Core, validar las apps/soluciones que el negocio puede administrar y completar los pasos de onboarding requeridos por Meta para operar WhatsApp Business Platform para tenants. La información recibida se usa únicamente para configurar y mantener la integración de WhatsApp de las clínicas dentro de Medisoft Core.
+
+Si Meta solicita `whatsapp_business_manage_events`, solicítalo solo si vas a registrar eventos de conversión/actividad en nombre de las WABA administradas. El flujo actual de mensajería transaccional de Medisoft Core no requiere registrar eventos de compras, carritos o leads para optimización publicitaria; si no se implementa esa medición, no conviene solicitarlo.
+
+Descripción sugerida solo si se implementa medición de eventos:
+
+> Medisoft Core usará este permiso para registrar eventos operativos autorizados de la clínica relacionados con interacciones de WhatsApp Business, como confirmaciones de citas, generación de cotizaciones o pagos confirmados, cuando la clínica habilite explícitamente la medición. Estos eventos permitirán a la clínica analizar la efectividad de sus comunicaciones y mejorar reportes agregados. La app no enviará datos sensibles de salud ni información clínica detallada en eventos de anuncios; solo registrará eventos mínimos, agregados o no sensibles conforme a las políticas de Meta.

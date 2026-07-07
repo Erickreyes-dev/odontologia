@@ -19,7 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Cotizacion } from "../schema";
-import { sendCotizacionEmail } from "../actions";
+import { sendCotizacionEmail, sendCotizacionWhatsapp } from "../actions";
 
 const getEstadoBadge = (estado: string) => {
   switch (estado) {
@@ -164,6 +164,22 @@ function ActionsCell({ cotizacion }: { cotizacion: Cotizacion }) {
     });
   };
 
+  const handleSendWhatsapp = async () => {
+    if (!cotizacion.id) return;
+
+    const result = await sendCotizacionWhatsapp(cotizacion.id);
+    if (result.success) {
+      toast.success("Cotización enviada", {
+        description: "La cotización fue enviada por WhatsApp al paciente.",
+      });
+      return;
+    }
+
+    toast.error("No se pudo enviar WhatsApp", {
+      description: result.error,
+    });
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -175,6 +191,7 @@ function ActionsCell({ cotizacion }: { cotizacion: Cotizacion }) {
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
         <DropdownMenuItem onClick={handleSendEmail}>Enviar por email</DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSendWhatsapp}>Enviar por WhatsApp</DropdownMenuItem>
         <Link href={`/cotizaciones/${cotizacion.id}/edit`}>
           <DropdownMenuItem>Editar</DropdownMenuItem>
         </Link>
