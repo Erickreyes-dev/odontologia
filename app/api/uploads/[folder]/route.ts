@@ -31,6 +31,7 @@ export async function POST(
     // 1. Validar autenticación
     const session = await getSession();
 
+
     
     if (!session || !session.TenantSlug) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
