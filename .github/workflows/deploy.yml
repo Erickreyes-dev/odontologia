@@ -185,7 +185,7 @@ jobs:
 
             echo "Estado migraciones..."
 
-            npx prisma migrate status
+            npx prisma migrate status || true
 
 
             echo "Ejecutando migraciones..."
