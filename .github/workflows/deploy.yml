@@ -7,25 +7,30 @@ on:
 
 jobs:
   build-and-deploy:
+
     runs-on: ubuntu-latest
 
     steps:
+
       # Descargar código
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Instalar Node.js
+
+      # Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
-      # Instalar dependencias
+
+      # Instalar dependencias para compilar
       - name: Install dependencies
         run: npm ci
 
-      # Crear .env para el build
+
+      # Crear variables de entorno para build
       - name: Create .env
         run: |
           cat > .env <<EOF
@@ -58,77 +63,139 @@ jobs:
           SMTP_PORT=${{ secrets.SMTP_PORT }}
           SMTP_SECURE=${{ secrets.SMTP_SECURE }}
           SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+
           META_WEBHOOK_VERIFY_TOKEN=${{ secrets.META_WEBHOOK_VERIFY_TOKEN }}
           WHATSAPP_WEBHOOK_VERIFY_TOKEN=${{ secrets.WHATSAPP_WEBHOOK_VERIFY_TOKEN }}
+
           META_SYSTEM_USER_ACCESS_TOKEN=${{ secrets.META_SYSTEM_USER_ACCESS_TOKEN }}
+
           NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID=${{ secrets.NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID }}
-          SMTP_PASS=${{ secrets.SMTP_PASS }}
           EOF
+
 
       # Generar Prisma Client
       - name: Prisma Generate
         run: npx prisma generate
 
-      # Compilar Next.js
+
+      # Build Next.js
       - name: Build Next.js
         run: npm run build
 
-      # Subir archivos al servidor
-      - name: Deploy files
+
+      # Dejar solamente dependencias necesarias para producción
+      - name: Install production dependencies
+        run: |
+          rm -rf node_modules
+          npm ci --omit=dev
+
+
+      # Crear release
+      - name: Create deployment package
+        run: |
+          tar -czf odontologia-release.tar.gz \
+          .next \
+          public \
+          node_modules \
+          package.json \
+          package-lock.json \
+          prisma
+
+
+      # Subir release al EC2
+      - name: Upload release
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: ".next,public,package.json,package-lock.json,prisma"
+          source: "odontologia-release.tar.gz"
           target: "/var/www/odontologia"
 
-      # Ejecutar deploy en EC2
-      - name: Restart application
+
+      # Deploy final en servidor
+      - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
+
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+
           script: |
+
             set -euo pipefail
-            
+
             cd /var/www/odontologia
+
+
+            echo "Extrayendo release..."
+
+            tar -xzf odontologia-release.tar.gz
+
+
+            echo "Creando variables de entorno..."
 
             cat > .env <<EOF
             AWS_REGION=${{ secrets.AWS_REGION }}
             AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+
             DATABASE_URL=${{ secrets.DATABASE_URL }}
+
             EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+
             GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+
             META_APP_ID=${{ secrets.META_APP_ID }}
             META_APP_SECRET=${{ secrets.META_APP_SECRET }}
             META_GRAPH_VERSION=${{ secrets.META_GRAPH_VERSION }}
+
             NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
+
             NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
             NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
             NEXT_PUBLIC_META_APP_ID=${{ secrets.NEXT_PUBLIC_META_APP_ID }}
             NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID=${{ secrets.NEXT_PUBLIC_META_WHATSAPP_CONFIG_ID }}
+
             META_SYSTEM_USER_ACCESS_TOKEN=${{ secrets.META_SYSTEM_USER_ACCESS_TOKEN }}
+
             PAYPAL_CLIENT_ID=${{ secrets.PAYPAL_CLIENT_ID }}
             PAYPAL_MODE=${{ secrets.PAYPAL_MODE }}
             PAYPAL_SECRET=${{ secrets.PAYPAL_SECRET }}
+
             ROOT_DOMAIN=${{ secrets.ROOT_DOMAIN }}
             ROOT_NOTIFICATION_EMAIL=${{ secrets.ROOT_NOTIFICATION_EMAIL }}
+
             SMTP_HOST=${{ secrets.SMTP_HOST }}
             SMTP_PORT=${{ secrets.SMTP_PORT }}
             SMTP_SECURE=${{ secrets.SMTP_SECURE }}
             SMTP_USER=${{ secrets.SMTP_USER }}
             SMTP_PASS=${{ secrets.SMTP_PASS }}
+
             META_WEBHOOK_VERIFY_TOKEN=${{ secrets.META_WEBHOOK_VERIFY_TOKEN }}
             WHATSAPP_WEBHOOK_VERIFY_TOKEN=${{ secrets.WHATSAPP_WEBHOOK_VERIFY_TOKEN }}
             EOF
-            echo "Installing dependencies..."
-            npm ci
-            echo "Prisma version:"
-            npx prisma generate
-            echo "Running migrations..."
+
+
+            echo "Version Prisma..."
+
+            npx prisma --version
+
+
+            echo "Estado migraciones..."
+
+            npx prisma migrate status
+
+
+            echo "Ejecutando migraciones..."
+
             npx prisma migrate deploy
-            echo "Reloading PM2..."
+
+
+            echo "Reiniciando aplicación..."
+
             pm2 reload odontologia --update-env
-            echo "Deployment completed successfully."
+
+
+            echo "Deploy completado correctamente."
