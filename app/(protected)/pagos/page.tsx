@@ -89,6 +89,7 @@ export default async function PagosPage({
         defaultPacienteId={pacienteIdFromUrl}
         clinicInfo={clinicInfo}
         cuotasPendientes={cuotasPendientes}
+        canEditPago={permisos.includes("editar_pago")}
       />
     </div>
   );

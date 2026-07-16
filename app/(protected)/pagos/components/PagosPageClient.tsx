@@ -5,13 +5,14 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CalendarClock, CreditCard, DollarSign } from "lucide-react";
+import { format } from "date-fns";
 import { DataTable } from "./data-table";
 import { FinanciamientoCard } from "./FinanciamientoCard";
 import { PagosListMobile } from "./pagos-list-mobile";
 import { PagoFormModal } from "./PagoFormModal";
 import { FinanciamientoFormModal } from "./FinanciamientoFormModal";
 import { getColumns } from "./columns";
-import { getReciboByPagoId, revertPago } from "../actions";
+import { getReciboByPagoId, revertPago, updatePagoFecha } from "../actions";
 import { toast } from "sonner";
 import type { PagoWithRelations } from "../schema";
 import type { FinanciamientoDetalle } from "../schema";
@@ -19,6 +20,8 @@ import type { OrdenCobroWithRelations } from "@/app/(protected)/ordenes-cobro/sc
 import { generateReciboPDF } from "@/lib/pdf/recibo-pdf";
 import { useTenantCurrency } from "@/hooks/use-tenant-currency";
 import { formatMoneyAmount } from "@/lib/currency-format";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 interface PagosPageClientProps {
   pagos: PagoWithRelations[];
@@ -52,6 +55,7 @@ interface PagosPageClientProps {
     cuotasPendientes: { id: string; numero: number; monto: number; fechaVencimiento: Date }[];
     totalPendiente: number;
   }[];
+  canEditPago: boolean;
 }
 
 export function PagosPageClient({
@@ -64,10 +68,13 @@ export function PagosPageClient({
   defaultPacienteId,
   clinicInfo,
   cuotasPendientes,
+  canEditPago,
 }: PagosPageClientProps) {
   const router = useRouter();
   const [pagoModalOpen, setPagoModalOpen] = useState(false);
   const [finModalOpen, setFinModalOpen] = useState(false);
+  const [pagoParaEditar, setPagoParaEditar] = useState<PagoWithRelations | null>(null);
+  const [fechaPago, setFechaPago] = useState("");
   const currency = useTenantCurrency();
 
   useEffect(() => {
@@ -97,7 +104,29 @@ export function PagosPageClient({
     toast.success("Recibo generado en PDF");
   };
 
-  const columns = getColumns({ onRevertPago: handleRevert, onDownloadRecibo: handleDownloadRecibo, currency });
+  const handleEditFecha = (pago: PagoWithRelations) => {
+    setPagoParaEditar(pago);
+    setFechaPago(format(new Date(pago.fechaPago), "yyyy-MM-dd"));
+  };
+
+  const handleSaveFecha = async () => {
+    if (!pagoParaEditar || !fechaPago) return;
+    const result = await updatePagoFecha({ pagoId: pagoParaEditar.id, fechaPago: new Date(`${fechaPago}T12:00:00`) });
+    if (result.success) {
+      toast.success("Fecha de pago actualizada");
+      setPagoParaEditar(null);
+      router.refresh();
+    } else {
+      toast.error(result.error);
+    }
+  };
+
+  const columns = getColumns({
+    onRevertPago: handleRevert,
+    onDownloadRecibo: handleDownloadRecibo,
+    onEditFecha: canEditPago ? handleEditFecha : undefined,
+    currency,
+  });
 
   const refresh = () => router.refresh();
 
@@ -182,7 +211,11 @@ export function PagosPageClient({
       <div className="md:hidden space-y-6">
         <section>
           <h2 className="text-lg font-semibold mb-3">Pagos Recientes</h2>
-          <PagosListMobile pagos={pagos} onDownloadRecibo={handleDownloadRecibo} />
+          <PagosListMobile
+            pagos={pagos}
+            onDownloadRecibo={handleDownloadRecibo}
+            onEditFecha={canEditPago ? handleEditFecha : undefined}
+          />
         </section>
 
         <section>
@@ -237,6 +270,19 @@ export function PagosPageClient({
         planes={planes}
         onSuccess={refresh}
       />
+
+      <Dialog open={Boolean(pagoParaEditar)} onOpenChange={(open) => !open && setPagoParaEditar(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar fecha de pago</DialogTitle>
+          </DialogHeader>
+          <Input type="date" value={fechaPago} onChange={(event) => setFechaPago(event.target.value)} />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPagoParaEditar(null)}>Cancelar</Button>
+            <Button type="button" onClick={handleSaveFecha} disabled={!fechaPago}>Guardar fecha</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
