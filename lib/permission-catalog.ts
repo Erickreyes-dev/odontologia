@@ -51,6 +51,7 @@ export const TENANT_PERMISSIONS: PermissionSeed[] = [
   { nombre: "editar_planes_tratamiento", descripcion: "Permiso para editar planes de tratamiento" },
   { nombre: "ver_pagos", descripcion: "Permiso para ver pagos y financiamientos" },
   { nombre: "crear_pagos", descripcion: "Permiso para registrar pagos" },
+  { nombre: "editar_pago", descripcion: "Permiso para editar la fecha de los pagos" },
   { nombre: "crear_financiamiento", descripcion: "Permiso para crear financiamientos" },
   { nombre: "ver_inventario", descripcion: "Permiso para ver inventario de productos" },
   { nombre: "crear_inventario", descripcion: "Permiso para crear inventario" },

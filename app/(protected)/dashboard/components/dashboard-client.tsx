@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { format, startOfDay, endOfDay, subDays, subMonths, subYears } from "date-fns";
+import { format, startOfDay, endOfDay, startOfMonth, subDays, subMonths, subYears } from "date-fns";
 import { es } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 import { CalendarIcon, Download, UsersRound } from "lucide-react";
@@ -25,6 +25,9 @@ import {
 import { Cell, Legend, Pie, PieChart } from "recharts";
 import { PagosUltimos12MesesChart } from "./pagos-ultimos-12-meses-chart";
 import { ProyeccionVentasRadialChart } from "./proyeccion-ventas-radial-chart";
+import { PacientesPorConsultaUltimos12MesesChart } from "./pacientes-por-consulta-ultimos-12-meses-chart";
+
+type AgeRange = "0-17" | "18-30" | "31-45" | "46-60" | "61+";
 
 type DashboardData = {
   pacientes: {
@@ -36,6 +39,8 @@ type DashboardData = {
   }[];
   consultas: {
     fecha: string;
+    pacienteId: string;
+    pacienteFechaNacimiento: string | null;
     servicios: number;
     detalleServicios: {
       nombre: string;
@@ -63,9 +68,10 @@ const pieChartConfig = {
 
 export function DashboardClient({ data }: { data: DashboardData }) {
   const [range, setRange] = useState<DateRange | undefined>(() => ({
-    from: startOfDay(subMonths(new Date(), 1)),
+    from: startOfDay(startOfMonth(new Date())),
     to: endOfDay(new Date()),
   }));
+  const [selectedAgeRange, setSelectedAgeRange] = useState<AgeRange | null>(null);
   const currency = useTenantCurrency();
   const isMobile = useIsMobile();
 
@@ -143,8 +149,29 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     return Object.entries(rangos).map(([name, cantidad]) => ({ name, cantidad }));
   }, [data.pacientes]);
 
+  const consultasPorEdadSeleccionada = useMemo(() => {
+    if (!selectedAgeRange) return consultasFiltradas;
+
+    return consultasFiltradas.filter((consulta) => {
+      if (!consulta.pacienteFechaNacimiento) return false;
+      const birth = new Date(consulta.pacienteFechaNacimiento);
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age -= 1;
+
+      return (
+        (selectedAgeRange === "0-17" && age >= 0 && age <= 17) ||
+        (selectedAgeRange === "18-30" && age >= 18 && age <= 30) ||
+        (selectedAgeRange === "31-45" && age >= 31 && age <= 45) ||
+        (selectedAgeRange === "46-60" && age >= 46 && age <= 60) ||
+        (selectedAgeRange === "61+" && age >= 61)
+      );
+    });
+  }, [consultasFiltradas, selectedAgeRange]);
+
   const serviciosPieData = useMemo(() => {
-    const map = consultasFiltradas.reduce<Record<string, number>>((acc, consulta) => {
+    const map = consultasPorEdadSeleccionada.reduce<Record<string, number>>((acc, consulta) => {
       consulta.detalleServicios.forEach((detalle) => {
         acc[detalle.nombre] = (acc[detalle.nombre] ?? 0) + detalle.cantidad;
       });
@@ -155,7 +182,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       .map(([name, cantidad]) => ({ name, cantidad }))
       .sort((a, b) => b.cantidad - a.cantidad)
       .slice(0, 5);
-  }, [consultasFiltradas]);
+  }, [consultasPorEdadSeleccionada]);
 
   const direcciones = data.pacientes.filter((p) => Boolean(p.direccion?.trim())).length;
 
@@ -266,6 +293,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         <Card>
           <CardHeader>
             <CardTitle>Distribución de edades</CardTitle>
+            <p className="text-sm text-muted-foreground">Selecciona un rango para filtrar los servicios realizados.</p>
           </CardHeader>
           <CardContent>
             <ChartContainer config={pieChartConfig} className="h-[260px] w-full">
@@ -273,7 +301,13 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Pie data={edadesPieData} dataKey="cantidad" nameKey="name" outerRadius={90} label>
                   {edadesPieData.map((entry, index) => (
-                    <Cell key={entry.name} fill={`hsl(var(--chart-${(index % 5) + 1}))`} />
+                    <Cell
+                      key={entry.name}
+                      fill={`hsl(var(--chart-${(index % 5) + 1}))`}
+                      className="cursor-pointer"
+                      opacity={!selectedAgeRange || selectedAgeRange === entry.name ? 1 : 0.35}
+                      onClick={() => setSelectedAgeRange((current) => current === entry.name ? null : entry.name as AgeRange)}
+                    />
                   ))}
                 </Pie>
                 <Legend layout="vertical" align="right" verticalAlign="middle" />
@@ -284,7 +318,12 @@ export function DashboardClient({ data }: { data: DashboardData }) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Servicios más realizados</CardTitle>
+            <CardTitle>Servicios más realizados{selectedAgeRange ? ` (${selectedAgeRange} años)` : ""}</CardTitle>
+            {selectedAgeRange && (
+              <Button type="button" variant="ghost" size="sm" className="w-fit px-0" onClick={() => setSelectedAgeRange(null)}>
+                Quitar filtro de edad
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             <ChartContainer config={pieChartConfig} className="h-[260px] w-full">
@@ -310,6 +349,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         </Card>
 
         <PagosUltimos12MesesChart data={data.pagos} />
+        <PacientesPorConsultaUltimos12MesesChart data={data.consultas} />
         <ProyeccionVentasRadialChart data={data.pagos} />
       </div>
 

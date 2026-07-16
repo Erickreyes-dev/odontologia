@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Download, MoreHorizontal, RotateCcw } from "lucide-react";
+import { Calendar, Download, MoreHorizontal, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -24,11 +24,12 @@ import { formatMoneyAmount, type TenantCurrencyDisplay } from "@/lib/currency-fo
 type GetColumnsOptions = {
   onRevertPago?: (id: string) => void;
   onDownloadRecibo?: (id: string) => void;
+  onEditFecha?: (pago: PagoWithRelations) => void;
   currency?: TenantCurrencyDisplay;
 };
 
 export function getColumns(options?: GetColumnsOptions): ColumnDef<PagoWithRelations>[] {
-  const { onRevertPago, onDownloadRecibo, currency = { symbol: "L", currency: "HNL", locale: "es-HN" } } = options ?? {};
+  const { onRevertPago, onDownloadRecibo, onEditFecha, currency = { symbol: "L", currency: "HNL", locale: "es-HN" } } = options ?? {};
 
 const getMetodoLabel = (metodo: string) =>
   METODOS_PAGO.find((m) => m.value === metodo)?.label ?? metodo;
@@ -115,6 +116,7 @@ const getEstadoBadge = (estado: string) => {
           pago={pago}
           onDownloadRecibo={onDownloadRecibo}
           onRevertPago={onRevertPago}
+          onEditFecha={onEditFecha}
         />
       );
     },
@@ -126,10 +128,12 @@ function ActionsCell({
   pago,
   onRevertPago,
   onDownloadRecibo,
+  onEditFecha,
 }: {
   pago: PagoWithRelations;
   onRevertPago?: (id: string) => void;
   onDownloadRecibo?: (id: string) => void;
+  onEditFecha?: (pago: PagoWithRelations) => void;
 }) {
   const router = useRouter();
 
@@ -174,6 +178,12 @@ function ActionsCell({
         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
         <DropdownMenuItem onClick={handleSendEmail}>Enviar por email</DropdownMenuItem>
         <DropdownMenuItem onClick={handleSendWhatsapp}>Enviar por WhatsApp</DropdownMenuItem>
+        {onEditFecha && (
+          <DropdownMenuItem onClick={() => onEditFecha(pago)}>
+            <Calendar className="mr-2 h-4 w-4" />
+            Editar fecha de pago
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         {onDownloadRecibo && (
           <DropdownMenuItem

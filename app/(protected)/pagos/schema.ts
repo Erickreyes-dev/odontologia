@@ -40,6 +40,11 @@ export const CreatePagoSchema = z.object({
   cuotaId: z.string().optional().nullable(),
 });
 
+export const UpdatePagoFechaSchema = z.object({
+  pagoId: z.string().min(1, "El pago es requerido"),
+  fechaPago: z.coerce.date({ invalid_type_error: "La fecha de pago no es válida" }),
+});
+
 // Schema para crear Financiamiento
 export const CreateFinanciamientoSchema = z.object({
   pacienteId: z.string().min(1, "El paciente es requerido"),
@@ -139,6 +144,7 @@ export const FinanciamientoDetalleSchema = z.object({
 });
 
 export type CreatePagoInput = z.infer<typeof CreatePagoSchema>;
+export type UpdatePagoFechaInput = z.infer<typeof UpdatePagoFechaSchema>;
 export type CreateFinanciamientoInput = z.infer<typeof CreateFinanciamientoSchema>;
 export type PagoWithRelations = z.infer<typeof PagoWithRelationsSchema>;
 export type CuotaFinanciamiento = z.infer<typeof CuotaFinanciamientoSchema>;

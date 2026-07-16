@@ -7,13 +7,14 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PagoWithRelations } from "../schema";
 import { METODOS_PAGO, ESTADOS_PAGO } from "../schema";
-import { Download } from "lucide-react";
+import { Calendar, Download } from "lucide-react";
 import { useTenantCurrency } from "@/hooks/use-tenant-currency";
 import { formatMoneyAmount } from "@/lib/currency-format";
 
 interface PagosListMobileProps {
   pagos: PagoWithRelations[];
   onDownloadRecibo?: (pagoId: string) => void;
+  onEditFecha?: (pago: PagoWithRelations) => void;
 }
 
 const getMetodoLabel = (metodo: string) =>
@@ -41,7 +42,7 @@ const getEstadoBadge = (estado: string) => {
   }
 };
 
-export function PagosListMobile({ pagos, onDownloadRecibo }: PagosListMobileProps) {
+export function PagosListMobile({ pagos, onDownloadRecibo, onEditFecha }: PagosListMobileProps) {
   const currency = useTenantCurrency();
   if (pagos.length === 0) {
     return (
@@ -69,18 +70,22 @@ export function PagosListMobile({ pagos, onDownloadRecibo }: PagosListMobileProp
                 {getEstadoBadge(pago.estado)}
               </div>
             </div>
-            {onDownloadRecibo && (
+            {(onDownloadRecibo || onEditFecha) && (
               <div className="mt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => onDownloadRecibo(pago.id)}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Descargar recibo
-                </Button>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {onEditFecha && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => onEditFecha(pago)}>
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Editar fecha
+                    </Button>
+                  )}
+                  {onDownloadRecibo && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => onDownloadRecibo(pago.id)}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Descargar recibo
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>

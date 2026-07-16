@@ -7,6 +7,7 @@ import { addMonths } from "date-fns";
 import {
   CreateFinanciamientoSchema,
   CreatePagoSchema,
+  UpdatePagoFechaSchema,
   type CreateFinanciamientoInput,
   type CreatePagoInput,
   PagoWithRelations,
@@ -16,7 +17,7 @@ import {
 import { MetodoPago, PagoEstado, FinanciamientoEstado, ReciboTipoConcepto } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { Prisma } from "@/lib/generated/prisma";
-import { getSession } from "@/auth";
+import { getSession, getSessionPermisos } from "@/auth";
 import { EmailService } from "@/lib/sendEmail";
 import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-mailer";
 import { generatePagoEmailHtml } from "@/lib/templates/clinical-notifications";
@@ -894,6 +895,50 @@ export async function getFinanciamientosPorPaciente( pacienteId: string): Promis
   } catch (error) {
     console.error("Error al obtener financiamientos:", error);
     return [];
+  }
+}
+
+/**
+ * Actualiza la fecha de un pago y las fechas operativas vinculadas a este.
+ */
+export async function updatePagoFecha(
+  input: { pagoId: string; fechaPago: Date }
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const permisos = await getSessionPermisos();
+    if (!permisos?.includes("editar_pago")) {
+      return { success: false, error: "No tienes permiso para editar pagos." };
+    }
+
+    const { pagoId, fechaPago } = UpdatePagoFechaSchema.parse(input);
+    const pago = await prisma.pago.findFirst({
+      where: await tenantWhere<Prisma.PagoWhereInput>({ id: pagoId }),
+      select: { id: true, ordenCobroId: true, ordenCobro: { select: { pacienteId: true } } },
+    });
+
+    if (!pago) return { success: false, error: "Pago no encontrado en la clínica." };
+
+    await prisma.$transaction(async (tx) => {
+      await tx.pago.update({ where: { id: pago.id }, data: { fechaPago } });
+      await tx.ordenDeCobro.update({ where: { id: pago.ordenCobroId }, data: { fechaPago } });
+      await tx.cuotaFinanciamiento.updateMany({
+        where: await tenantWhere<Prisma.CuotaFinanciamientoWhereInput>({ pagoId: pago.id }),
+        data: { fechaPago },
+      });
+      await tx.recibo.updateMany({
+        where: await tenantWhere<Prisma.ReciboWhereInput>({ pagoId: pago.id }),
+        data: { fechaEmision: fechaPago },
+      });
+    });
+
+    revalidatePath("/pagos");
+    revalidatePath("/dashboard");
+    revalidatePath("/ordenes-cobro");
+    if (pago.ordenCobro.pacienteId) revalidatePath(`/pacientes/${pago.ordenCobro.pacienteId}/perfil`);
+    return { success: true };
+  } catch (error) {
+    console.error("Error al actualizar fecha de pago:", error);
+    return { success: false, error: error instanceof Error ? error.message : "No se pudo actualizar la fecha del pago." };
   }
 }
 

@@ -29,6 +29,12 @@ export default async function DashboardPage() {
       select: {
         fechaConsulta: true,
         createAt: true,
+        cita: {
+          select: {
+            pacienteId: true,
+            paciente: { select: { fechaNacimiento: true } },
+          },
+        },
         detalles: {
           select: {
             cantidad: true,
@@ -97,6 +103,8 @@ export default async function DashboardPage() {
         })),
         consultas: consultas.map((consulta) => ({
           fecha: (consulta.fechaConsulta ?? consulta.createAt).toISOString(),
+          pacienteId: consulta.cita.pacienteId,
+          pacienteFechaNacimiento: consulta.cita.paciente.fechaNacimiento?.toISOString() ?? null,
           servicios: consulta.detalles.reduce((acc, d) => acc + d.cantidad, 0),
           detalleServicios: consulta.detalles.map((d) => ({
             nombre: d.servicio.nombre,
