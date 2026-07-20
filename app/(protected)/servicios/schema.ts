@@ -2,6 +2,9 @@ import * as z from "zod";
 
 export const MedicoServicioSchema = z.object({
   idEmpleado: z.string().min(1, "Debe seleccionar un médico"),
+  porcentajeHonorario: z.number().min(0, "El porcentaje no puede ser negativo").max(100, "El porcentaje no puede ser mayor a 100").optional(),
+  nombre: z.string().optional(),
+  apellido: z.string().optional(),
 });
 
 export const ServicioSchema = z.object({
@@ -13,6 +16,7 @@ export const ServicioSchema = z.object({
   activo: z.boolean().optional(),
   mostrarEnLanding: z.boolean().optional(),
   mostrarPrecio: z.boolean().optional(),
+  requiereLaboratorio: z.boolean().optional(),
   medicos: z.array(MedicoServicioSchema), // Array de IDs
 });
 

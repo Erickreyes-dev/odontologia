@@ -23,6 +23,7 @@ import { buildDoctorFromAddress, resolveDoctorSenderName } from "@/lib/doctor-ma
 import { generatePagoEmailHtml } from "@/lib/templates/clinical-notifications";
 import { getTenantEmailBranding } from "@/lib/tenant-branding";
 import { formatWhatsappDate, formatWhatsappMoney, sendTenantWhatsappTextMessage } from "@/lib/tenant-whatsapp";
+import { syncIngresoFromPago } from "@/lib/accounting/sync";
 
 const CENTRAL_AMERICA_OFFSET_MS = 6 * 60 * 60 * 1000;
 
@@ -545,6 +546,8 @@ export async function createPago(
         detalles: detalleRecibo,
       });
 
+      await syncIngresoFromPago(pagoCreado.id, tx);
+
       return { ...pagoCreado, estado: estadoFinal, ordenPacienteId: orden.pacienteId };
     });
 
@@ -552,6 +555,8 @@ export async function createPago(
     if (pagoCompleto) {
       revalidatePath("/pagos");
       revalidatePath("/ordenes-cobro");
+      revalidatePath("/contabilidad/ingresos");
+      revalidatePath("/contabilidad/honorarios");
       if (pago.ordenPacienteId) {
         revalidatePath(`/pacientes/${pago.ordenPacienteId}/perfil`);
       }

@@ -30,10 +30,12 @@ export async function getServicios(): Promise<Servicio[]> {
         activo: s.activo,
         mostrarEnLanding: s.mostrarEnLanding,
         mostrarPrecio: s.mostrarPrecio,
+        requiereLaboratorio: s.requiereLaboratorio,
         medicos: s.medicosServicios.map(ms => ({
             idEmpleado: ms.medico.idEmpleado,
             nombre: ms.medico.empleado.nombre,
             apellido: ms.medico.empleado.apellido,
+            porcentajeHonorario: Number(ms.porcentajeHonorario),
         })),
     }));
 }
@@ -55,10 +57,12 @@ export async function getServicioById(id: string): Promise<Servicio | null> {
         activo: s.activo,
         mostrarEnLanding: s.mostrarEnLanding,
         mostrarPrecio: s.mostrarPrecio,
+        requiereLaboratorio: s.requiereLaboratorio,
         medicos: s.medicosServicios.map(ms => ({
             idEmpleado: ms.medico.idEmpleado,
             nombre: ms.medico.empleado.nombre,
             apellido: ms.medico.empleado.apellido,
+            porcentajeHonorario: Number(ms.porcentajeHonorario),
         })),
     };
 }
@@ -75,11 +79,13 @@ export async function postServicio(data: Servicio) {
             activo: data.activo ?? true,
             mostrarEnLanding: data.mostrarEnLanding ?? false,
             mostrarPrecio: data.mostrarPrecio ?? true,
+            requiereLaboratorio: data.requiereLaboratorio ?? false,
             // Solo incluimos medicosServicios si hay medicos
             medicosServicios: data.medicos && data.medicos.length > 0
                 ? {
                     create: data.medicos.map(m => ({
                         medicoId: m.idEmpleado,
+                        porcentajeHonorario: m.porcentajeHonorario ?? 0,
                     })),
                 }
                 : undefined,
@@ -104,9 +110,10 @@ export async function putServicio(data: Servicio) {
             activo: data.activo,
             mostrarEnLanding: data.mostrarEnLanding ?? false,
             mostrarPrecio: data.mostrarPrecio ?? true,
+            requiereLaboratorio: data.requiereLaboratorio ?? false,
             medicosServicios: {
                 deleteMany: {},
-                create: data.medicos?.map(m => ({ medicoId: m.idEmpleado })),
+                create: data.medicos?.map(m => ({ medicoId: m.idEmpleado, porcentajeHonorario: m.porcentajeHonorario ?? 0 })),
             },
         },
     });
