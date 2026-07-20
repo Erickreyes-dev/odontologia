@@ -18,7 +18,7 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import {  Boxes, Building2, Calendar, CalendarCheck, ChevronDown, ChevronUp, CreditCard, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, MessageCircle, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
+import {  Boxes, Building2, Calendar, CalendarCheck, Calculator, ChevronDown, ChevronUp, CreditCard, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, MessageCircle, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
 import Link from "next/link";
 import Image from "next/image";
 import { NavUser } from "./nav-user";
@@ -174,6 +174,12 @@ const items = [
     titleKey: "sidebar.payments",
     url: "/pagos",
     icon: DollarSign,
+    permiso: "ver_pagos",
+  },
+  {
+    titleKey: "Contabilidad",
+    url: "/contabilidad",
+    icon: Calculator,
     permiso: "ver_pagos",
   },
   {

@@ -26,7 +26,7 @@ export function FormularioServicio({
 
   const form = useForm<Servicio>({
     resolver: zodResolver(ServicioSchema),
-    defaultValues: initialData || { medicos: [], mostrarEnLanding: false, mostrarPrecio: true },
+    defaultValues: initialData || { medicos: [], mostrarEnLanding: false, mostrarPrecio: true, requiereLaboratorio: false },
   });
 
   async function onSubmit(data: Servicio) {
@@ -140,20 +140,57 @@ export function FormularioServicio({
       />
 
       <Controller
+        name="requiereLaboratorio"
+        control={form.control}
+        render={({ field }) => (
+          <Field>
+            <FieldLabel>Requiere intervención de laboratorio</FieldLabel>
+            <FieldContent>
+              <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} />
+            </FieldContent>
+          </Field>
+        )}
+      />
+
+      <Controller
         name="medicos"
         control={form.control}
         render={({ field }) => (
           <Field>
             <FieldLabel>Médicos que pueden realizar este servicio</FieldLabel>
-            <FieldContent>
+            <FieldContent className="space-y-3">
               <CheckboxMedicos
                 medicos={medicosDisponibles}
                 selectedMedicos={field.value?.map((m) => m.idEmpleado) || []}
                 onChange={(selectedIds) => {
-                  const selected = medicosDisponibles.filter((m) => selectedIds.includes(m.idEmpleado));
+                  const actuales = field.value || [];
+                  const selected = medicosDisponibles
+                    .filter((m) => selectedIds.includes(m.idEmpleado))
+                    .map((m) => ({
+                      ...m,
+                      porcentajeHonorario: actuales.find((a) => a.idEmpleado === m.idEmpleado)?.porcentajeHonorario ?? 0,
+                    }));
                   field.onChange(selected);
                 }}
               />
+              {(field.value || []).map((medico, index) => (
+                <div key={medico.idEmpleado} className="grid gap-2 rounded-md border p-3 md:grid-cols-[1fr_180px] md:items-center">
+                  <span className="text-sm font-medium">{medico.nombre} {medico.apellido}</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    value={medico.porcentajeHonorario ?? 0}
+                    onChange={(event) => {
+                      const next = [...(field.value || [])];
+                      next[index] = { ...next[index], porcentajeHonorario: Number(event.target.value) };
+                      field.onChange(next);
+                    }}
+                    placeholder="% honorario"
+                  />
+                </div>
+              ))}
             </FieldContent>
           </Field>
         )}

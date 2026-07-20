@@ -71,6 +71,13 @@ model Tenant {
   planEtapaServicios     PlanEtapaServicio[]
   seguimientos           Seguimiento[]
   pagos                  Pago[]
+  tiposIngreso           TipoIngreso[]
+  ingresos               Ingreso[]
+  honorariosMedicos      HonorarioMedico[]
+  tiposEgreso            TipoEgreso[]
+  descripcionesEgreso    DescripcionEgreso[]
+  egresos                Egreso[]
+  equiposInstrumentos    EquipoInstrumento[]
   financiamientos        Financiamiento[]
   ordenesCobro           OrdenDeCobro[]
   cuotasFinanciamiento   CuotaFinanciamiento[]
@@ -140,7 +147,6 @@ model TenantInvoice {
   @@index([paypalOrderId])
 }
 
-
 model WhatsappConnection {
   id                String    @id @default(uuid()) @db.VarChar(36)
   tenantId          String    @db.VarChar(36)
@@ -165,7 +171,6 @@ model WhatsappConnection {
   @@index([tenantId, status])
   @@index([wabaId])
 }
-
 
 model Permiso {
   id          String       @id @default(uuid())
@@ -343,6 +348,8 @@ model Paciente {
   financiamientos    Financiamiento[]
   ordenesCobro       OrdenDeCobro[]
   constanciasMedicas ConstanciaMedica[]
+  ingresos           Ingreso[]
+  honorariosMedicos  HonorarioMedico[]
   expedienteClinico  ExpedienteClinicoPaciente?
   archivos           PacienteArchivo[]
 
@@ -375,17 +382,18 @@ model Profesion {
 }
 
 model Servicio {
-  id               String   @id @default(uuid()) @db.VarChar(36)
-  tenantId         String?  @db.VarChar(36)
-  nombre           String   @db.VarChar(150)
-  descripcion      String?  @db.VarChar(255)
-  precioBase       Decimal  @db.Decimal(10, 2)
-  duracionMin      Int
-  activo           Boolean  @db.Bit(1)
-  mostrarEnLanding Boolean  @default(false) @db.Bit(1)
-  mostrarPrecio    Boolean  @default(true) @db.Bit(1)
-  createAt         DateTime @default(now())
-  updateAt         DateTime @updatedAt
+  id                  String   @id @default(uuid()) @db.VarChar(36)
+  tenantId            String?  @db.VarChar(36)
+  nombre              String   @db.VarChar(150)
+  descripcion         String?  @db.VarChar(255)
+  precioBase          Decimal  @db.Decimal(10, 2)
+  duracionMin         Int
+  activo              Boolean  @db.Bit(1)
+  mostrarEnLanding    Boolean  @default(false) @db.Bit(1)
+  mostrarPrecio       Boolean  @default(true) @db.Bit(1)
+  requiereLaboratorio Boolean  @default(false) @db.Bit(1)
+  createAt            DateTime @default(now())
+  updateAt            DateTime @updatedAt
 
   tenant              Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   medicosServicios    MedicoServicio[]
@@ -393,6 +401,9 @@ model Servicio {
   cotizacionServicios CotizacionServicio[]
   planEtapaServicios  PlanEtapaServicio[]
   promocionesServicio PromocionServicio[]
+  honorariosMedicos   HonorarioMedico[]
+  descripcionesEgreso DescripcionEgreso[]
+  egresos             Egreso[]
 
   @@unique([tenantId, nombre])
   @@index([tenantId])
@@ -419,16 +430,20 @@ model Medico {
   planTratamientos   PlanTratamiento[]
   planEtapas         PlanEtapa[]
   constanciasMedicas ConstanciaMedica[]
+  ingresos           Ingreso[]
+  honorariosMedicos  HonorarioMedico[]
 
   @@index([tenantId])
   @@map("Medicos")
 }
 
 model MedicoServicio {
-  id         String   @id @default(uuid())
-  medicoId   String   @db.VarChar(36)
-  servicioId String   @db.VarChar(36)
-  createAt   DateTime @default(now())
+  id                  String   @id @default(uuid())
+  medicoId            String   @db.VarChar(36)
+  servicioId          String   @db.VarChar(36)
+  porcentajeHonorario Decimal  @default(0) @db.Decimal(5, 2)
+  activo              Boolean  @default(true) @db.Bit(1)
+  createAt            DateTime @default(now())
 
   medico   Medico   @relation(fields: [medicoId], references: [idEmpleado])
   servicio Servicio @relation(fields: [servicioId], references: [id])
@@ -510,11 +525,13 @@ model Consulta {
   financiamiento Financiamiento? @relation(fields: [financiamientoId], references: [id])
   promocion      Promocion?      @relation(fields: [promocionId], references: [id])
 
-  detalles     ConsultaServicio[]
-  productos    ConsultaProducto[]
-  planEtapas   PlanEtapa[]
-  ordenesCobro OrdenDeCobro[]
-  archivos     ConsultaArchivo[]
+  detalles         ConsultaServicio[]
+  productos        ConsultaProducto[]
+  planEtapas       PlanEtapa[]
+  ordenesCobro     OrdenDeCobro[]
+  archivos         ConsultaArchivo[]
+  ingresos         Ingreso[]
+  honorarioMedicos HonorarioMedico[]
 
   @@index([tenantId])
   @@index([seguimientoId])
@@ -596,8 +613,10 @@ model Producto {
   createAt    DateTime     @default(now())
   updateAt    DateTime     @updatedAt
 
-  tenant             Tenant?            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  consultasProductos ConsultaProducto[]
+  tenant              Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  consultasProductos  ConsultaProducto[]
+  descripcionesEgreso DescripcionEgreso[]
+  egresos             Egreso[]
 
   @@unique([tenantId, nombre])
   @@index([tenantId])
@@ -880,6 +899,7 @@ model Pago {
   ordenCobro OrdenDeCobro          @relation(fields: [ordenCobroId], references: [id], onDelete: Cascade)
   cuotas     CuotaFinanciamiento[]
   recibo     Recibo?
+  ingreso    Ingreso?
 
   createAt DateTime @default(now())
   updateAt DateTime @updatedAt
@@ -1030,6 +1050,189 @@ model CuotaFinanciamiento {
   @@index([tenantId])
   @@index([financiamientoId])
   @@index([pagoId])
+}
+
+enum HonorarioEstado {
+  PENDIENTE
+  LIQUIDADO
+}
+
+model TipoIngreso {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  tenantId    String?  @db.VarChar(36)
+  nombre      String   @db.VarChar(100)
+  descripcion String?  @db.VarChar(255)
+  activo      Boolean  @default(true) @db.Bit(1)
+  sistema     Boolean  @default(false) @db.Bit(1)
+  createAt    DateTime @default(now())
+  updateAt    DateTime @updatedAt
+
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ingresos Ingreso[]
+
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
+}
+
+model Ingreso {
+  id            String      @id @default(uuid()) @db.VarChar(36)
+  tenantId      String?     @db.VarChar(36)
+  tipoIngresoId String      @db.VarChar(36)
+  pagoId        String?     @unique @db.VarChar(36)
+  pacienteId    String?     @db.VarChar(36)
+  medicoId      String?     @db.VarChar(36)
+  consultaId    String?     @db.VarChar(36)
+  fecha         DateTime    @default(now()) @db.DateTime(6)
+  concepto      String      @db.VarChar(255)
+  monto         Decimal     @db.Decimal(10, 2)
+  metodoPago    MetodoPago?
+  comentario    String?     @db.VarChar(255)
+  origen        String      @default("MANUAL") @db.VarChar(30)
+  editable      Boolean     @default(true) @db.Bit(1)
+  createAt      DateTime    @default(now())
+  updateAt      DateTime    @updatedAt
+
+  tenant      Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tipoIngreso TipoIngreso       @relation(fields: [tipoIngresoId], references: [id])
+  pago        Pago?             @relation(fields: [pagoId], references: [id], onDelete: SetNull)
+  paciente    Paciente?         @relation(fields: [pacienteId], references: [id])
+  medico      Medico?           @relation(fields: [medicoId], references: [idEmpleado])
+  consulta    Consulta?         @relation(fields: [consultaId], references: [id])
+  honorarios  HonorarioMedico[]
+
+  @@index([tenantId])
+  @@index([fecha])
+  @@index([tipoIngresoId])
+  @@index([pacienteId])
+  @@index([medicoId])
+  @@index([consultaId])
+}
+
+model HonorarioMedico {
+  id             String          @id @default(uuid()) @db.VarChar(36)
+  tenantId       String?         @db.VarChar(36)
+  ingresoId      String          @db.VarChar(36)
+  medicoId       String          @db.VarChar(36)
+  pacienteId     String?         @db.VarChar(36)
+  consultaId     String?         @db.VarChar(36)
+  servicioId     String?         @db.VarChar(36)
+  totalServicio  Decimal         @db.Decimal(10, 2)
+  porcentaje     Decimal         @db.Decimal(5, 2)
+  comision       Decimal         @db.Decimal(10, 2)
+  estado         HonorarioEstado @default(PENDIENTE)
+  comentario     String?         @db.VarChar(255)
+  fechaGenerado  DateTime        @default(now()) @db.DateTime(6)
+  fechaLiquidado DateTime?       @db.DateTime(6)
+  createAt       DateTime        @default(now())
+  updateAt       DateTime        @updatedAt
+
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ingreso  Ingreso   @relation(fields: [ingresoId], references: [id], onDelete: Cascade)
+  medico   Medico    @relation(fields: [medicoId], references: [idEmpleado])
+  paciente Paciente? @relation(fields: [pacienteId], references: [id])
+  consulta Consulta? @relation(fields: [consultaId], references: [id])
+  servicio Servicio? @relation(fields: [servicioId], references: [id])
+
+  @@unique([ingresoId, medicoId, servicioId])
+  @@index([tenantId])
+  @@index([medicoId])
+  @@index([estado])
+  @@index([fechaGenerado])
+}
+
+model TipoEgreso {
+  id                        String   @id @default(uuid()) @db.VarChar(36)
+  tenantId                  String?  @db.VarChar(36)
+  nombre                    String   @db.VarChar(120)
+  categoriaEstadoResultados String   @default("GASTOS_OPERACION") @db.VarChar(50)
+  activo                    Boolean  @default(true) @db.Bit(1)
+  sistema                   Boolean  @default(false) @db.Bit(1)
+  createAt                  DateTime @default(now())
+  updateAt                  DateTime @updatedAt
+
+  tenant        Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  descripciones DescripcionEgreso[]
+  egresos       Egreso[]
+
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
+}
+
+model DescripcionEgreso {
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  tenantId     String?  @db.VarChar(36)
+  tipoEgresoId String   @db.VarChar(36)
+  nombre       String   @db.VarChar(150)
+  productoId   String?  @db.VarChar(36)
+  servicioId   String?  @db.VarChar(36)
+  equipoId     String?  @db.VarChar(36)
+  activo       Boolean  @default(true) @db.Bit(1)
+  sistema      Boolean  @default(false) @db.Bit(1)
+  createAt     DateTime @default(now())
+  updateAt     DateTime @updatedAt
+
+  tenant     Tenant?            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tipoEgreso TipoEgreso         @relation(fields: [tipoEgresoId], references: [id])
+  producto   Producto?          @relation(fields: [productoId], references: [id])
+  servicio   Servicio?          @relation(fields: [servicioId], references: [id])
+  equipo     EquipoInstrumento? @relation(fields: [equipoId], references: [id])
+  egresos    Egreso[]
+
+  @@unique([tenantId, tipoEgresoId, nombre])
+  @@index([tenantId])
+  @@index([tipoEgresoId])
+}
+
+model Egreso {
+  id                  String     @id @default(uuid()) @db.VarChar(36)
+  tenantId            String?    @db.VarChar(36)
+  tipoEgresoId        String     @db.VarChar(36)
+  descripcionEgresoId String?    @db.VarChar(36)
+  descripcionManual   String?    @db.VarChar(150)
+  cantidad            Decimal    @default(1) @db.Decimal(10, 2)
+  metodoPago          MetodoPago
+  monto               Decimal    @db.Decimal(10, 2)
+  comentario          String?    @db.VarChar(255)
+  fecha               DateTime   @default(now()) @db.DateTime(6)
+  productoId          String?    @db.VarChar(36)
+  servicioId          String?    @db.VarChar(36)
+  equipoId            String?    @db.VarChar(36)
+  esAutomatico        Boolean    @default(false) @db.Bit(1)
+  referenciaTipo      String?    @db.VarChar(40)
+  referenciaId        String?    @db.VarChar(36)
+  createAt            DateTime   @default(now())
+  updateAt            DateTime   @updatedAt
+
+  tenant            Tenant?            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tipoEgreso        TipoEgreso         @relation(fields: [tipoEgresoId], references: [id])
+  descripcionEgreso DescripcionEgreso? @relation(fields: [descripcionEgresoId], references: [id])
+  producto          Producto?          @relation(fields: [productoId], references: [id])
+  servicio          Servicio?          @relation(fields: [servicioId], references: [id])
+  equipo            EquipoInstrumento? @relation(fields: [equipoId], references: [id])
+
+  @@index([tenantId])
+  @@index([fecha])
+  @@index([tipoEgresoId])
+  @@index([referenciaTipo, referenciaId])
+}
+
+model EquipoInstrumento {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  tenantId    String?  @db.VarChar(36)
+  nombre      String   @db.VarChar(150)
+  descripcion String?  @db.VarChar(255)
+  cantidad    Decimal  @default(0) @db.Decimal(10, 2)
+  costoTotal  Decimal? @db.Decimal(10, 2)
+  activo      Boolean  @default(true) @db.Bit(1)
+  createAt    DateTime @default(now())
+  updateAt    DateTime @updatedAt
+
+  tenant        Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  descripciones DescripcionEgreso[]
+  egresos       Egreso[]
+
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
 }
 
 model ExpedienteClinicoPaciente {
