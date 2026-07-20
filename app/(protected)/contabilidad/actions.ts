@@ -228,20 +228,21 @@ export async function upsertEquipoInstrumento(input: unknown) {
 export async function getEstadoResultados(year: number, month: number) {
   const from = startOfMonth(year, month);
   const to = endOfMonth(year, month);
-  const [ingresos, honorarios, egresos, pacientesAtendidos] = await Promise.all([
+  const [ingresos, egresos, pacientesAtendidos] = await Promise.all([
     prisma.ingreso.findMany({ where: await tenantWhere<Prisma.IngresoWhereInput>({ fecha: { gte: from, lte: to } }), include: { tipoIngreso: true } }),
-    prisma.honorarioMedico.findMany({ where: await tenantWhere<Prisma.HonorarioMedicoWhereInput>({ fechaGenerado: { gte: from, lte: to } }) }),
     prisma.egreso.findMany({ where: await tenantWhere<Prisma.EgresoWhereInput>({ fecha: { gte: from, lte: to } }), include: { tipoEgreso: true } }),
     prisma.consulta.count({ where: await tenantWhere<Prisma.ConsultaWhereInput>({ fechaConsulta: { gte: from, lte: to } }) }),
   ]);
   const ingresosServicios = ingresos.filter(i => i.tipoIngreso.nombre === "Servicio").reduce((a, i) => a + n(i.monto), 0);
   const otrosIngresos = ingresos.filter(i => i.tipoIngreso.nombre !== "Servicio").reduce((a, i) => a + n(i.monto), 0);
   const totalIngresos = ingresosServicios + otrosIngresos;
-  const honorariosMedicos = honorarios.reduce((a, h) => a + n(h.comision), 0);
+  const esHonorarioLiquidado = (egreso: (typeof egresos)[number]) => egreso.referenciaTipo === "HONORARIO";
+  const esCostoDirecto = (egreso: (typeof egresos)[number]) => esHonorarioLiquidado(egreso) || egreso.tipoEgreso.nombre === "Materiales Odontológicos" || egreso.tipoEgreso.nombre === "Laboratorio";
+  const honorariosMedicos = egresos.filter(esHonorarioLiquidado).reduce((a, e) => a + n(e.monto), 0);
   const materiales = egresos.filter(e => e.tipoEgreso.nombre === "Materiales Odontológicos").reduce((a, e) => a + n(e.monto), 0);
   const laboratorio = egresos.filter(e => e.tipoEgreso.nombre === "Laboratorio").reduce((a, e) => a + n(e.monto), 0);
   const costos = honorariosMedicos + materiales + laboratorio;
-  const gastosOperacion = egresos.filter(e => e.tipoEgreso.categoriaEstadoResultados === "GASTOS_OPERACION").reduce((a, e) => a + n(e.monto), 0);
+  const gastosOperacion = egresos.filter(e => !esCostoDirecto(e) && e.tipoEgreso.categoriaEstadoResultados === "GASTOS_OPERACION").reduce((a, e) => a + n(e.monto), 0);
   const gastosFinancieros = egresos.filter(e => e.tipoEgreso.categoriaEstadoResultados === "GASTOS_FINANCIEROS").reduce((a, e) => a + n(e.monto), 0);
   const utilidadBruta = totalIngresos - costos;
   const utilidadOperativa = utilidadBruta - gastosOperacion;
@@ -249,5 +250,5 @@ export async function getEstadoResultados(year: number, month: number) {
   const impuestos = Math.max(utilidadAntesImpuestos, 0) * 0.15;
   const utilidadNeta = utilidadAntesImpuestos - impuestos;
   const pct = (v: number) => totalIngresos ? (v / totalIngresos) * 100 : 0;
-  return { month, year, ingresosServicios, otrosIngresos, totalIngresos, honorariosMedicos, materiales, laboratorio, costos, utilidadBruta, gastosOperacion, utilidadOperativa, gastosFinancieros, utilidadAntesImpuestos, impuestos, utilidadNeta, pacientesAtendidos, ticketPromedio: pacientesAtendidos ? totalIngresos / pacientesAtendidos : 0, indicadores: { margenBruto: pct(utilidadBruta), margenOperativo: pct(utilidadOperativa), margenNeto: pct(utilidadNeta), costoVentas: pct(costos), indiceHonorarios: pct(honorariosMedicos), costoMateriales: pct(materiales), costoLaboratorio: pct(laboratorio), gastosOperativos: pct(gastosOperacion) }, egresosPorTipo: egresos.reduce<Record<string, number>>((acc, e) => { acc[e.tipoEgreso.nombre] = (acc[e.tipoEgreso.nombre] ?? 0) + n(e.monto); return acc; }, {}) };
+  return { month, year, ingresosServicios, otrosIngresos, totalIngresos, honorariosMedicos, materiales, laboratorio, costos, utilidadBruta, gastosOperacion, utilidadOperativa, gastosFinancieros, utilidadAntesImpuestos, impuestos, utilidadNeta, pacientesAtendidos, ticketPromedio: pacientesAtendidos ? totalIngresos / pacientesAtendidos : 0, indicadores: { margenBruto: pct(utilidadBruta), margenOperativo: pct(utilidadOperativa), margenNeto: pct(utilidadNeta), costoVentas: pct(costos), indiceHonorarios: pct(honorariosMedicos), costoMateriales: pct(materiales), costoLaboratorio: pct(laboratorio), gastosOperativos: pct(gastosOperacion) }, egresosPorTipo: egresos.filter(e => !esCostoDirecto(e)).reduce<Record<string, number>>((acc, e) => { acc[e.tipoEgreso.nombre] = (acc[e.tipoEgreso.nombre] ?? 0) + n(e.monto); return acc; }, {}) };
 }
