@@ -1,4 +1,8 @@
-import { getHonorarios, updateHonorarioEstado } from "../actions";
-import { Button } from "@/components/ui/button";
-const f=(v:unknown)=>`L ${Number(v??0).toLocaleString("es-HN",{minimumFractionDigits:2})}`;
-export default async function HonorariosPage(){const rows=await getHonorarios();return <div className="space-y-4 p-4"><h1 className="text-2xl font-bold">Honorarios médicos</h1><div className="overflow-auto rounded-lg border"><table className="w-full text-sm"><thead><tr className="bg-muted"><th className="p-2 text-left">Doctor</th><th>Paciente</th><th>Servicio</th><th>Total</th><th>%</th><th>Comisión</th><th>Estado</th><th>Comentario</th><th></th></tr></thead><tbody>{rows.map(h=><tr key={h.id} className="border-t"><td className="p-2">{h.medico.empleado.nombre} {h.medico.empleado.apellido}</td><td>{h.paciente?`${h.paciente.nombre} ${h.paciente.apellido}`:'-'}</td><td>{h.servicio?.nombre??'-'}</td><td>{f(h.totalServicio)}</td><td>{Number(h.porcentaje)}%</td><td>{f(h.comision)}</td><td>{h.estado}</td><td>{h.comentario??'-'}</td><td>{h.estado==='PENDIENTE'?<form action={async()=>{"use server";await updateHonorarioEstado({id:h.id,estado:'LIQUIDADO'})}}><Button size="sm">Liquidar</Button></form>:<form action={async()=>{"use server";await updateHonorarioEstado({id:h.id,estado:'PENDIENTE'})}}><Button size="sm" variant="outline">Pendiente</Button></form>}</td></tr>)}</tbody></table></div></div>}
+import { getHonorarios } from "../actions";
+import { HonorariosTable } from "./components/honorarios-table";
+
+export default async function HonorariosPage(){
+  const rows=await getHonorarios();
+  const data=rows.map(h=>({id:h.id,doctor:`${h.medico.empleado.nombre} ${h.medico.empleado.apellido}`,paciente:h.paciente?`${h.paciente.nombre} ${h.paciente.apellido}`:"-",servicio:h.servicio?.nombre??"-",total:Number(h.totalServicio),porcentaje:Number(h.porcentaje),comision:Number(h.comision),estado:h.estado,comentario:h.comentario??"-"}));
+  return <div className="space-y-4 p-4"><h1 className="text-2xl font-bold">Honorarios médicos</h1><HonorariosTable data={data}/></div>
+}

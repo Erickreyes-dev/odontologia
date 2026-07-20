@@ -71,6 +71,16 @@ export async function updateIngreso(id: string, input: unknown) {
   return ingreso;
 }
 
+export async function deleteIngreso(id: string) {
+  const existing = await prisma.ingreso.findFirst({ where: await tenantWhere<Prisma.IngresoWhereInput>({ id }) });
+  if (!existing) return { ok: false, message: "Ingreso no encontrado" };
+  if (!existing.editable || existing.origen !== "MANUAL") return { ok: false, message: "Solo se pueden eliminar ingresos manuales." };
+  await prisma.ingreso.delete({ where: { id } });
+  revalidatePath("/contabilidad/ingresos");
+  revalidatePath("/contabilidad/honorarios");
+  return { ok: true };
+}
+
 export async function createTipoIngreso(input: unknown) {
   const parsed = TipoIngresoSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.errors[0]?.message ?? "Datos inválidos" };
@@ -117,6 +127,8 @@ export async function updateHonorarioEstado(input: unknown) {
         await prisma.egreso.create({ data: await withTenantData({ id: randomUUID(), tipoEgresoId: tipo.id, cantidad: 1, metodoPago: "TRANSFERENCIA" as MetodoPago, monto: h.comision, comentario: data.comentario ?? "Liquidación automática de honorario médico", fecha: new Date(), esAutomatico: true, referenciaTipo: "HONORARIO", referenciaId: data.id }) });
       }
     }
+  } else {
+    await prisma.egreso.deleteMany({ where: await tenantWhere<Prisma.EgresoWhereInput>({ referenciaTipo: "HONORARIO", referenciaId: data.id }) });
   }
   revalidatePath("/contabilidad/honorarios");
   revalidatePath("/contabilidad/egresos");
@@ -156,6 +168,27 @@ export async function createEgreso(input: unknown) {
   });
   revalidatePath("/contabilidad/egresos");
   return { ok: true, egreso };
+}
+
+export async function updateEgreso(id: string, input: unknown) {
+  const parsed = EgresoSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.errors[0]?.message ?? "Datos inválidos" };
+  const existing = await prisma.egreso.findFirst({ where: await tenantWhere<Prisma.EgresoWhereInput>({ id }) });
+  if (!existing) return { ok: false, message: "Egreso no encontrado" };
+  if (existing.esAutomatico) return { ok: false, message: "Los egresos automáticos se modifican desde su origen." };
+  const data = parsed.data;
+  await prisma.egreso.update({ where: { id }, data: { ...data, metodoPago: data.metodoPago as MetodoPago, descripcionEgresoId: data.descripcionEgresoId ?? null, productoId: data.productoId ?? null, servicioId: data.servicioId ?? null, equipoId: data.equipoId ?? null } });
+  revalidatePath("/contabilidad/egresos");
+  return { ok: true };
+}
+
+export async function deleteEgreso(id: string) {
+  const existing = await prisma.egreso.findFirst({ where: await tenantWhere<Prisma.EgresoWhereInput>({ id }) });
+  if (!existing) return { ok: false, message: "Egreso no encontrado" };
+  if (existing.esAutomatico) return { ok: false, message: "Los egresos automáticos se quitan desde su origen." };
+  await prisma.egreso.delete({ where: { id } });
+  revalidatePath("/contabilidad/egresos");
+  return { ok: true };
 }
 
 export async function createTipoEgreso(input: unknown) {
