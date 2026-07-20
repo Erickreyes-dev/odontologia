@@ -1,4 +1,12 @@
 import { getAccountingCatalogs, getEgresos } from "../actions";
 import { EgresoForm } from "./components/egreso-form";
-const f=(v:unknown)=>`L ${Number(v??0).toLocaleString("es-HN",{minimumFractionDigits:2})}`;
-export default async function EgresosPage(){const [rows,c]=await Promise.all([getEgresos(),getAccountingCatalogs()]);const catalogs={tiposEgreso:c.tiposEgreso.map(t=>({id:t.id,nombre:t.nombre,descripciones:t.descripciones.map(d=>({id:d.id,nombre:d.nombre}))})),productos:c.productos.map(p=>({id:p.id,nombre:p.nombre})),serviciosLaboratorio:c.serviciosLaboratorio.map(s=>({id:s.id,nombre:s.nombre})),equipos:c.equipos.map(e=>({id:e.id,nombre:e.nombre}))};return <div className="space-y-4 p-4"><h1 className="text-2xl font-bold">Egresos</h1><EgresoForm catalogs={catalogs}/><div className="overflow-auto rounded-lg border"><table className="w-full text-sm"><thead><tr className="bg-muted"><th className="p-2 text-left">Fecha</th><th>Tipo</th><th>Descripción</th><th>Cantidad</th><th>Método</th><th>Monto</th><th>Comentario</th></tr></thead><tbody>{rows.map(e=><tr key={e.id} className="border-t"><td className="p-2">{e.fecha.toLocaleDateString()}</td><td>{e.tipoEgreso.nombre}</td><td>{e.descripcionEgreso?.nombre??e.producto?.nombre??e.servicio?.nombre??e.equipo?.nombre??e.descripcionManual??'-'}</td><td>{Number(e.cantidad)}</td><td>{e.metodoPago}</td><td>{f(e.monto)}</td><td>{e.comentario??'-'}</td></tr>)}</tbody></table></div></div>}
+import { EgresosTable } from "./components/egresos-table";
+
+const dateInput = (d: Date) => d.toISOString().slice(0, 10);
+
+export default async function EgresosPage(){
+  const [rows,c]=await Promise.all([getEgresos(),getAccountingCatalogs()]);
+  const catalogs={tiposEgreso:c.tiposEgreso.map(t=>({id:t.id,nombre:t.nombre,descripciones:t.descripciones.map(d=>({id:d.id,nombre:d.nombre}))})),productos:c.productos.map(p=>({id:p.id,nombre:p.nombre})),serviciosLaboratorio:c.serviciosLaboratorio.map(s=>({id:s.id,nombre:s.nombre})),equipos:c.equipos.map(e=>({id:e.id,nombre:e.nombre}))};
+  const data=rows.map(e=>({id:e.id,fecha:dateInput(e.fecha),tipoEgresoId:e.tipoEgresoId,tipo:e.tipoEgreso.nombre,descripcion:e.descripcionEgreso?.nombre??e.producto?.nombre??e.servicio?.nombre??e.equipo?.nombre??e.descripcionManual??"-",descripcionEgresoId:e.descripcionEgresoId,descripcionManual:e.descripcionManual,productoId:e.productoId,servicioId:e.servicioId,equipoId:e.equipoId,cantidad:Number(e.cantidad),metodoPago:e.metodoPago,monto:Number(e.monto),comentario:e.comentario??"",esAutomatico:e.esAutomatico}));
+  return <div className="space-y-4 p-4"><h1 className="text-2xl font-bold">Egresos</h1><EgresoForm catalogs={catalogs}/><EgresosTable data={data} catalogs={catalogs}/></div>
+}

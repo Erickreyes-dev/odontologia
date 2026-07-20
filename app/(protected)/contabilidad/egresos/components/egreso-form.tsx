@@ -6,14 +6,14 @@ import { createEgreso } from "../../actions";
 
 type Tipo = { id: string; nombre: string; descripciones?: { id: string; nombre: string }[] };
 type Option = { id: string; nombre: string };
-type Catalogs = { tiposEgreso: Tipo[]; productos: Option[]; serviciosLaboratorio: Option[]; equipos: Option[] };
+export type Catalogs = { tiposEgreso: Tipo[]; productos: Option[]; serviciosLaboratorio: Option[]; equipos: Option[] };
 
 const specialTypes = ["Materiales Odontológicos", "Laboratorio", "Equipos e Instrumentos"];
 
-export function EgresoForm({ catalogs }: { catalogs: Catalogs }) {
-  const [tipoId, setTipoId] = useState("");
-  const [selectedId, setSelectedId] = useState("");
-  const [manual, setManual] = useState("");
+export function EgresoForm({ catalogs, initialData, submitLabel = "Agregar", action = createEgreso }: { catalogs: Catalogs; initialData?: { tipoEgresoId:string; descripcionEgresoId?:string|null; descripcionManual?:string|null; productoId?:string|null; servicioId?:string|null; equipoId?:string|null; cantidad:number; metodoPago:string; monto:number; fecha:string; comentario:string }; submitLabel?: string; action?: (payload: unknown) => Promise<{ ok: boolean; message?: string }> }) {
+  const [tipoId, setTipoId] = useState(initialData?.tipoEgresoId ?? "");
+  const [selectedId, setSelectedId] = useState(initialData?.productoId ?? initialData?.servicioId ?? initialData?.equipoId ?? initialData?.descripcionEgresoId ?? "");
+  const [manual, setManual] = useState(initialData?.descripcionManual ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -52,7 +52,7 @@ export function EgresoForm({ catalogs }: { catalogs: Catalogs }) {
 
     setError(null);
     startTransition(async () => {
-      const result = await createEgreso(payload);
+      const result = await action(payload);
       if (!result.ok) setError(result.message ?? "No se pudo guardar");
     });
   }
@@ -70,12 +70,12 @@ export function EgresoForm({ catalogs }: { catalogs: Catalogs }) {
         </select>
       ) : null}
       <input name="descripcionManual" value={manual} onChange={(e) => setManual(e.target.value)} placeholder={isSpecial ? "O agregar nueva descripción" : "Descripción"} className="rounded-md border p-2" />
-      <input name="cantidad" required type="number" min="0.01" step="0.01" defaultValue="1" className="rounded-md border p-2" />
-      <select name="metodoPago" required className="rounded-md border p-2"><option value="">Método</option><option value="EFECTIVO">Efectivo</option><option value="TARJETA">Tarjeta</option><option value="TRANSFERENCIA">Transferencia</option><option value="SEGURO">Seguro</option><option value="OTRO">Otro</option></select>
-      <input name="monto" required type="number" min="0.01" step="0.01" placeholder="Monto" className="rounded-md border p-2" />
-      <input name="fecha" required type="date" className="rounded-md border p-2" defaultValue={new Date().toISOString().slice(0, 10)} />
-      <input name="comentario" placeholder="Comentario" className="rounded-md border p-2" />
-      <Button disabled={isPending}>{isPending ? "Guardando..." : "Agregar"}</Button>
+      <input name="cantidad" required type="number" min="0.01" step="0.01" defaultValue={initialData?.cantidad ?? "1"} className="rounded-md border p-2" />
+      <select name="metodoPago" required className="rounded-md border p-2" defaultValue={initialData?.metodoPago ?? ""}><option value="">Método</option><option value="EFECTIVO">Efectivo</option><option value="TARJETA">Tarjeta</option><option value="TRANSFERENCIA">Transferencia</option><option value="SEGURO">Seguro</option><option value="OTRO">Otro</option></select>
+      <input name="monto" required type="number" min="0.01" step="0.01" placeholder="Monto" className="rounded-md border p-2" defaultValue={initialData?.monto ?? ""} />
+      <input name="fecha" required type="date" className="rounded-md border p-2" defaultValue={initialData?.fecha ?? new Date().toISOString().slice(0, 10)} />
+      <input name="comentario" placeholder="Comentario" className="rounded-md border p-2" defaultValue={initialData?.comentario ?? ""} />
+      <Button disabled={isPending}>{isPending ? "Guardando..." : submitLabel}</Button>
       {error ? <p className="md:col-span-4 xl:col-span-8 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">{error}</p> : null}
     </form>
   );

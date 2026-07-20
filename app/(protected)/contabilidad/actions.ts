@@ -71,6 +71,16 @@ export async function updateIngreso(id: string, input: unknown) {
   return ingreso;
 }
 
+export async function deleteIngreso(id: string) {
+  const existing = await prisma.ingreso.findFirst({ where: await tenantWhere<Prisma.IngresoWhereInput>({ id }) });
+  if (!existing) return { ok: false, message: "Ingreso no encontrado" };
+  if (!existing.editable || existing.origen !== "MANUAL") return { ok: false, message: "Solo se pueden eliminar ingresos manuales." };
+  await prisma.ingreso.delete({ where: { id } });
+  revalidatePath("/contabilidad/ingresos");
+  revalidatePath("/contabilidad/honorarios");
+  return { ok: true };
+}
+
 export async function createTipoIngreso(input: unknown) {
   const parsed = TipoIngresoSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.errors[0]?.message ?? "Datos inválidos" };
@@ -117,6 +127,8 @@ export async function updateHonorarioEstado(input: unknown) {
         await prisma.egreso.create({ data: await withTenantData({ id: randomUUID(), tipoEgresoId: tipo.id, cantidad: 1, metodoPago: "TRANSFERENCIA" as MetodoPago, monto: h.comision, comentario: data.comentario ?? "Liquidación automática de honorario médico", fecha: new Date(), esAutomatico: true, referenciaTipo: "HONORARIO", referenciaId: data.id }) });
       }
     }
+  } else {
+    await prisma.egreso.deleteMany({ where: await tenantWhere<Prisma.EgresoWhereInput>({ referenciaTipo: "HONORARIO", referenciaId: data.id }) });
   }
   revalidatePath("/contabilidad/honorarios");
   revalidatePath("/contabilidad/egresos");
@@ -158,6 +170,27 @@ export async function createEgreso(input: unknown) {
   return { ok: true, egreso };
 }
 
+export async function updateEgreso(id: string, input: unknown) {
+  const parsed = EgresoSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.errors[0]?.message ?? "Datos inválidos" };
+  const existing = await prisma.egreso.findFirst({ where: await tenantWhere<Prisma.EgresoWhereInput>({ id }) });
+  if (!existing) return { ok: false, message: "Egreso no encontrado" };
+  if (existing.esAutomatico) return { ok: false, message: "Los egresos automáticos se modifican desde su origen." };
+  const data = parsed.data;
+  await prisma.egreso.update({ where: { id }, data: { ...data, metodoPago: data.metodoPago as MetodoPago, descripcionEgresoId: data.descripcionEgresoId ?? null, productoId: data.productoId ?? null, servicioId: data.servicioId ?? null, equipoId: data.equipoId ?? null } });
+  revalidatePath("/contabilidad/egresos");
+  return { ok: true };
+}
+
+export async function deleteEgreso(id: string) {
+  const existing = await prisma.egreso.findFirst({ where: await tenantWhere<Prisma.EgresoWhereInput>({ id }) });
+  if (!existing) return { ok: false, message: "Egreso no encontrado" };
+  if (existing.esAutomatico) return { ok: false, message: "Los egresos automáticos se quitan desde su origen." };
+  await prisma.egreso.delete({ where: { id } });
+  revalidatePath("/contabilidad/egresos");
+  return { ok: true };
+}
+
 export async function createTipoEgreso(input: unknown) {
   const parsed = TipoEgresoSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.errors[0]?.message ?? "Datos inválidos" };
@@ -195,20 +228,21 @@ export async function upsertEquipoInstrumento(input: unknown) {
 export async function getEstadoResultados(year: number, month: number) {
   const from = startOfMonth(year, month);
   const to = endOfMonth(year, month);
-  const [ingresos, honorarios, egresos, pacientesAtendidos] = await Promise.all([
+  const [ingresos, egresos, pacientesAtendidos] = await Promise.all([
     prisma.ingreso.findMany({ where: await tenantWhere<Prisma.IngresoWhereInput>({ fecha: { gte: from, lte: to } }), include: { tipoIngreso: true } }),
-    prisma.honorarioMedico.findMany({ where: await tenantWhere<Prisma.HonorarioMedicoWhereInput>({ fechaGenerado: { gte: from, lte: to } }) }),
     prisma.egreso.findMany({ where: await tenantWhere<Prisma.EgresoWhereInput>({ fecha: { gte: from, lte: to } }), include: { tipoEgreso: true } }),
     prisma.consulta.count({ where: await tenantWhere<Prisma.ConsultaWhereInput>({ fechaConsulta: { gte: from, lte: to } }) }),
   ]);
   const ingresosServicios = ingresos.filter(i => i.tipoIngreso.nombre === "Servicio").reduce((a, i) => a + n(i.monto), 0);
   const otrosIngresos = ingresos.filter(i => i.tipoIngreso.nombre !== "Servicio").reduce((a, i) => a + n(i.monto), 0);
   const totalIngresos = ingresosServicios + otrosIngresos;
-  const honorariosMedicos = honorarios.reduce((a, h) => a + n(h.comision), 0);
+  const esHonorarioLiquidado = (egreso: (typeof egresos)[number]) => egreso.referenciaTipo === "HONORARIO";
+  const esCostoDirecto = (egreso: (typeof egresos)[number]) => esHonorarioLiquidado(egreso) || egreso.tipoEgreso.nombre === "Materiales Odontológicos" || egreso.tipoEgreso.nombre === "Laboratorio";
+  const honorariosMedicos = egresos.filter(esHonorarioLiquidado).reduce((a, e) => a + n(e.monto), 0);
   const materiales = egresos.filter(e => e.tipoEgreso.nombre === "Materiales Odontológicos").reduce((a, e) => a + n(e.monto), 0);
   const laboratorio = egresos.filter(e => e.tipoEgreso.nombre === "Laboratorio").reduce((a, e) => a + n(e.monto), 0);
   const costos = honorariosMedicos + materiales + laboratorio;
-  const gastosOperacion = egresos.filter(e => e.tipoEgreso.categoriaEstadoResultados === "GASTOS_OPERACION").reduce((a, e) => a + n(e.monto), 0);
+  const gastosOperacion = egresos.filter(e => !esCostoDirecto(e) && e.tipoEgreso.categoriaEstadoResultados === "GASTOS_OPERACION").reduce((a, e) => a + n(e.monto), 0);
   const gastosFinancieros = egresos.filter(e => e.tipoEgreso.categoriaEstadoResultados === "GASTOS_FINANCIEROS").reduce((a, e) => a + n(e.monto), 0);
   const utilidadBruta = totalIngresos - costos;
   const utilidadOperativa = utilidadBruta - gastosOperacion;
@@ -216,5 +250,5 @@ export async function getEstadoResultados(year: number, month: number) {
   const impuestos = Math.max(utilidadAntesImpuestos, 0) * 0.15;
   const utilidadNeta = utilidadAntesImpuestos - impuestos;
   const pct = (v: number) => totalIngresos ? (v / totalIngresos) * 100 : 0;
-  return { month, year, ingresosServicios, otrosIngresos, totalIngresos, honorariosMedicos, materiales, laboratorio, costos, utilidadBruta, gastosOperacion, utilidadOperativa, gastosFinancieros, utilidadAntesImpuestos, impuestos, utilidadNeta, pacientesAtendidos, ticketPromedio: pacientesAtendidos ? totalIngresos / pacientesAtendidos : 0, indicadores: { margenBruto: pct(utilidadBruta), margenOperativo: pct(utilidadOperativa), margenNeto: pct(utilidadNeta), costoVentas: pct(costos), indiceHonorarios: pct(honorariosMedicos), costoMateriales: pct(materiales), costoLaboratorio: pct(laboratorio), gastosOperativos: pct(gastosOperacion) }, egresosPorTipo: egresos.reduce<Record<string, number>>((acc, e) => { acc[e.tipoEgreso.nombre] = (acc[e.tipoEgreso.nombre] ?? 0) + n(e.monto); return acc; }, {}) };
+  return { month, year, ingresosServicios, otrosIngresos, totalIngresos, honorariosMedicos, materiales, laboratorio, costos, utilidadBruta, gastosOperacion, utilidadOperativa, gastosFinancieros, utilidadAntesImpuestos, impuestos, utilidadNeta, pacientesAtendidos, ticketPromedio: pacientesAtendidos ? totalIngresos / pacientesAtendidos : 0, indicadores: { margenBruto: pct(utilidadBruta), margenOperativo: pct(utilidadOperativa), margenNeto: pct(utilidadNeta), costoVentas: pct(costos), indiceHonorarios: pct(honorariosMedicos), costoMateriales: pct(materiales), costoLaboratorio: pct(laboratorio), gastosOperativos: pct(gastosOperacion) }, egresosPorTipo: egresos.filter(e => !esCostoDirecto(e)).reduce<Record<string, number>>((acc, e) => { acc[e.tipoEgreso.nombre] = (acc[e.tipoEgreso.nombre] ?? 0) + n(e.monto); return acc; }, {}) };
 }
