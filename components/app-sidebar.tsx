@@ -180,7 +180,7 @@ const items = [
     titleKey: "Contabilidad",
     url: "/contabilidad",
     icon: Calculator,
-    permiso: "ver_pagos",
+    permiso: "ver_contabilidad",
   },
   {
     titleKey: "sidebar.paymentOrders",

@@ -51,11 +51,13 @@ export async function syncIngresosFromPagos() {
 }
 
 export async function createIngresoManual(input: unknown) {
-  const data = IngresoSchema.parse(input);
+  const parsed = IngresoSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.errors[0]?.message ?? "Datos inválidos" };
+  const data = parsed.data;
   const ingreso = await prisma.ingreso.create({ data: await withTenantData({ id: randomUUID(), ...data, metodoPago: data.metodoPago as MetodoPago | null, origen: "MANUAL", editable: true }) });
   await regenerateHonorariosForIngreso(ingreso.id);
   revalidatePath("/contabilidad/ingresos");
-  return ingreso;
+  return { ok: true, ingreso };
 }
 
 export async function updateIngreso(id: string, input: unknown) {
@@ -70,10 +72,13 @@ export async function updateIngreso(id: string, input: unknown) {
 }
 
 export async function createTipoIngreso(input: unknown) {
-  const data = TipoIngresoSchema.parse(input);
-  const tipo = await prisma.tipoIngreso.create({ data: await withTenantData({ id: randomUUID(), ...data, activo: true }) });
+  const parsed = TipoIngresoSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.errors[0]?.message ?? "Datos inválidos" };
+  const data = parsed.data;
+  const { tenantId } = await getTenantContext();
+  const tipo = await prisma.tipoIngreso.upsert({ where: { tenantId_nombre: { tenantId, nombre: data.nombre } }, update: { descripcion: data.descripcion, activo: true }, create: { id: randomUUID(), tenantId, ...data, activo: true } });
   revalidatePath("/contabilidad/catalogos");
-  return tipo;
+  return { ok: true, tipo };
 }
 
 export async function getHonorarios() {
@@ -94,24 +99,28 @@ export async function updateHonorario(id: string, input: unknown) {
 }
 
 export async function updateHonorarioEstado(input: unknown) {
-  const data = HonorarioEstadoSchema.parse(input);
+  const parsed = HonorarioEstadoSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.errors[0]?.message ?? "Datos inválidos" };
+  const data = parsed.data;
   const h = await prisma.honorarioMedico.findFirst({ where: await tenantWhere<Prisma.HonorarioMedicoWhereInput>({ id: data.id }) });
-  if (!h) throw new Error("Honorario no encontrado");
+  if (!h) return { ok: false, message: "Honorario no encontrado" };
   await prisma.honorarioMedico.update({ where: { id: data.id }, data: { estado: data.estado, comentario: data.comentario, fechaLiquidado: data.estado === "LIQUIDADO" ? new Date() : null } });
   if (data.estado === "LIQUIDADO") {
     const { tenantId } = await getTenantContext();
     const { tiposEgreso } = await ensureAccountingCatalogs(tenantId);
     const tipo = tiposEgreso.find((t) => t.nombre === "Nómina") ?? tiposEgreso[0];
     if (tipo) {
-      await prisma.egreso.upsert({
-        where: { id: `hon-${data.id}` },
-        update: { monto: h.comision, comentario: data.comentario, fecha: new Date() },
-        create: await withTenantData({ id: `hon-${data.id}`, tipoEgresoId: tipo.id, cantidad: 1, metodoPago: "TRANSFERENCIA" as MetodoPago, monto: h.comision, comentario: data.comentario ?? "Liquidación automática de honorario médico", fecha: new Date(), esAutomatico: true, referenciaTipo: "HONORARIO", referenciaId: data.id }),
-      });
+      const egresoExistente = await prisma.egreso.findFirst({ where: await tenantWhere<Prisma.EgresoWhereInput>({ referenciaTipo: "HONORARIO", referenciaId: data.id }) });
+      if (egresoExistente) {
+        await prisma.egreso.update({ where: { id: egresoExistente.id }, data: { monto: h.comision, comentario: data.comentario, fecha: new Date() } });
+      } else {
+        await prisma.egreso.create({ data: await withTenantData({ id: randomUUID(), tipoEgresoId: tipo.id, cantidad: 1, metodoPago: "TRANSFERENCIA" as MetodoPago, monto: h.comision, comentario: data.comentario ?? "Liquidación automática de honorario médico", fecha: new Date(), esAutomatico: true, referenciaTipo: "HONORARIO", referenciaId: data.id }) });
+      }
     }
   }
   revalidatePath("/contabilidad/honorarios");
   revalidatePath("/contabilidad/egresos");
+  return { ok: true };
 }
 
 export async function getEgresos() {
@@ -119,42 +128,54 @@ export async function getEgresos() {
 }
 
 export async function createEgreso(input: unknown) {
-  const data = EgresoSchema.parse(input);
+  const parsed = EgresoSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.errors[0]?.message ?? "Datos inválidos" };
+  const data = parsed.data;
   const egreso = await prisma.$transaction(async (tx) => {
     let descripcionEgresoId = data.descripcionEgresoId ?? null;
     const productoId = data.productoId ?? null;
     const servicioId = data.servicioId ?? null;
-    let equipoId = data.equipoId ?? null;
+    const equipoId = data.equipoId ?? null;
     const tipo = await tx.tipoEgreso.findFirst({ where: await tenantWhere<Prisma.TipoEgresoWhereInput>({ id: data.tipoEgresoId }) });
     if (!tipo) throw new Error("Tipo de egreso no válido");
+    let productoInventarioId = productoId;
     if (!descripcionEgresoId && data.descripcionManual) {
-      let equipo = null;
-      if (tipo.nombre === "Equipos e Instrumentos") {
-        equipo = await tx.equipoInstrumento.upsert({ where: { tenantId_nombre: { tenantId: tipo.tenantId!, nombre: data.descripcionManual } }, update: { cantidad: { increment: data.cantidad }, costoTotal: { increment: data.monto } }, create: { id: randomUUID(), tenantId: tipo.tenantId, nombre: data.descripcionManual, cantidad: data.cantidad, costoTotal: data.monto, activo: true } });
-        equipoId = equipo.id;
+      if (tipo.nombre === "Materiales Odontológicos" || tipo.nombre === "Equipos e Instrumentos") {
+        const producto = await tx.producto.upsert({
+          where: { tenantId_nombre: { tenantId: tipo.tenantId!, nombre: data.descripcionManual } },
+          update: { stock: { increment: Math.trunc(data.cantidad) }, activo: true },
+          create: { id: randomUUID(), tenantId: tipo.tenantId, nombre: data.descripcionManual, descripcion: data.comentario, tipo: "CONSUMIBLE", unidad: "unidad", stock: Math.trunc(data.cantidad), stockMinimo: 0, activo: true },
+        });
+        productoInventarioId = producto.id;
       }
-      const desc = await tx.descripcionEgreso.create({ data: { id: randomUUID(), tenantId: tipo.tenantId, tipoEgresoId: tipo.id, nombre: data.descripcionManual, equipoId, activo: true } });
+      const desc = await tx.descripcionEgreso.upsert({ where: { tenantId_tipoEgresoId_nombre: { tenantId: tipo.tenantId!, tipoEgresoId: tipo.id, nombre: data.descripcionManual } }, update: { productoId: productoInventarioId, servicioId, equipoId, activo: true }, create: { id: randomUUID(), tenantId: tipo.tenantId, tipoEgresoId: tipo.id, nombre: data.descripcionManual, productoId: productoInventarioId, servicioId, equipoId, activo: true } });
       descripcionEgresoId = desc.id;
     }
-    if (tipo.nombre === "Materiales Odontológicos" && productoId) await tx.producto.update({ where: { id: productoId }, data: { stock: { increment: Math.trunc(data.cantidad) } } });
-    return tx.egreso.create({ data: await withTenantData({ id: randomUUID(), ...data, metodoPago: data.metodoPago as MetodoPago, descripcionEgresoId, productoId, servicioId, equipoId }) });
+    if ((tipo.nombre === "Materiales Odontológicos" || tipo.nombre === "Equipos e Instrumentos") && productoInventarioId && !data.descripcionManual) await tx.producto.update({ where: { id: productoInventarioId }, data: { stock: { increment: Math.trunc(data.cantidad) } } });
+    return tx.egreso.create({ data: await withTenantData({ id: randomUUID(), ...data, metodoPago: data.metodoPago as MetodoPago, descripcionEgresoId, productoId: productoInventarioId, servicioId, equipoId: null }) });
   });
   revalidatePath("/contabilidad/egresos");
-  return egreso;
+  return { ok: true, egreso };
 }
 
 export async function createTipoEgreso(input: unknown) {
-  const data = TipoEgresoSchema.parse(input);
-  const tipo = await prisma.tipoEgreso.create({ data: await withTenantData({ id: randomUUID(), ...data, activo: true }) });
+  const parsed = TipoEgresoSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.errors[0]?.message ?? "Datos inválidos" };
+  const data = parsed.data;
+  const { tenantId } = await getTenantContext();
+  const tipo = await prisma.tipoEgreso.upsert({ where: { tenantId_nombre: { tenantId, nombre: data.nombre } }, update: { categoriaEstadoResultados: data.categoriaEstadoResultados, activo: true }, create: { id: randomUUID(), tenantId, ...data, activo: true } });
   revalidatePath("/contabilidad/catalogos");
-  return tipo;
+  return { ok: true, tipo };
 }
 
 export async function createDescripcionEgreso(input: unknown) {
-  const data = DescripcionEgresoSchema.parse(input);
-  const desc = await prisma.descripcionEgreso.create({ data: await withTenantData({ id: randomUUID(), ...data, activo: true }) });
+  const parsed = DescripcionEgresoSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.errors[0]?.message ?? "Datos inválidos" };
+  const data = parsed.data;
+  const { tenantId } = await getTenantContext();
+  const desc = await prisma.descripcionEgreso.upsert({ where: { tenantId_tipoEgresoId_nombre: { tenantId, tipoEgresoId: data.tipoEgresoId, nombre: data.nombre } }, update: { activo: true }, create: { id: randomUUID(), tenantId, ...data, activo: true } });
   revalidatePath("/contabilidad/catalogos");
-  return desc;
+  return { ok: true, desc };
 }
 
 export async function getEquiposInstrumentos() {

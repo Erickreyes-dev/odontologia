@@ -56,6 +56,22 @@ export const TENANT_PERMISSIONS: PermissionSeed[] = [
   { nombre: "ver_inventario", descripcion: "Permiso para ver inventario de productos" },
   { nombre: "crear_inventario", descripcion: "Permiso para crear inventario" },
   { nombre: "editar_inventario", descripcion: "Permiso para editar inventario" },
+  { nombre: "ver_contabilidad", descripcion: "Permiso para ver el módulo de contabilidad" },
+  { nombre: "ver_dashboard_financiero", descripcion: "Permiso para ver el dashboard financiero" },
+  { nombre: "ver_ingresos", descripcion: "Permiso para ver ingresos contables" },
+  { nombre: "crear_ingresos", descripcion: "Permiso para crear ingresos contables" },
+  { nombre: "editar_ingresos", descripcion: "Permiso para editar ingresos contables" },
+  { nombre: "ver_honorarios", descripcion: "Permiso para ver honorarios médicos" },
+  { nombre: "editar_honorarios", descripcion: "Permiso para editar honorarios médicos" },
+  { nombre: "liquidar_honorarios", descripcion: "Permiso para liquidar honorarios médicos" },
+  { nombre: "ver_egresos", descripcion: "Permiso para ver egresos contables" },
+  { nombre: "crear_egresos", descripcion: "Permiso para crear egresos contables" },
+  { nombre: "editar_egresos", descripcion: "Permiso para editar egresos contables" },
+  { nombre: "ver_estado_resultados", descripcion: "Permiso para ver el estado de resultados" },
+  { nombre: "ver_catalogos_contables", descripcion: "Permiso para ver catálogos contables" },
+  { nombre: "editar_catalogos_contables", descripcion: "Permiso para editar catálogos contables" },
+  { nombre: "ver_equipos_instrumentos", descripcion: "Permiso para ver equipos e instrumentos" },
+  { nombre: "editar_equipos_instrumentos", descripcion: "Permiso para editar equipos e instrumentos" },
 ];
 
 export const PLATFORM_PERMISSIONS: PermissionSeed[] = [
