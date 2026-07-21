@@ -94,7 +94,7 @@ export async function createTipoIngreso(input: unknown) {
 export async function getHonorarios() {
   return prisma.honorarioMedico.findMany({
     where: await tenantWhere<Prisma.HonorarioMedicoWhereInput>(),
-    include: { medico: { include: { empleado: true } }, paciente: true, consulta: true, servicio: true, ingreso: true },
+    include: { medico: { include: { empleado: true } }, paciente: true, consulta: true, servicio: true, ingreso: { include: { pago: true } } },
     orderBy: { fechaGenerado: "desc" },
   });
 }

@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DataTable } from "../../components/data-table";
 import { updateHonorarioEstado } from "../../actions";
 
-export type HonorarioRow = { id:string; fecha:string; fechaLiquidado:string; doctor:string; paciente:string; servicio:string; total:number; porcentaje:number; comision:number; estado:string; comentario:string };
+export type HonorarioRow = { id:string; fecha:string; fechaLiquidado:string; fechaPago:string; doctor:string; paciente:string; servicio:string; total:number; porcentaje:number; comision:number; estado:string; comentario:string };
 const f=(v:number)=>`L ${Number(v??0).toLocaleString("es-HN",{minimumFractionDigits:2})}`;
 
 function EstadoButton({ row }: { row: HonorarioRow }) {
@@ -51,6 +51,7 @@ export function HonorariosTable({ data }: { data: HonorarioRow[] }) {
   const columns:ColumnDef<HonorarioRow>[]=[
     {accessorKey:"fecha",header:"Fecha generado"},
     {accessorKey:"fechaLiquidado",header:"Fecha liquidado"},
+    {accessorKey:"fechaPago",header:"Fecha pago"},
     {accessorKey:"doctor",header:"Doctor"},
     {accessorKey:"paciente",header:"Paciente"},
     {accessorKey:"servicio",header:"Servicio"},
