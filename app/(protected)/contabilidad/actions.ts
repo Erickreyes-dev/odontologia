@@ -222,7 +222,7 @@ export async function createDescripcionEgreso(input: unknown) {
 }
 
 export async function getEquiposInstrumentos() {
-  return prisma.equipoInstrumento.findMany({ where: await tenantWhere<Prisma.EquipoInstrumentoWhereInput>(), orderBy: { nombre: "asc" } });
+  return prisma.equipoInstrumento.findMany({ where: await tenantWhere<Prisma.EquipoInstrumentoWhereInput>(), orderBy: { createAt: "desc" } });
 }
 
 export async function upsertEquipoInstrumento(input: unknown) {

@@ -13,7 +13,7 @@ type Equipo = {
   activo?: boolean;
 };
 
-export function EquipoInstrumentoForm({ initialData, submitLabel = "Agregar" }: { initialData?: Equipo; submitLabel?: string }) {
+export function EquipoInstrumentoForm({ initialData, submitLabel = "Agregar", onSaved }: { initialData?: Equipo; submitLabel?: string; onSaved?: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -33,6 +33,7 @@ export function EquipoInstrumentoForm({ initialData, submitLabel = "Agregar" }: 
     startTransition(async () => {
       try {
         await upsertEquipoInstrumento({ id: initialData?.id, nombre, descripcion: descripcion || null, cantidad, costoTotal, activo: initialData?.activo ?? true });
+        onSaved?.();
       } catch (error) {
         setError(error instanceof Error ? error.message : "No se pudo guardar el equipo o instrumento.");
       }
