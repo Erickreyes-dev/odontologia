@@ -69,6 +69,16 @@ export function getColumns(options?: GetColumnsOptions): ColumnDef<OrdenCobroWit
       cell: ({ row }) => `L. ${Number(row.getValue("monto")).toFixed(2)}`,
     },
     {
+      accessorKey: "montoAbonado",
+      header: "Abonado",
+      cell: ({ row }) => `L. ${Number(row.original.montoAbonado ?? 0).toFixed(2)}`,
+    },
+    {
+      accessorKey: "saldoPendiente",
+      header: "Saldo",
+      cell: ({ row }) => `L. ${Number(row.original.saldoPendiente ?? row.original.monto).toFixed(2)}`,
+    },
+    {
       accessorKey: "estado",
       header: "Estado",
       cell: ({ row }) => getEstadoBadge(row.getValue("estado") as string),
