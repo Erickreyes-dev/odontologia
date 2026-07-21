@@ -28,7 +28,7 @@ export async function regenerateHonorariosForIngreso(ingresoId: string, tx: Pris
     const totalServicio = money(detalle.precioAplicado) * detalle.cantidad;
     const comision = totalServicio * (porcentaje / 100);
 
-    await tx.honorarioMedico.upsert({
+    const honorario = await tx.honorarioMedico.upsert({
       where: { ingresoId_medicoId_servicioId: { ingresoId: ingreso.id, medicoId, servicioId: detalle.servicioId } },
       update: { totalServicio, porcentaje, comision, pacienteId: ingreso.pacienteId, consultaId: ingreso.consultaId },
       create: {
@@ -36,6 +36,11 @@ export async function regenerateHonorariosForIngreso(ingresoId: string, tx: Pris
         pacienteId: ingreso.pacienteId, consultaId: ingreso.consultaId, servicioId: detalle.servicioId,
         totalServicio, porcentaje, comision, estado: "PENDIENTE",
       },
+    });
+
+    await tx.egreso.updateMany({
+      where: { tenantId: ingreso.tenantId, referenciaTipo: "HONORARIO", referenciaId: honorario.id },
+      data: { monto: comision },
     });
   }
 }
