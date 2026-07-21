@@ -176,19 +176,22 @@ export function FormularioServicio({
               {(field.value || []).map((medico, index) => (
                 <div key={medico.idEmpleado} className="grid gap-2 rounded-md border p-3 md:grid-cols-[1fr_180px] md:items-center">
                   <span className="text-sm font-medium">{medico.nombre} {medico.apellido}</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="0.01"
-                    value={medico.porcentajeHonorario ?? 0}
-                    onChange={(event) => {
-                      const next = [...(field.value || [])];
-                      next[index] = { ...next[index], porcentajeHonorario: Number(event.target.value) };
-                      field.onChange(next);
-                    }}
-                    placeholder="% honorario"
-                  />
+                  <label className="space-y-1 text-sm">
+                    <span className="text-muted-foreground">Porcentaje de honorario (%)</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.01"
+                      value={medico.porcentajeHonorario ?? 0}
+                      onChange={(event) => {
+                        const next = [...(field.value || [])];
+                        next[index] = { ...next[index], porcentajeHonorario: Number(event.target.value) };
+                        field.onChange(next);
+                      }}
+                      placeholder="% honorario"
+                    />
+                  </label>
                 </div>
               ))}
             </FieldContent>

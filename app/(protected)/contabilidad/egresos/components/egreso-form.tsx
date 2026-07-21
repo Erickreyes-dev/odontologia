@@ -23,7 +23,7 @@ export function EgresoForm({ catalogs, initialData, submitLabel = "Agregar", act
     if (!tipo) return [];
     if (tipo.nombre === "Materiales Odontológicos") return catalogs.productos;
     if (tipo.nombre === "Laboratorio") return catalogs.serviciosLaboratorio;
-    if (tipo.nombre === "Equipos e Instrumentos") return catalogs.productos;
+    if (tipo.nombre === "Equipos e Instrumentos") return catalogs.equipos;
     return tipo.descripciones ?? [];
   }, [catalogs, tipo]);
 
@@ -47,7 +47,7 @@ export function EgresoForm({ catalogs, initialData, submitLabel = "Agregar", act
     const payload: Record<string, unknown> = { tipoEgresoId: tipoId, descripcionManual, cantidad, metodoPago, monto, comentario, fecha: new Date(fecha) };
     if (tipo?.nombre === "Materiales Odontológicos" && selectedId) payload.productoId = selectedId;
     else if (tipo?.nombre === "Laboratorio" && selectedId) payload.servicioId = selectedId;
-    else if (tipo?.nombre === "Equipos e Instrumentos" && selectedId) payload.productoId = selectedId;
+    else if (tipo?.nombre === "Equipos e Instrumentos" && selectedId) payload.equipoId = selectedId;
     else if (selectedId) payload.descripcionEgresoId = selectedId;
 
     setError(null);
