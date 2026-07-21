@@ -887,7 +887,7 @@ enum FinanciamientoEstado {
 model Pago {
   id           String     @id @default(uuid()) @db.VarChar(36)
   tenantId     String?    @db.VarChar(36)
-  ordenCobroId String     @unique @db.VarChar(36)
+  ordenCobroId String     @db.VarChar(36)
   monto        Decimal    @db.Decimal(10, 2)
   metodo       MetodoPago
   referencia   String?    @db.VarChar(100)
@@ -1020,7 +1020,7 @@ model OrdenDeCobro {
   financiamiento  Financiamiento?  @relation(fields: [financiamientoId], references: [id])
   consulta        Consulta?        @relation(fields: [consultaId], references: [id])
   seguimiento     Seguimiento?     @relation(fields: [seguimientoId], references: [id])
-  pago            Pago?
+  pagos           Pago[]
 
   @@index([tenantId])
   @@index([pacienteId])

@@ -55,6 +55,8 @@ export function OrdenesCobroPageClient({
           id: orden.id,
           pacienteNombre: orden.pacienteNombre ?? "Paciente",
           monto: orden.monto,
+          montoAbonado: orden.montoAbonado ?? 0,
+          saldoPendiente: orden.saldoPendiente ?? orden.monto,
           financiamientoId: orden.financiamientoId ?? null,
         })),
     [ordenes],
@@ -97,7 +99,7 @@ export function OrdenesCobroPageClient({
         }}
         ordenesCobro={ordenesPendientes}
         ordenCobroId={ordenSeleccionada?.id}
-        monto={ordenSeleccionada?.monto}
+        monto={ordenSeleccionada?.saldoPendiente ?? ordenSeleccionada?.monto}
         financiamientos={financiamientos.map((financiamiento) => {
           const paciente = pacientesById.get(financiamiento.pacienteId);
           return {
