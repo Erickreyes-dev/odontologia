@@ -84,7 +84,7 @@ const getEstadoBadge = (estado: string) => {
   {
     accessorKey: "estado",
     header: "Estado",
-    cell: ({ row }) => getEstadoBadge(row.getValue("estado")),
+    cell: ({ row }) => row.original.esAbono ? <Badge variant="outline">Abono</Badge> : getEstadoBadge(row.getValue("estado")),
   },
   {
     accessorKey: "fechaPago",

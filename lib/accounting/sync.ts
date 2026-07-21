@@ -50,7 +50,7 @@ export async function syncIngresoFromPago(pagoId: string, tx: Prisma.Transaction
     where: { id: pagoId },
     include: { ordenCobro: { include: { consulta: { include: { cita: true, productos: true } }, paciente: true } } },
   });
-  if (!pago?.tenantId) return null;
+  if (!pago?.tenantId || pago.esAbono) return null;
   const { tiposIngreso } = await ensureAccountingCatalogs(pago.tenantId, tx);
   const tipoServicio = tiposIngreso.find((t) => t.nombre === "Servicio") ?? tiposIngreso[0];
   const tipoProducto = tiposIngreso.find((t) => t.nombre === "Producto") ?? tipoServicio;

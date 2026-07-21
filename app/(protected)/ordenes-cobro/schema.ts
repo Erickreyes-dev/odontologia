@@ -24,6 +24,8 @@ export const OrdenCobroWithRelationsSchema = z.object({
   consultaId: z.string().optional().nullable(),
   seguimientoId: z.string().optional().nullable(),
   monto: z.number(),
+  montoAbonado: z.number().optional(),
+  saldoPendiente: z.number().optional(),
   concepto: z.string(),
   estado: z.string(),
   fechaEmision: z.date(),

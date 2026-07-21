@@ -36,6 +36,7 @@ export const CreatePagoSchema = z.object({
   metodo: z.enum(["EFECTIVO", "TARJETA", "TRANSFERENCIA", "SEGURO", "OTRO"]),
   referencia: z.string().max(100).optional().nullable(),
   comentario: z.string().max(255).optional().nullable(),
+  esAbono: z.boolean(),
   ordenCobroId: z.string().min(1, "La orden de cobro es requerida"),
   cuotaId: z.string().optional().nullable(),
 });
@@ -83,6 +84,7 @@ export const PagoWithRelationsSchema = z.object({
   referencia: z.string().optional().nullable(),
   fechaPago: z.date(),
   estado: z.string(),
+  esAbono: z.boolean().optional(),
   comentario: z.string().optional().nullable(),
   ordenCobroId: z.string(),
   // UI

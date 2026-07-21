@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -43,6 +44,8 @@ interface PagoFormModalProps {
     id: string;
     pacienteNombre: string;
     monto: number;
+    montoAbonado?: number;
+    saldoPendiente?: number;
     financiamientoId?: string | null;
   }[];
   financiamientos?: {
@@ -73,6 +76,7 @@ export function PagoFormModal({
       comentario: "",
       ordenCobroId: defaultOrdenCobroId ?? "",
       cuotaId: "",
+      esAbono: false,
     },
   });
 
@@ -85,6 +89,7 @@ export function PagoFormModal({
         comentario: "",
         ordenCobroId: defaultOrdenCobroId ?? "",
         cuotaId: "",
+        esAbono: false,
       });
     }
   }, [open, defaultMonto, defaultOrdenCobroId, form]);
@@ -94,7 +99,7 @@ export function PagoFormModal({
 
   useEffect(() => {
     if (selectedOrden && !defaultMonto) {
-      form.setValue("monto", selectedOrden.monto);
+      form.setValue("monto", selectedOrden.saldoPendiente ?? selectedOrden.monto);
     }
   }, [selectedOrden, defaultMonto, form]);
 
@@ -112,6 +117,7 @@ export function PagoFormModal({
       cuotaId: data.cuotaId || null,
       referencia: data.referencia || null,
       comentario: data.comentario || null,
+      esAbono: Boolean(data.esAbono),
     };
 
     const result = await createPago(payload);
@@ -145,7 +151,7 @@ export function PagoFormModal({
                 <SelectContent>
                   {ordenesCobro.map((orden) => (
                     <SelectItem key={orden.id} value={orden.id}>
-                      {orden.pacienteNombre} · Orden #{orden.id.slice(0, 8)} · {formatMoneyAmount(orden.monto, currency)}
+                      {orden.pacienteNombre} · Orden #{orden.id.slice(0, 8)} · Saldo {formatMoneyAmount(orden.saldoPendiente ?? orden.monto, currency)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -170,6 +176,30 @@ export function PagoFormModal({
             {form.formState.errors.monto && (
               <FieldError errors={[form.formState.errors.monto]} />
             )}
+          </Field>
+
+
+          {selectedOrden && Number(selectedOrden.montoAbonado ?? 0) > 0 && (
+            <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-900">
+              Esta orden tiene un abono previo de {formatMoneyAmount(selectedOrden.montoAbonado ?? 0, currency)}.
+              Saldo pendiente: {formatMoneyAmount(selectedOrden.saldoPendiente ?? selectedOrden.monto, currency)}.
+            </p>
+          )}
+
+          <Field>
+            <div className="flex items-start gap-3 rounded-md border p-3">
+              <Checkbox
+                id="esAbono"
+                checked={Boolean(form.watch("esAbono"))}
+                onCheckedChange={(checked) => form.setValue("esAbono", checked === true)}
+              />
+              <div className="space-y-1 leading-none">
+                <FieldLabel htmlFor="esAbono">Registrar como abono</FieldLabel>
+                <FieldDescription>
+                  El abono queda ligado a la orden, pero no se refleja en ingresos ni honorarios hasta completar el saldo.
+                </FieldDescription>
+              </div>
+            </div>
           </Field>
 
           <Field data-invalid={!!form.formState.errors.metodo}>

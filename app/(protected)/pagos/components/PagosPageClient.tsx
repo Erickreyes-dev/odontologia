@@ -255,6 +255,8 @@ export function PagosPageClient({
           id: orden.id,
           pacienteNombre: orden.pacienteNombre ?? "",
           monto: orden.monto,
+          montoAbonado: orden.montoAbonado,
+          saldoPendiente: orden.saldoPendiente,
           financiamientoId: orden.financiamientoId,
         }))}
         financiamientos={financiamientosParaModal as any}
