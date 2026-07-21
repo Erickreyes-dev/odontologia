@@ -11,7 +11,7 @@ import { deleteIngreso, updateIngreso } from "../../actions";
 import { IngresoForm } from "./ingreso-form";
 
 type TipoIngreso = { id: string; nombre: string };
-export type IngresoRow = { id:string; fecha:string; tipoIngresoId:string; tipo:string; paciente:string; doctor:string; concepto:string; monto:number; metodoPago:string; origen:string; comentario:string; editable:boolean };
+export type IngresoRow = { id:string; fecha:string; tipoIngresoId:string; tipo:string; paciente:string; doctor:string; concepto:string; monto:number; metodoPago:string; origen:string; comentario:string; editable:boolean; honorarioPorcentaje:string; honorarioEstado:string };
 const f=(v:number)=>`L ${Number(v??0).toLocaleString("es-HN",{minimumFractionDigits:2})}`;
 
 function Actions({ row, tiposIngreso }: { row: IngresoRow; tiposIngreso: TipoIngreso[] }) {
@@ -21,6 +21,6 @@ function Actions({ row, tiposIngreso }: { row: IngresoRow; tiposIngreso: TipoIng
 
 export function IngresosTable({ data, tiposIngreso }: { data: IngresoRow[]; tiposIngreso: TipoIngreso[] }) {
   const columns: ColumnDef<IngresoRow>[] = [
-    {accessorKey:"fecha",header:"Fecha"},{accessorKey:"tipo",header:"Tipo"},{accessorKey:"paciente",header:"Paciente"},{accessorKey:"doctor",header:"Doctor"},{accessorKey:"concepto",header:"Concepto"},{accessorKey:"monto",header:"Monto",cell:({row})=>f(row.original.monto)},{accessorKey:"origen",header:"Origen"},{id:"actions",header:"Acciones",cell:({row})=><Actions row={row.original} tiposIngreso={tiposIngreso}/>}];
+    {accessorKey:"fecha",header:"Fecha"},{accessorKey:"tipo",header:"Tipo"},{accessorKey:"paciente",header:"Paciente"},{accessorKey:"doctor",header:"Doctor"},{accessorKey:"concepto",header:"Concepto"},{accessorKey:"monto",header:"Monto",cell:({row})=>f(row.original.monto)},{accessorKey:"honorarioPorcentaje",header:"% honorario"},{accessorKey:"honorarioEstado",header:"Honorario"},{accessorKey:"origen",header:"Origen"},{id:"actions",header:"Acciones",cell:({row})=><Actions row={row.original} tiposIngreso={tiposIngreso}/>}];
   return <DataTable columns={columns} data={data} filterPlaceholder="Filtrar ingresos" />;
 }
