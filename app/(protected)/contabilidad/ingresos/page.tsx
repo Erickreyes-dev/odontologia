@@ -5,15 +5,17 @@ import { IngresosTable } from "./components/ingresos-table";
 
 const dateInput = (d: Date) => d.toISOString().slice(0, 10);
 
-function summarizeHonorarios(honorarios: { porcentaje: unknown; estado: string }[]) {
-  if (honorarios.length === 0) return { honorarioPorcentaje: "-", honorarioEstado: "Sin honorario" };
+function summarizeHonorarios(honorarios: { porcentaje: unknown; comision: unknown; estado: string }[]) {
+  if (honorarios.length === 0) return { honorarioPorcentaje: "-", honorarioEstado: "Sin honorario", honorarioLiquidado: 0 };
 
   const porcentajes = [...new Set(honorarios.map((h) => Number(h.porcentaje ?? 0)))];
-  const liquidados = honorarios.filter((h) => h.estado === "LIQUIDADO").length;
+  const honorariosLiquidados = honorarios.filter((h) => h.estado === "LIQUIDADO");
+  const liquidados = honorariosLiquidados.length;
+  const honorarioLiquidado = honorariosLiquidados.reduce((total, h) => total + Number(h.comision ?? 0), 0);
   const honorarioPorcentaje = porcentajes.length === 1 ? `${porcentajes[0]}%` : "Mixto";
   const honorarioEstado = liquidados === honorarios.length ? "Liquidado" : liquidados > 0 ? "Parcial" : "Pendiente";
 
-  return { honorarioPorcentaje, honorarioEstado };
+  return { honorarioPorcentaje, honorarioEstado, honorarioLiquidado };
 }
 
 export default async function IngresosPage(){
