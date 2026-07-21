@@ -1,5 +1,32 @@
-import Link from "next/link";
-import { getAccountingCatalogs } from "../actions";
-import { Button } from "@/components/ui/button";
-const f=(v:unknown)=>`L ${Number(v??0).toLocaleString("es-HN",{minimumFractionDigits:2})}`;
-export default async function EquiposPage(){const c=await getAccountingCatalogs();const productos=c.productos;return <div className="space-y-4 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">Equipos e instrumentos</h1><p className="text-sm text-muted-foreground">Esta vista usa los productos registrados en Inventario; no mantiene un catálogo separado.</p></div><Button asChild><Link href="/inventario/create">Agregar en inventario</Link></Button></div><table className="w-full rounded-lg border text-sm"><thead><tr className="bg-muted"><th className="p-2 text-left">Nombre</th><th>Descripción</th><th>Tipo</th><th>Unidad</th><th>Stock</th><th>Precio venta</th></tr></thead><tbody>{productos.map(p=><tr key={p.id} className="border-t"><td className="p-2">{p.nombre}</td><td>{p.descripcion??'-'}</td><td>{p.tipo}</td><td>{p.unidad??'-'}</td><td>{p.stock}</td><td>{f(p.precioVenta)}</td></tr>)}</tbody></table></div>}
+import { getEquiposInstrumentos } from "../actions";
+import { EquipoInstrumentoForm } from "./equipo-form";
+import { EquiposInstrumentosTable } from "./equipos-table";
+
+const dateInput = (d: Date) => d.toISOString().slice(0, 10);
+
+export default async function EquiposPage() {
+  const equipos = await getEquiposInstrumentos();
+  const data = equipos.map((equipo) => ({
+    id: equipo.id,
+    nombre: equipo.nombre,
+    descripcion: equipo.descripcion ?? "-",
+    cantidad: Number(equipo.cantidad ?? 0),
+    costoTotal: Number(equipo.costoTotal ?? 0),
+    activo: equipo.activo,
+    fecha: dateInput(equipo.createAt),
+  }));
+
+  return (
+    <div className="space-y-4 p-4">
+      <div>
+        <h1 className="text-2xl font-bold">Equipos e instrumentos</h1>
+        <p className="text-sm text-muted-foreground">
+          Catálogo independiente para activos, equipos e instrumentos. No se sincroniza con el inventario de productos.
+        </p>
+      </div>
+
+      <EquipoInstrumentoForm />
+      <EquiposInstrumentosTable data={data} />
+    </div>
+  );
+}

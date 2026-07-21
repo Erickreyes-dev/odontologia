@@ -151,8 +151,9 @@ export async function createEgreso(input: unknown) {
     const tipo = await tx.tipoEgreso.findFirst({ where: await tenantWhere<Prisma.TipoEgresoWhereInput>({ id: data.tipoEgresoId }) });
     if (!tipo) throw new Error("Tipo de egreso no válido");
     let productoInventarioId = productoId;
+    let equipoInstrumentoId = equipoId;
     if (!descripcionEgresoId && data.descripcionManual) {
-      if (tipo.nombre === "Materiales Odontológicos" || tipo.nombre === "Equipos e Instrumentos") {
+      if (tipo.nombre === "Materiales Odontológicos") {
         const producto = await tx.producto.upsert({
           where: { tenantId_nombre: { tenantId: tipo.tenantId!, nombre: data.descripcionManual } },
           update: { stock: { increment: Math.trunc(data.cantidad) }, activo: true },
@@ -160,11 +161,20 @@ export async function createEgreso(input: unknown) {
         });
         productoInventarioId = producto.id;
       }
-      const desc = await tx.descripcionEgreso.upsert({ where: { tenantId_tipoEgresoId_nombre: { tenantId: tipo.tenantId!, tipoEgresoId: tipo.id, nombre: data.descripcionManual } }, update: { productoId: productoInventarioId, servicioId, equipoId, activo: true }, create: { id: randomUUID(), tenantId: tipo.tenantId, tipoEgresoId: tipo.id, nombre: data.descripcionManual, productoId: productoInventarioId, servicioId, equipoId, activo: true } });
+      if (tipo.nombre === "Equipos e Instrumentos") {
+        const equipo = await tx.equipoInstrumento.upsert({
+          where: { tenantId_nombre: { tenantId: tipo.tenantId!, nombre: data.descripcionManual } },
+          update: { cantidad: { increment: data.cantidad }, costoTotal: data.monto, activo: true },
+          create: { id: randomUUID(), tenantId: tipo.tenantId, nombre: data.descripcionManual, descripcion: data.comentario, cantidad: data.cantidad, costoTotal: data.monto, activo: true },
+        });
+        equipoInstrumentoId = equipo.id;
+      }
+      const desc = await tx.descripcionEgreso.upsert({ where: { tenantId_tipoEgresoId_nombre: { tenantId: tipo.tenantId!, tipoEgresoId: tipo.id, nombre: data.descripcionManual } }, update: { productoId: productoInventarioId, servicioId, equipoId: equipoInstrumentoId, activo: true }, create: { id: randomUUID(), tenantId: tipo.tenantId, tipoEgresoId: tipo.id, nombre: data.descripcionManual, productoId: productoInventarioId, servicioId, equipoId: equipoInstrumentoId, activo: true } });
       descripcionEgresoId = desc.id;
     }
-    if ((tipo.nombre === "Materiales Odontológicos" || tipo.nombre === "Equipos e Instrumentos") && productoInventarioId && !data.descripcionManual) await tx.producto.update({ where: { id: productoInventarioId }, data: { stock: { increment: Math.trunc(data.cantidad) } } });
-    return tx.egreso.create({ data: await withTenantData({ id: randomUUID(), ...data, metodoPago: data.metodoPago as MetodoPago, descripcionEgresoId, productoId: productoInventarioId, servicioId, equipoId: null }) });
+    if (tipo.nombre === "Materiales Odontológicos" && productoInventarioId && !data.descripcionManual) await tx.producto.update({ where: { id: productoInventarioId }, data: { stock: { increment: Math.trunc(data.cantidad) } } });
+    if (tipo.nombre === "Equipos e Instrumentos" && equipoInstrumentoId && !data.descripcionManual) await tx.equipoInstrumento.update({ where: { id: equipoInstrumentoId }, data: { cantidad: { increment: data.cantidad }, costoTotal: data.monto } });
+    return tx.egreso.create({ data: await withTenantData({ id: randomUUID(), ...data, metodoPago: data.metodoPago as MetodoPago, descripcionEgresoId, productoId: productoInventarioId, servicioId, equipoId: equipoInstrumentoId }) });
   });
   revalidatePath("/contabilidad/egresos");
   return { ok: true, egreso };
@@ -212,7 +222,7 @@ export async function createDescripcionEgreso(input: unknown) {
 }
 
 export async function getEquiposInstrumentos() {
-  return prisma.equipoInstrumento.findMany({ where: await tenantWhere<Prisma.EquipoInstrumentoWhereInput>(), orderBy: { nombre: "asc" } });
+  return prisma.equipoInstrumento.findMany({ where: await tenantWhere<Prisma.EquipoInstrumentoWhereInput>(), orderBy: { createAt: "desc" } });
 }
 
 export async function upsertEquipoInstrumento(input: unknown) {
