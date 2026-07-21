@@ -893,6 +893,7 @@ model Pago {
   referencia   String?    @db.VarChar(100)
   fechaPago    DateTime   @default(now()) @db.DateTime(6)
   estado       PagoEstado @default(REGISTRADO)
+  esAbono      Boolean    @default(false) @db.Bit(1)
   comentario   String?    @db.VarChar(255)
 
   tenant     Tenant?               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -906,6 +907,7 @@ model Pago {
 
   @@index([tenantId])
   @@index([ordenCobroId])
+  @@index([esAbono])
 }
 
 model Recibo {

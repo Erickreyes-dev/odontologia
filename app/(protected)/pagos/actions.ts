@@ -360,17 +360,51 @@ export async function createPago(
         throw new Error("La orden de cobro no está pendiente de pago");
       }
 
-      const pagoCreado = await tx.pago.create({
-        data: await withTenantData({
-          id: randomUUID(),
+      const pagoExistente = await tx.pago.findFirst({
+        where: await tenantWhere<Prisma.PagoWhereInput>({
           ordenCobroId: validated.ordenCobroId,
-          monto,
-          metodo: validated.metodo as MetodoPago,
-          referencia: validated.referencia || null,
-          comentario: validated.comentario || null,
-          estado: PagoEstado.REGISTRADO,
+          estado: { not: PagoEstado.REVERTIDO },
         }),
       });
+
+      if (pagoExistente && !pagoExistente.esAbono) {
+        throw new Error("La orden de cobro ya tiene un pago registrado");
+      }
+
+      const montoPrevio = pagoExistente?.esAbono ? Number(pagoExistente.monto) : 0;
+      const totalPagado = montoPrevio + monto;
+      const saldoOrden = Math.max(Number(orden.monto) - montoPrevio, 0);
+      const esAbono = totalPagado < Number(orden.monto);
+
+      if (monto > saldoOrden && saldoOrden > 0) {
+        throw new Error(`El monto excede el saldo pendiente de la orden (${saldoOrden.toFixed(2)})`);
+      }
+
+      const pagoCreado = pagoExistente
+        ? await tx.pago.update({
+            where: { id: pagoExistente.id },
+            data: {
+              monto: totalPagado,
+              metodo: validated.metodo as MetodoPago,
+              referencia: validated.referencia || pagoExistente.referencia,
+              comentario: validated.comentario || pagoExistente.comentario,
+              esAbono,
+              fechaPago: esAbono ? pagoExistente.fechaPago : new Date(),
+              estado: PagoEstado.REGISTRADO,
+            },
+          })
+        : await tx.pago.create({
+            data: await withTenantData({
+              id: randomUUID(),
+              ordenCobroId: validated.ordenCobroId,
+              monto,
+              metodo: validated.metodo as MetodoPago,
+              referencia: validated.referencia || null,
+              comentario: validated.comentario || null,
+              estado: PagoEstado.REGISTRADO,
+              esAbono,
+            }),
+          });
 
       let estadoFinal = PagoEstado.REGISTRADO;
       let tipoConcepto: ReciboTipoConcepto = ReciboTipoConcepto.OTRO;
@@ -531,22 +565,50 @@ export async function createPago(
         ];
       }
 
+      if (esAbono) {
+        detalleRecibo = [{
+          descripcion: `Abono a ${orden.concepto}`,
+          cantidad: 1,
+          precioUnitario: monto,
+          subtotal: monto,
+          referenciaTipo: "ORDEN_COBRO",
+          referenciaId: orden.id,
+        }];
+      }
+
       await tx.ordenDeCobro.update({
         where: { id: orden.id },
-        data: { estado: "PAGADA", fechaPago: new Date() },
+        data: esAbono ? { estado: "PENDIENTE", fechaPago: null } : { estado: "PAGADA", fechaPago: new Date() },
       });
 
-      await crearReciboPago(tx, {
-        pagoId: pagoCreado.id,
-        ordenCobroId: orden.id,
-        monto,
-        tipoConcepto,
-        fechaPago: pagoCreado.fechaPago,
-        notas: notasRecibo,
-        detalles: detalleRecibo,
-      });
+      if (pagoExistente) {
+        await tx.recibo.updateMany({
+          where: await tenantWhere<Prisma.ReciboWhereInput>({ pagoId: pagoCreado.id }),
+          data: {
+            subtotal: totalPagado,
+            total: totalPagado,
+            notas: esAbono
+              ? `Abono acumulado. Saldo pendiente: ${Math.max(Number(orden.monto) - totalPagado, 0).toFixed(2)}`
+              : "Pago completado con abono previo.",
+          },
+        });
+      } else {
+        await crearReciboPago(tx, {
+          pagoId: pagoCreado.id,
+          ordenCobroId: orden.id,
+          monto,
+          tipoConcepto: esAbono ? ReciboTipoConcepto.ANTICIPO : tipoConcepto,
+          fechaPago: pagoCreado.fechaPago,
+          notas: esAbono
+            ? `Abono registrado. Saldo pendiente: ${Math.max(Number(orden.monto) - totalPagado, 0).toFixed(2)}`
+            : notasRecibo,
+          detalles: detalleRecibo,
+        });
+      }
 
-      await syncIngresoFromPago(pagoCreado.id, tx);
+      if (!esAbono) {
+        await syncIngresoFromPago(pagoCreado.id, tx);
+      }
 
       return { ...pagoCreado, estado: estadoFinal, ordenPacienteId: orden.pacienteId };
     });
@@ -661,6 +723,7 @@ function mapPagoToWithRelations(r: {
   referencia: string | null;
   fechaPago: Date;
   estado: string;
+  esAbono?: boolean;
   comentario: string | null;
   ordenCobroId: string;
   ordenCobro?: {
@@ -679,6 +742,7 @@ function mapPagoToWithRelations(r: {
     referencia: r.referencia,
     fechaPago: toCentralAmericaTime(r.fechaPago) ?? r.fechaPago,
     estado: r.estado,
+    esAbono: Boolean(r.esAbono),
     comentario: r.comentario,
     ordenCobroId: r.ordenCobroId,
     pacienteNombre: r.ordenCobro?.paciente
