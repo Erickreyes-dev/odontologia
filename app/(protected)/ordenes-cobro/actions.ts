@@ -70,7 +70,7 @@ export async function createOrdenCobro(
         financiamiento: true,
         consulta: true,
         seguimiento: true,
-        pago: true,
+        pagos: true,
       },
     });
 
@@ -97,7 +97,7 @@ export async function getOrdenesCobro(): Promise<OrdenCobroWithRelations[]> {
         financiamiento: true,
         consulta: true,
         seguimiento: true,
-        pago: true,
+        pagos: true,
       },
       orderBy: { fechaEmision: "desc" },
     });
@@ -155,7 +155,7 @@ export async function getOrdenesCobroPendientes(): Promise<OrdenCobroWithRelatio
         financiamiento: true,
         consulta: true,
         seguimiento: true,
-        pago: true,
+        pagos: true,
       },
       orderBy: { fechaEmision: "desc" },
     });
@@ -203,10 +203,11 @@ function mapOrdenToWithRelations(r: {
   financiamiento?: { id: string } | null;
   consulta?: { id: string } | null;
   seguimiento?: { id: string } | null;
-  pago?: { monto: unknown; estado: string; esAbono: boolean } | null;
+  pagos?: { monto: unknown; estado: string; esAbono: boolean }[] | null;
 }): OrdenCobroWithRelations {
   const monto = Number(r.monto);
-  const montoAbonado = r.pago && r.pago.estado !== "REVERTIDO" && r.pago.esAbono ? Number(r.pago.monto) : 0;
+  const pagosActivos = r.pagos?.filter((pago) => pago.estado !== "REVERTIDO") ?? [];
+  const montoAbonado = pagosActivos.reduce((total, pago) => total + (pago.esAbono ? Number(pago.monto) : 0), 0);
   return {
     id: r.id,
     pacienteId: r.pacienteId,
