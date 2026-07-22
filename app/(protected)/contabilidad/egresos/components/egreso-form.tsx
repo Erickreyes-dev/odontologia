@@ -82,7 +82,7 @@ export function EgresoForm({
       return;
     }
     if (isLaboratorio && (!selectedId || !consultaId)) {
-      setError("Debe seleccionar el servicio y la consulta de la semana actual para el egreso de laboratorio.");
+      setError("Debe seleccionar el servicio y la consulta pendiente de liquidar para el egreso de laboratorio.");
       return;
     }
 
@@ -102,7 +102,7 @@ export function EgresoForm({
   }
 
   return (
-    <form action={handleSubmit} className="grid gap-2 rounded-lg border p-3 md:grid-cols-4 xl:grid-cols-8">
+    <form action={handleSubmit} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 [&_input]:min-w-0 [&_select]:min-w-0">
       <select name="tipoEgresoId" required value={tipoId} onChange={(e) => { setTipoId(e.target.value); setSelectedId(""); setConsultaId(""); setManual(""); }} className="rounded-md border p-2">
         <option value="">Tipo de egreso</option>
         {catalogs.tiposEgreso.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
@@ -115,7 +115,7 @@ export function EgresoForm({
       ) : null}
       {isLaboratorio ? (
         <select name="consultaId" value={consultaId} onChange={(e) => setConsultaId(e.target.value)} className="rounded-md border p-2" disabled={!selectedId}>
-          <option value="">Consulta de esta semana</option>
+          <option value="">Consulta pendiente de liquidar</option>
           {consultasServicio.map((consulta) => <option key={consulta.id} value={consulta.id}>{consulta.nombre}</option>)}
         </select>
       ) : null}

@@ -31,7 +31,7 @@ export function IngresoForm({ tiposIngreso, initialData, submitLabel = "Agregar"
   }
 
   return (
-    <form action={handleSubmit} className="grid gap-2 rounded-lg border p-3 md:grid-cols-7">
+    <form action={handleSubmit} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 [&_input]:min-w-0 [&_select]:min-w-0">
       <select name="tipoIngresoId" required className="rounded-md border p-2" defaultValue={initialData?.tipoIngresoId ?? ""}>
         <option value="">Tipo de ingreso</option>
         {tiposIngreso.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
@@ -44,7 +44,7 @@ export function IngresoForm({ tiposIngreso, initialData, submitLabel = "Agregar"
       </select>
       <input name="comentario" placeholder="Comentario" className="rounded-md border p-2" defaultValue={initialData?.comentario ?? ""} />
       <Button disabled={isPending}>{isPending ? "Guardando..." : submitLabel}</Button>
-      {error ? <p className="md:col-span-7 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="sm:col-span-2 lg:col-span-3 xl:col-span-7 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">{error}</p> : null}
     </form>
   );
 }

@@ -2,7 +2,6 @@
 
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { endOfWeek, startOfWeek } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { MetodoPago, Prisma } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
@@ -24,8 +23,6 @@ export async function bootstrapAccountingCatalogs() {
 export async function getAccountingCatalogs() {
   const { tenantId } = await getTenantContext();
   await ensureAccountingCatalogs(tenantId);
-  const inicioSemana = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const finSemana = endOfWeek(new Date(), { weekStartsOn: 1 });
   const [tiposIngreso, tiposEgreso, pacientes, medicos, productos, serviciosLaboratorio, equipos, consultasLaboratorio] = await Promise.all([
     prisma.tipoIngreso.findMany({ where: await tenantWhere<Prisma.TipoIngresoWhereInput>({ activo: true }), orderBy: { nombre: "asc" } }),
     prisma.tipoEgreso.findMany({ where: await tenantWhere<Prisma.TipoEgresoWhereInput>({ activo: true }), include: { descripciones: { where: { activo: true }, orderBy: { nombre: "asc" } } }, orderBy: { nombre: "asc" } }),
@@ -36,8 +33,8 @@ export async function getAccountingCatalogs() {
     prisma.equipoInstrumento.findMany({ where: await tenantWhere<Prisma.EquipoInstrumentoWhereInput>({ activo: true }), orderBy: { nombre: "asc" } }),
     prisma.consulta.findMany({
       where: await tenantWhere<Prisma.ConsultaWhereInput>({
-        fechaConsulta: { gte: inicioSemana, lte: finSemana },
         detalles: { some: { servicio: { requiereLaboratorio: true } } },
+        honorarioMedicos: { some: { estado: { not: "LIQUIDADO" } } },
       }),
       include: {
         cita: { include: { paciente: true } },
@@ -58,8 +55,34 @@ export async function getIngresos() {
 }
 
 export async function syncIngresosFromPagos() {
-  const pagos = await prisma.pago.findMany({ where: await tenantWhere<Prisma.PagoWhereInput>({ estado: { not: "REVERTIDO" } }), select: { id: true } });
-  for (const pago of pagos) await syncIngresoFromPago(pago.id);
+  await prisma.$transaction(async (tx) => {
+    const ingresosRevertidos = await tx.ingreso.findMany({
+      where: await tenantWhere<Prisma.IngresoWhereInput>({ pago: { estado: "REVERTIDO" } }),
+      select: { id: true },
+    });
+    const ingresoIds = ingresosRevertidos.map((ingreso) => ingreso.id);
+
+    if (ingresoIds.length > 0) {
+      const honorarios = await tx.honorarioMedico.findMany({
+        where: await tenantWhere<Prisma.HonorarioMedicoWhereInput>({ ingresoId: { in: ingresoIds } }),
+        select: { id: true },
+      });
+      const honorarioIds = honorarios.map((honorario) => honorario.id);
+
+      if (honorarioIds.length > 0) {
+        await tx.egreso.deleteMany({
+          where: await tenantWhere<Prisma.EgresoWhereInput>({ referenciaTipo: "HONORARIO", referenciaId: { in: honorarioIds } }),
+        });
+        await tx.honorarioMedico.deleteMany({
+          where: await tenantWhere<Prisma.HonorarioMedicoWhereInput>({ id: { in: honorarioIds } }),
+        });
+      }
+      await tx.ingreso.deleteMany({ where: await tenantWhere<Prisma.IngresoWhereInput>({ id: { in: ingresoIds } }) });
+    }
+
+    const pagos = await tx.pago.findMany({ where: await tenantWhere<Prisma.PagoWhereInput>({ estado: { not: "REVERTIDO" } }), select: { id: true } });
+    for (const pago of pagos) await syncIngresoFromPago(pago.id, tx);
+  });
   revalidatePath("/contabilidad/ingresos");
   revalidatePath("/contabilidad/honorarios");
 }
@@ -88,8 +111,19 @@ export async function updateIngreso(id: string, input: unknown) {
 export async function deleteIngreso(id: string) {
   const existing = await prisma.ingreso.findFirst({ where: await tenantWhere<Prisma.IngresoWhereInput>({ id }) });
   if (!existing) return { ok: false, message: "Ingreso no encontrado" };
-  if (!existing.editable || existing.origen !== "MANUAL") return { ok: false, message: "Solo se pueden eliminar ingresos manuales." };
-  await prisma.ingreso.delete({ where: { id } });
+  const canDeleteRevertedPayment = existing.origen === "PAGO" && existing.pagoId
+    ? await prisma.pago.findFirst({ where: await tenantWhere<Prisma.PagoWhereInput>({ id: existing.pagoId, estado: "REVERTIDO" }), select: { id: true } })
+    : null;
+  if ((!existing.editable || existing.origen !== "MANUAL") && !canDeleteRevertedPayment) return { ok: false, message: "Solo se pueden eliminar ingresos manuales o pagos anulados." };
+  await prisma.$transaction(async (tx) => {
+    const honorarios = await tx.honorarioMedico.findMany({ where: await tenantWhere<Prisma.HonorarioMedicoWhereInput>({ ingresoId: id }), select: { id: true } });
+    const honorarioIds = honorarios.map((honorario) => honorario.id);
+    if (honorarioIds.length > 0) {
+      await tx.egreso.deleteMany({ where: await tenantWhere<Prisma.EgresoWhereInput>({ referenciaTipo: "HONORARIO", referenciaId: { in: honorarioIds } }) });
+      await tx.honorarioMedico.deleteMany({ where: await tenantWhere<Prisma.HonorarioMedicoWhereInput>({ id: { in: honorarioIds } }) });
+    }
+    await tx.ingreso.delete({ where: { id } });
+  });
   revalidatePath("/contabilidad/ingresos");
   revalidatePath("/contabilidad/honorarios");
   return { ok: true };

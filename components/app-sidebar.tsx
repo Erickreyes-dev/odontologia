@@ -177,12 +177,6 @@ const items = [
     permiso: "ver_pagos",
   },
   {
-    titleKey: "Contabilidad",
-    url: "/contabilidad",
-    icon: Calculator,
-    permiso: "ver_contabilidad",
-  },
-  {
     titleKey: "sidebar.paymentOrders",
     url: "/ordenes-cobro",
     icon: Receipt,
@@ -203,6 +197,16 @@ const items = [
   },
 ];
 
+const contabilidadItems = [
+  { titleKey: "Dashboard financiero", url: "/contabilidad/dashboard-financiero" },
+  { titleKey: "Ingresos", url: "/contabilidad/ingresos" },
+  { titleKey: "Egresos", url: "/contabilidad/egresos" },
+  { titleKey: "Honorarios médicos", url: "/contabilidad/honorarios" },
+  { titleKey: "Estado de resultados", url: "/contabilidad/estado-resultados" },
+  { titleKey: "Equipos e instrumentos", url: "/contabilidad/equipos-instrumentos" },
+  { titleKey: "Catálogos", url: "/contabilidad/catalogos" },
+];
+
 export async function AppSidebar() {
   const usuario = await getSession(); // Obtiene el nombre del usuario
   const { t } = getServerTranslator();
@@ -221,6 +225,7 @@ export async function AppSidebar() {
 
   // Solo mostrar la sección de mantenimiento si hay al menos un ítem con permiso
   const showMantenimiento = filteredMantenimientoItems.length > 0;
+  const showContabilidad = permisosUsuario.includes("ver_contabilidad");
 
   return (
     <Sidebar collapsible="icon" variant="floating" data-tour="sidebar">
@@ -256,6 +261,37 @@ export async function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+
+              {showContabilidad && (
+                <Collapsible className="group/contabilidad" data-tour="accounting-group">
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton>
+                        <Calculator size={16} className="p-0" />
+                        <span>Contabilidad</span>
+                        <ChevronDown className="ml-auto group-data-[state=open]/contabilidad:hidden" />
+                        <ChevronUp className="ml-auto group-data-[state=closed]/contabilidad:hidden" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link href="/contabilidad" prefetch={false}>Resumen</Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        {contabilidadItems.map((item) => (
+                          <SidebarMenuSubItem key={item.titleKey}>
+                            <SidebarMenuSubButton asChild>
+                              <Link href={item.url} prefetch={false}>{item.titleKey}</Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
+              )}
 
               {showMantenimiento && (
                 <Collapsible className="group/collapsible" data-tour="maintenance-group">
