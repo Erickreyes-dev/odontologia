@@ -2,12 +2,13 @@
 
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { endOfWeek, startOfWeek } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { MetodoPago, Prisma } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { getTenantContext } from "@/lib/tenant";
 import { ensureAccountingCatalogs } from "@/lib/accounting/catalogs";
-import { regenerateHonorariosForIngreso, syncIngresoFromPago } from "@/lib/accounting/sync";
+import { regenerateHonorariosForConsulta, regenerateHonorariosForIngreso, syncIngresoFromPago } from "@/lib/accounting/sync";
 import { DescripcionEgresoSchema, EgresoSchema, EquipoInstrumentoSchema, HonorarioEstadoSchema, HonorarioUpdateSchema, IngresoSchema, TipoEgresoSchema, TipoIngresoSchema } from "./schema";
 
 const startOfMonth = (year: number, month: number) => new Date(year, month - 1, 1);
@@ -23,7 +24,9 @@ export async function bootstrapAccountingCatalogs() {
 export async function getAccountingCatalogs() {
   const { tenantId } = await getTenantContext();
   await ensureAccountingCatalogs(tenantId);
-  const [tiposIngreso, tiposEgreso, pacientes, medicos, productos, serviciosLaboratorio, equipos] = await Promise.all([
+  const inicioSemana = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const finSemana = endOfWeek(new Date(), { weekStartsOn: 1 });
+  const [tiposIngreso, tiposEgreso, pacientes, medicos, productos, serviciosLaboratorio, equipos, consultasLaboratorio] = await Promise.all([
     prisma.tipoIngreso.findMany({ where: await tenantWhere<Prisma.TipoIngresoWhereInput>({ activo: true }), orderBy: { nombre: "asc" } }),
     prisma.tipoEgreso.findMany({ where: await tenantWhere<Prisma.TipoEgresoWhereInput>({ activo: true }), include: { descripciones: { where: { activo: true }, orderBy: { nombre: "asc" } } }, orderBy: { nombre: "asc" } }),
     prisma.paciente.findMany({ where: await tenantWhere<Prisma.PacienteWhereInput>({ activo: true }), orderBy: [{ nombre: "asc" }, { apellido: "asc" }] }),
@@ -31,8 +34,19 @@ export async function getAccountingCatalogs() {
     prisma.producto.findMany({ where: await tenantWhere<Prisma.ProductoWhereInput>({ activo: true }), orderBy: { nombre: "asc" } }),
     prisma.servicio.findMany({ where: await tenantWhere<Prisma.ServicioWhereInput>({ activo: true, requiereLaboratorio: true }), orderBy: { nombre: "asc" } }),
     prisma.equipoInstrumento.findMany({ where: await tenantWhere<Prisma.EquipoInstrumentoWhereInput>({ activo: true }), orderBy: { nombre: "asc" } }),
+    prisma.consulta.findMany({
+      where: await tenantWhere<Prisma.ConsultaWhereInput>({
+        fechaConsulta: { gte: inicioSemana, lte: finSemana },
+        detalles: { some: { servicio: { requiereLaboratorio: true } } },
+      }),
+      include: {
+        cita: { include: { paciente: true } },
+        detalles: { where: { servicio: { requiereLaboratorio: true } }, include: { servicio: true } },
+      },
+      orderBy: { fechaConsulta: "desc" },
+    }),
   ]);
-  return { tiposIngreso, tiposEgreso, pacientes, medicos, productos, serviciosLaboratorio, equipos };
+  return { tiposIngreso, tiposEgreso, pacientes, medicos, productos, serviciosLaboratorio, equipos, consultasLaboratorio };
 }
 
 export async function getIngresos() {
@@ -139,6 +153,26 @@ export async function getEgresos() {
   return prisma.egreso.findMany({ where: await tenantWhere<Prisma.EgresoWhereInput>(), include: { tipoEgreso: true, descripcionEgreso: true, producto: true, servicio: true, equipo: true }, orderBy: { fecha: "desc" } });
 }
 
+async function validateLaboratorioConsulta(tx: Prisma.TransactionClient, data: { tipoEgresoId: string; servicioId?: string | null; consultaId?: string | null }) {
+  const tipo = await tx.tipoEgreso.findFirst({ where: await tenantWhere<Prisma.TipoEgresoWhereInput>({ id: data.tipoEgresoId }) });
+  if (!tipo) throw new Error("Tipo de egreso no válido");
+
+  if (tipo.nombre !== "Laboratorio") return tipo;
+  if (!data.servicioId) throw new Error("Debe seleccionar el servicio de laboratorio.");
+  if (!data.consultaId) throw new Error("Debe seleccionar la consulta asociada al servicio de laboratorio.");
+
+  const consulta = await tx.consulta.findFirst({
+    where: await tenantWhere<Prisma.ConsultaWhereInput>({
+      id: data.consultaId,
+      detalles: { some: { servicioId: data.servicioId } },
+    }),
+    select: { id: true },
+  });
+  if (!consulta) throw new Error("La consulta seleccionada no contiene el servicio de laboratorio indicado.");
+
+  return tipo;
+}
+
 export async function createEgreso(input: unknown) {
   const parsed = EgresoSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.errors[0]?.message ?? "Datos inválidos" };
@@ -148,8 +182,7 @@ export async function createEgreso(input: unknown) {
     const productoId = data.productoId ?? null;
     const servicioId = data.servicioId ?? null;
     const equipoId = data.equipoId ?? null;
-    const tipo = await tx.tipoEgreso.findFirst({ where: await tenantWhere<Prisma.TipoEgresoWhereInput>({ id: data.tipoEgresoId }) });
-    if (!tipo) throw new Error("Tipo de egreso no válido");
+    const tipo = await validateLaboratorioConsulta(tx, data);
     let productoInventarioId = productoId;
     let equipoInstrumentoId = equipoId;
     if (!descripcionEgresoId && data.descripcionManual) {
@@ -174,9 +207,12 @@ export async function createEgreso(input: unknown) {
     }
     if (tipo.nombre === "Materiales Odontológicos" && productoInventarioId && !data.descripcionManual) await tx.producto.update({ where: { id: productoInventarioId }, data: { stock: { increment: Math.trunc(data.cantidad) } } });
     if (tipo.nombre === "Equipos e Instrumentos" && equipoInstrumentoId && !data.descripcionManual) await tx.equipoInstrumento.update({ where: { id: equipoInstrumentoId }, data: { cantidad: { increment: data.cantidad }, costoTotal: data.monto } });
-    return tx.egreso.create({ data: await withTenantData({ id: randomUUID(), ...data, metodoPago: data.metodoPago as MetodoPago, descripcionEgresoId, productoId: productoInventarioId, servicioId, equipoId: equipoInstrumentoId }) });
+    const egreso = await tx.egreso.create({ data: await withTenantData({ id: randomUUID(), ...data, metodoPago: data.metodoPago as MetodoPago, descripcionEgresoId, productoId: productoInventarioId, servicioId, equipoId: equipoInstrumentoId, consultaId: data.consultaId ?? null }) });
+    if (egreso.consultaId) await regenerateHonorariosForConsulta(egreso.consultaId, tx);
+    return egreso;
   });
   revalidatePath("/contabilidad/egresos");
+  revalidatePath("/contabilidad/honorarios");
   return { ok: true, egreso };
 }
 
@@ -187,8 +223,14 @@ export async function updateEgreso(id: string, input: unknown) {
   if (!existing) return { ok: false, message: "Egreso no encontrado" };
   if (existing.esAutomatico) return { ok: false, message: "Los egresos automáticos se modifican desde su origen." };
   const data = parsed.data;
-  await prisma.egreso.update({ where: { id }, data: { ...data, metodoPago: data.metodoPago as MetodoPago, descripcionEgresoId: data.descripcionEgresoId ?? null, productoId: data.productoId ?? null, servicioId: data.servicioId ?? null, equipoId: data.equipoId ?? null } });
+  await prisma.$transaction(async (tx) => {
+    await validateLaboratorioConsulta(tx, data);
+    await tx.egreso.update({ where: { id }, data: { ...data, metodoPago: data.metodoPago as MetodoPago, descripcionEgresoId: data.descripcionEgresoId ?? null, productoId: data.productoId ?? null, servicioId: data.servicioId ?? null, equipoId: data.equipoId ?? null, consultaId: data.consultaId ?? null } });
+    const consultaIds = [...new Set([existing.consultaId, data.consultaId].filter(Boolean) as string[])];
+    for (const consultaId of consultaIds) await regenerateHonorariosForConsulta(consultaId, tx);
+  });
   revalidatePath("/contabilidad/egresos");
+  revalidatePath("/contabilidad/honorarios");
   return { ok: true };
 }
 
@@ -196,8 +238,12 @@ export async function deleteEgreso(id: string) {
   const existing = await prisma.egreso.findFirst({ where: await tenantWhere<Prisma.EgresoWhereInput>({ id }) });
   if (!existing) return { ok: false, message: "Egreso no encontrado" };
   if (existing.esAutomatico) return { ok: false, message: "Los egresos automáticos se quitan desde su origen." };
-  await prisma.egreso.delete({ where: { id } });
+  await prisma.$transaction(async (tx) => {
+    await tx.egreso.delete({ where: { id } });
+    if (existing.consultaId) await regenerateHonorariosForConsulta(existing.consultaId, tx);
+  });
   revalidatePath("/contabilidad/egresos");
+  revalidatePath("/contabilidad/honorarios");
   return { ok: true };
 }
 

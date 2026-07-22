@@ -119,6 +119,27 @@ async function recalcularSaldoFinanciamiento(
   });
 }
 
+async function eliminarIngresoDePagoRevertido(tx: Prisma.TransactionClient, pagoId: string): Promise<void> {
+  const ingreso = await tx.ingreso.findUnique({
+    where: { pagoId },
+    include: { honorarios: { select: { id: true } } },
+  });
+
+  if (!ingreso) return;
+
+  const honorarioIds = ingreso.honorarios.map((honorario) => honorario.id);
+  if (honorarioIds.length > 0) {
+    await tx.egreso.deleteMany({
+      where: await tenantWhere<Prisma.EgresoWhereInput>({
+        referenciaTipo: "HONORARIO",
+        referenciaId: { in: honorarioIds },
+      }),
+    });
+  }
+
+  await tx.ingreso.delete({ where: { id: ingreso.id } });
+}
+
 async function crearReciboPago(tx: Prisma.TransactionClient, payload: {
   pagoId: string;
   ordenCobroId: string;
@@ -1049,10 +1070,17 @@ export async function revertPago(
         where: { id: pagoId },
         data: { estado: PagoEstado.REVERTIDO },
       });
+
+      await eliminarIngresoDePagoRevertido(tx, pagoId);
     });
 
     revalidatePath("/pagos");
     revalidatePath("/ordenes-cobro");
+    revalidatePath("/dashboard");
+    revalidatePath("/contabilidad/ingresos");
+    revalidatePath("/contabilidad/honorarios");
+    revalidatePath("/contabilidad/egresos");
+    revalidatePath("/contabilidad/estado-resultados");
     if (pago.ordenCobro?.pacienteId) {
       revalidatePath(`/pacientes/${pago.ordenCobro.pacienteId}/perfil`);
     }
