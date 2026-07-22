@@ -15,6 +15,7 @@ export async function regenerateHonorariosForIngreso(ingresoId: string, tx: Pris
         include: {
           cita: true,
           detalles: { include: { servicio: { include: { medicosServicios: true } } } },
+          egresos: { where: { servicioId: { not: null } }, select: { servicioId: true, monto: true } },
         },
       },
     },
@@ -25,7 +26,11 @@ export async function regenerateHonorariosForIngreso(ingresoId: string, tx: Pris
   for (const detalle of ingreso.consulta.detalles) {
     const relacion = detalle.servicio.medicosServicios.find((ms) => ms.medicoId === medicoId);
     const porcentaje = money(relacion?.porcentajeHonorario);
-    const totalServicio = money(detalle.precioAplicado) * detalle.cantidad;
+    const totalServicioBruto = money(detalle.precioAplicado) * detalle.cantidad;
+    const costoLaboratorio = ingreso.consulta.egresos
+      .filter((egreso) => egreso.servicioId === detalle.servicioId)
+      .reduce((total, egreso) => total + money(egreso.monto), 0);
+    const totalServicio = Math.max(totalServicioBruto - costoLaboratorio, 0);
     const comision = totalServicio * (porcentaje / 100);
 
     const honorario = await tx.honorarioMedico.upsert({
@@ -42,6 +47,17 @@ export async function regenerateHonorariosForIngreso(ingresoId: string, tx: Pris
       where: { tenantId: ingreso.tenantId, referenciaTipo: "HONORARIO", referenciaId: honorario.id },
       data: { monto: comision },
     });
+  }
+}
+
+export async function regenerateHonorariosForConsulta(consultaId: string, tx: Prisma.TransactionClient = prisma) {
+  const ingresos = await tx.ingreso.findMany({
+    where: { consultaId },
+    select: { id: true },
+  });
+
+  for (const ingreso of ingresos) {
+    await regenerateHonorariosForIngreso(ingreso.id, tx);
   }
 }
 

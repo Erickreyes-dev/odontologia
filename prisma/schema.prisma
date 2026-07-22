@@ -532,6 +532,7 @@ model Consulta {
   archivos         ConsultaArchivo[]
   ingresos         Ingreso[]
   honorarioMedicos HonorarioMedico[]
+  egresos         Egreso[]
 
   @@index([tenantId])
   @@index([seguimientoId])
@@ -887,7 +888,7 @@ enum FinanciamientoEstado {
 model Pago {
   id           String     @id @default(uuid()) @db.VarChar(36)
   tenantId     String?    @db.VarChar(36)
-  ordenCobroId String     @unique @db.VarChar(36)
+  ordenCobroId String     @db.VarChar(36)
   monto        Decimal    @db.Decimal(10, 2)
   metodo       MetodoPago
   referencia   String?    @db.VarChar(100)
@@ -1020,7 +1021,7 @@ model OrdenDeCobro {
   financiamiento  Financiamiento?  @relation(fields: [financiamientoId], references: [id])
   consulta        Consulta?        @relation(fields: [consultaId], references: [id])
   seguimiento     Seguimiento?     @relation(fields: [seguimientoId], references: [id])
-  pago            Pago?
+  pagos           Pago[]
 
   @@index([tenantId])
   @@index([pacienteId])
@@ -1199,6 +1200,7 @@ model Egreso {
   productoId          String?    @db.VarChar(36)
   servicioId          String?    @db.VarChar(36)
   equipoId            String?    @db.VarChar(36)
+  consultaId          String?    @db.VarChar(36)
   esAutomatico        Boolean    @default(false) @db.Bit(1)
   referenciaTipo      String?    @db.VarChar(40)
   referenciaId        String?    @db.VarChar(36)
@@ -1211,10 +1213,12 @@ model Egreso {
   producto          Producto?          @relation(fields: [productoId], references: [id])
   servicio          Servicio?          @relation(fields: [servicioId], references: [id])
   equipo            EquipoInstrumento? @relation(fields: [equipoId], references: [id])
+  consulta          Consulta?          @relation(fields: [consultaId], references: [id])
 
   @@index([tenantId])
   @@index([fecha])
   @@index([tipoEgresoId])
+  @@index([consultaId])
   @@index([referenciaTipo, referenciaId])
 }
 

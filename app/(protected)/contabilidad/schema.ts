@@ -55,6 +55,7 @@ export const EgresoSchema = z.object({
   productoId: z.string().optional().nullable(),
   servicioId: z.string().optional().nullable(),
   equipoId: z.string().optional().nullable(),
+  consultaId: z.string().optional().nullable(),
 }).refine((data) => data.descripcionEgresoId || data.descripcionManual || data.productoId || data.servicioId || data.equipoId, {
   message: "Debe seleccionar o escribir una descripción",
   path: ["descripcionManual"],
