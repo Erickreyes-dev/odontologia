@@ -48,7 +48,10 @@ export default async function DashboardPage() {
       },
     }),
     prisma.pago.findMany({
-      where: await tenantWhere({ estado: { not: PagoEstado.REVERTIDO } }),
+      where: await tenantWhere({
+        estado: { not: PagoEstado.REVERTIDO },
+        esAbono: false,
+      }),
       select: {
         fechaPago: true,
         monto: true,
