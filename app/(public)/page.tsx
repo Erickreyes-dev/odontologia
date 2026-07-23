@@ -482,6 +482,7 @@ export default async function LandingPage({
                   height={900}
                   className="h-64 w-full object-cover transition-transform duration-500 hover:scale-105 sm:h-80"
                   priority
+                  unoptimized
                 />
               </div>
               <Card className="border-border bg-card/90 shadow-sm">
