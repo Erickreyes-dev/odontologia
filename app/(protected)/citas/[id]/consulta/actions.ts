@@ -8,6 +8,7 @@ import { Consulta, ConsultaSchema } from "./schema";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { getTenantContext } from "@/lib/tenant";
 import { Prisma } from "@/lib/generated/prisma";
+import { createAuditLog } from "@/lib/audit-log";
 
 const parsePiezasTratadas = (value: string | null | undefined): number[] => {
   if (!value) return [];
@@ -73,6 +74,51 @@ function calcularAjustesStock(
   }
 
   return ajustes;
+}
+
+
+async function ajustarStockProductosConsulta(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  consultaId: string,
+  productosAnteriores: { productoId: string; cantidad: number }[],
+  productosActuales: { productoId: string; cantidad: number }[]
+) {
+  const stockAjustes = calcularAjustesStock(productosAnteriores, productosActuales);
+  if (stockAjustes.size === 0) return;
+
+  const productosIds = Array.from(stockAjustes.keys());
+  const productosDB = await tx.producto.findMany({
+    where: { tenantId, id: { in: productosIds } },
+    select: { id: true, stock: true, nombre: true },
+  });
+  const stockMap = new Map(productosDB.map((producto) => [producto.id, producto]));
+
+  for (const [productoId, delta] of stockAjustes.entries()) {
+    const productoDB = stockMap.get(productoId);
+    if (!productoDB) throw new Error("Uno de los productos seleccionados no existe en este tenant");
+    if (delta > 0 && productoDB.stock < delta) {
+      throw new Error(`Stock insuficiente para ${productoDB.nombre}. Disponible: ${productoDB.stock}`);
+    }
+
+    const actualizado = await tx.producto.update({
+      where: { id: productoId },
+      data: {
+        stock: delta > 0 ? { decrement: delta } : { increment: Math.abs(delta) },
+      },
+    });
+
+    await createAuditLog({
+      accion: "MODIFICAR",
+      entidad: "Producto",
+      entidadId: productoId,
+      resumen: `Stock ${delta > 0 ? "rebajado" : "reintegrado"}: ${productoDB.nombre}`,
+      detalle: `Ajuste automático por productos registrados en la consulta ${consultaId}.`,
+      valoresAntes: { id: productoId, nombre: productoDB.nombre, stock: productoDB.stock },
+      valoresDespues: { id: productoId, nombre: productoDB.nombre, stock: actualizado.stock },
+      metadata: { consultaId, cantidadAjustada: delta, motivo: "consulta_producto" },
+    }, tx);
+  }
 }
 
 async function validarStockDisponible(
@@ -322,7 +368,18 @@ export async function upsertConsulta(
     if (existingConsulta) {
       // Actualizar consulta existente
       await prisma.$transaction(async (tx) => {
-        await validarStockDisponible(tx, validatedData.productos ?? []);
+        const productosExistentes = await tx.consultaProducto.findMany({
+          where: { consultaId: existingConsulta.id },
+          select: { productoId: true, cantidad: true },
+        });
+
+        await ajustarStockProductosConsulta(
+          tx,
+          tenantId,
+          existingConsulta.id,
+          productosExistentes,
+          validatedData.productos ?? []
+        );
 
         await tx.consulta.update({
           where: { id: existingConsulta.id },
@@ -440,6 +497,14 @@ export async function upsertConsulta(
           }),
         });
 
+        await ajustarStockProductosConsulta(
+          tx,
+          tenantId,
+          consultaId,
+          [],
+          validatedData.productos ?? []
+        );
+
         // Actualizar el estado de la cita a "atendida"
         await tx.cita.update({
           where: { id: validatedData.citaId },
@@ -465,6 +530,17 @@ export async function upsertConsulta(
         }
       });
     }
+
+    await createAuditLog({
+      accion: existingConsulta ? "MODIFICAR" : "CREAR",
+      entidad: "Consulta",
+      entidadId: consultaId,
+      resumen: existingConsulta ? `Consulta modificada: ${consultaId}` : `Consulta creada: ${consultaId}`,
+      detalle: "Consulta guardada desde la atención de cita, incluyendo productos y servicios registrados.",
+      valoresAntes: existingConsulta,
+      valoresDespues: { ...validatedData, id: consultaId },
+      metadata: { citaId: validatedData.citaId, productos: validatedData.productos ?? [] },
+    });
 
     // Obtener la consulta actualizada
     const consulta = await getConsultaById(consultaId);
@@ -609,39 +685,13 @@ export async function finalizarConsulta(
         });
       }
 
-      const productosActuales = validatedData.productos ?? [];
-      const stockAjustes = calcularAjustesStock(productosExistentes, productosActuales);
-
-      if (stockAjustes.size > 0) {
-        const productosIds = Array.from(stockAjustes.keys());
-        const productosDB = await tx.producto.findMany({
-          where: { id: { in: productosIds } },
-          select: { id: true, stock: true, nombre: true },
-        });
-        const stockMap = new Map(
-          productosDB.map((producto) => [producto.id, producto])
-        );
-
-        for (const [productoId, delta] of stockAjustes.entries()) {
-          if (delta === 0) continue;
-          const productoDB = stockMap.get(productoId);
-          if (!productoDB) continue;
-          if (delta > 0 && productoDB.stock < delta) {
-            throw new Error(
-              `Stock insuficiente para ${productoDB.nombre}. Disponible: ${productoDB.stock}`
-            );
-          }
-          await tx.producto.update({
-            where: { id: productoId },
-            data: {
-              stock:
-                delta > 0
-                  ? { decrement: delta }
-                  : { increment: Math.abs(delta) },
-            },
-          });
-        }
-      }
+      await ajustarStockProductosConsulta(
+        tx,
+        tenantId,
+        consultaId!,
+        productosExistentes,
+        validatedData.productos ?? []
+      );
 
       await tx.cita.update({
         where: { id: validatedData.citaId },
@@ -725,6 +775,16 @@ export async function finalizarConsulta(
       });
 
       return { consultaId: consultaId!, ordenId: orden.id, planTratamientoId };
+    });
+
+    await createAuditLog({
+      accion: validatedData.id ? "MODIFICAR" : "CREAR",
+      entidad: "Consulta",
+      entidadId: result.consultaId,
+      resumen: `Consulta finalizada: ${result.consultaId}`,
+      detalle: "Consulta finalizada y orden de cobro generada.",
+      valoresDespues: { ...validatedData, id: result.consultaId },
+      metadata: { citaId: validatedData.citaId, ordenId: result.ordenId, productos: validatedData.productos ?? [] },
     });
 
     revalidatePath("/citas");

@@ -18,7 +18,7 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import {  Boxes, Building2, Calendar, CalendarCheck, Calculator, ChevronDown, ChevronUp, CreditCard, DollarSign, File,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, MessageCircle, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
+import {  Boxes, Building2, Calendar, CalendarCheck, Calculator, ChevronDown, ChevronUp, CreditCard, DollarSign, File, FileSearch,  Hospital, IdCardIcon, LayersIcon, LayoutDashboard, Package, Receipt, Settings, ShieldPlus, MessageCircle, Stethoscope, Tags, UserIcon, UserRoundCheck, Users2, UsersIcon } from 'lucide-react';
 import Link from "next/link";
 import Image from "next/image";
 import { NavUser } from "./nav-user";
@@ -139,6 +139,12 @@ const items = [
     url: "/inventario",
     icon: Boxes,
     permiso: "ver_inventario",
+  },
+  {
+    titleKey: "sidebar.reporting",
+    url: "/reporteria",
+    icon: FileSearch,
+    permiso: "ver_reporteria",
   },
   {
     titleKey: "sidebar.offices",
