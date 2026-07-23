@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Pencil, Plus, Search } from "lucide-react";
+import { SincronizarProductoButton } from "./sincronizar-producto-button";
 import type { Producto } from "../schema";
 
 interface InventarioListMobileProps {
@@ -79,12 +80,15 @@ export default function InventarioListMobile({ productos }: InventarioListMobile
                   </div>
                 </div>
 
-                <Link href={`/inventario/${producto.id}/edit`} className="shrink-0">
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <Pencil className="h-4 w-4" />
-                    <span className="sr-only">Editar producto</span>
-                  </Button>
-                </Link>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <Link href={`/inventario/${producto.id}/edit`}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Pencil className="h-4 w-4" />
+                      <span className="sr-only">Editar producto</span>
+                    </Button>
+                  </Link>
+                  <SincronizarProductoButton producto={producto} variant="button" />
+                </div>
               </CardContent>
             </Card>
           ))

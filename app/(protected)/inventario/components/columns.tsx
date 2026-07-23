@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import { SincronizarProductoButton } from "./sincronizar-producto-button";
 
 export const columns: ColumnDef<Producto>[] = [
   {
@@ -92,6 +93,7 @@ export const columns: ColumnDef<Producto>[] = [
             <Link href={`/inventario/${producto.id}/edit`}>
               <DropdownMenuItem>Editar</DropdownMenuItem>
             </Link>
+            <SincronizarProductoButton producto={producto} />
           </DropdownMenuContent>
         </DropdownMenu>
       );
