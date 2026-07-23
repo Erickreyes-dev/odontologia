@@ -38,10 +38,12 @@ export function PacienteFormulario({
   isUpdate,
   initialData,
   seguros,
+  catalogos,
 }: {
   isUpdate: boolean;
   initialData: z.infer<typeof PacienteSchema>;
   seguros: Seguro[];
+  catalogos: { conocioClinica: { id: string; nombre: string }[]; decisionAgendar: { id: string; nombre: string }[] };
 }) {
   const router = useRouter();
 
@@ -300,7 +302,7 @@ export function PacienteFormulario({
 
         {/* ¿Cómo conoció la clínica? */}
         <Controller
-          name="conocioClinica"
+          name="conocioClinicaCatalogoId"
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
@@ -315,15 +317,44 @@ export function PacienteFormulario({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Sin especificar</SelectItem>
-                    <SelectItem value="REDES_SOCIALES">Redes sociales</SelectItem>
-                    <SelectItem value="AMIGOS">Amigos</SelectItem>
-                    <SelectItem value="MEDIO_COMUNICACION">Medio de comunicación</SelectItem>
-                    <SelectItem value="OTROS">Otros</SelectItem>
+                    {catalogos.conocioClinica.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>{item.nombre}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
 
               </FieldContent>
               <FieldDescription>Fuente por la cual el paciente conoció la clínica.</FieldDescription>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+
+
+
+        <Controller
+          name="decisionAgendarCatalogoId"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel>¿Qué influyó en su decisión de agendar/venir con nosotros?</FieldLabel>
+              <FieldContent>
+                <Select
+                  value={field.value || "none"}
+                  onValueChange={(val) => field.onChange(val === "none" ? null : val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione una opción" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin especificar</SelectItem>
+                    {catalogos.decisionAgendar.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>{item.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FieldContent>
+              <FieldDescription>Motivo principal que ayudó al paciente a tomar la decisión.</FieldDescription>
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}

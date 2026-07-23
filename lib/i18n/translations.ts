@@ -40,6 +40,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
     "sidebar.positions": "Puestos",
     "sidebar.professions": "Profesiones",
     "sidebar.billing": "Facturación",
+    "sidebar.catalogs": "Catálogos",
 
     "nav.profile": "Perfil",
     "nav.logout": "Cerrar sesión",
@@ -88,6 +89,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
     "sidebar.positions": "Positions",
     "sidebar.professions": "Professions",
     "sidebar.billing": "Billing",
+    "sidebar.catalogs": "Catalogs",
 
     "nav.profile": "Profile",
     "nav.logout": "Sign out",

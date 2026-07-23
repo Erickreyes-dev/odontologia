@@ -19,10 +19,22 @@ export type AuditLogListItem = {
   ip: string | null;
 };
 
-export async function getAuditLogs(filters?: { accion?: string; entidad?: string; desde?: Date; hasta?: Date }): Promise<AuditLogListItem[]> {
+export async function getAuditLogs(filters?: { accion?: string; entidad?: string; entidadId?: string; usuario?: string; ip?: string; texto?: string; desde?: Date; hasta?: Date }): Promise<AuditLogListItem[]> {
   const where: Prisma.AuditLogWhereInput = {};
   if (filters?.accion) where.accion = filters.accion;
   if (filters?.entidad) where.entidad = { contains: filters.entidad };
+  if (filters?.entidadId) where.entidadId = { contains: filters.entidadId };
+  if (filters?.usuario) where.usuarioNombre = { contains: filters.usuario };
+  if (filters?.ip) where.ip = { contains: filters.ip };
+  if (filters?.texto) {
+    where.OR = [
+      { resumen: { contains: filters.texto } },
+      { detalle: { contains: filters.texto } },
+      { entidad: { contains: filters.texto } },
+      { entidadId: { contains: filters.texto } },
+      { usuarioNombre: { contains: filters.texto } },
+    ];
+  }
   if (filters?.desde || filters?.hasta) {
     where.createAt = {
       ...(filters.desde ? { gte: filters.desde } : {}),

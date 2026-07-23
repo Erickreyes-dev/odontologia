@@ -3,6 +3,9 @@ import NoAcceso from "@/components/noAccess";
 import { getSessionPermisos } from "@/auth";
 import { FileSearch } from "lucide-react";
 import { getAuditLogs } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function JsonBlock({ value }: { value: unknown }) {
   if (!value) return <span className="text-muted-foreground">Sin detalle</span>;
@@ -12,15 +15,19 @@ function JsonBlock({ value }: { value: unknown }) {
 export default async function ReporteriaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ accion?: string; entidad?: string; desde?: string; hasta?: string }>;
+  searchParams: Promise<{ accion?: string; entidad?: string; entidadId?: string; usuario?: string; ip?: string; texto?: string; desde?: string; hasta?: string }>;
 }) {
   const permisos = await getSessionPermisos();
   if (!permisos?.includes("ver_reporteria")) return <NoAcceso />;
 
   const params = await searchParams;
   const logs = await getAuditLogs({
-    accion: params.accion,
+    accion: params.accion === "TODAS" ? undefined : params.accion,
     entidad: params.entidad,
+    entidadId: params.entidadId,
+    usuario: params.usuario,
+    ip: params.ip,
+    texto: params.texto,
     desde: params.desde ? new Date(`${params.desde}T00:00:00`) : undefined,
     hasta: params.hasta ? new Date(`${params.hasta}T23:59:59`) : undefined,
   });
@@ -29,17 +36,24 @@ export default async function ReporteriaPage({
     <div className="container mx-auto space-y-6 py-4">
       <HeaderComponent Icon={FileSearch} screenName="Reportería" description="Bitácora por tenant de registros, modificaciones y eliminaciones" />
 
-      <form className="grid gap-3 rounded-lg border bg-card p-4 md:grid-cols-5">
-        <input className="rounded-md border px-3 py-2" name="desde" type="date" defaultValue={params.desde} />
-        <input className="rounded-md border px-3 py-2" name="hasta" type="date" defaultValue={params.hasta} />
-        <select className="rounded-md border px-3 py-2" name="accion" defaultValue={params.accion || ""}>
-          <option value="">Todas las acciones</option>
-          <option value="CREAR">Crear</option>
-          <option value="MODIFICAR">Modificar</option>
-          <option value="ELIMINAR">Eliminar</option>
-        </select>
-        <input className="rounded-md border px-3 py-2" name="entidad" placeholder="Entidad (Producto, Paciente...)" defaultValue={params.entidad} />
-        <button className="rounded-md bg-primary px-4 py-2 text-primary-foreground" type="submit">Filtrar</button>
+      <form className="grid gap-3 rounded-lg border bg-card p-4 md:grid-cols-4 lg:grid-cols-8">
+        <Input name="desde" type="date" defaultValue={params.desde} aria-label="Fecha desde" />
+        <Input name="hasta" type="date" defaultValue={params.hasta} aria-label="Fecha hasta" />
+        <Select name="accion" defaultValue={params.accion || "TODAS"}>
+          <SelectTrigger aria-label="Acción"><SelectValue placeholder="Todas las acciones" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="TODAS">Todas las acciones</SelectItem>
+            <SelectItem value="CREAR">Crear</SelectItem>
+            <SelectItem value="MODIFICAR">Modificar</SelectItem>
+            <SelectItem value="ELIMINAR">Eliminar</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input name="entidad" placeholder="Módulo (Paciente, Servicio...)" defaultValue={params.entidad} />
+        <Input name="entidadId" placeholder="ID relacionado" defaultValue={params.entidadId} />
+        <Input name="usuario" placeholder="Usuario" defaultValue={params.usuario} />
+        <Input name="ip" placeholder="IP" defaultValue={params.ip} />
+        <Input name="texto" placeholder="Buscar paciente, inventario, servicio..." defaultValue={params.texto} />
+        <Button type="submit">Filtrar</Button>
       </form>
 
       <div className="space-y-4">

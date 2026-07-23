@@ -4,6 +4,7 @@ import NoAcceso from "@/components/noAccess";
 import { UserPlus } from "lucide-react";
 import { PacienteFormulario } from "../components/Form";
 import { getSegurosActivos } from "../../seguros/actions";
+import { getCatalogosPaciente } from "../actions";
 
 export default async function Create() {
 
@@ -15,7 +16,7 @@ export default async function Create() {
         return <NoAcceso />;
     }
 
-    const seguros = await getSegurosActivos();
+    const [seguros, catalogos] = await Promise.all([getSegurosActivos(), getCatalogosPaciente()]);
 
     // Inicializamos con un valor específico para puesto
     const initialData = {
@@ -31,6 +32,8 @@ export default async function Create() {
         direccion: "",
         seguroId: "",
         conocioClinica: null,
+        conocioClinicaCatalogoId: null,
+        decisionAgendarCatalogoId: null,
     }
 
     return (
@@ -44,6 +47,7 @@ export default async function Create() {
                 isUpdate={false}
                 initialData={initialData}
                 seguros={seguros}
+                catalogos={catalogos}
             />
         </div>
     );

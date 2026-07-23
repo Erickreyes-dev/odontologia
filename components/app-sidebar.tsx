@@ -69,6 +69,12 @@ const mantenimientoItems = [
     icon: CreditCard,
     permiso: "ver_pagos",
   },
+  {
+    titleKey: "sidebar.catalogs",
+    url: "/mantenimiento/catalogos",
+    icon: LayersIcon,
+    permiso: "crear_pacientes",
+  },
 
 
 ];

@@ -22,6 +22,8 @@ export default async function DashboardPage() {
         genero: true,
         direccion: true,
         fechaNacimiento: true,
+        conocioClinicaCatalogo: { select: { nombre: true } },
+        conocioClinica: true,
       },
     }),
     prisma.consulta.findMany({
@@ -103,6 +105,7 @@ export default async function DashboardPage() {
         pacientes: pacientes.map((p) => ({
           ...p,
           fechaNacimiento: p.fechaNacimiento ? p.fechaNacimiento.toISOString() : null,
+          conocioClinica: p.conocioClinicaCatalogo?.nombre ?? p.conocioClinica ?? null,
         })),
         consultas: consultas.map((consulta) => ({
           fecha: (consulta.fechaConsulta ?? consulta.createAt).toISOString(),

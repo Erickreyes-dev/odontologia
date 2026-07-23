@@ -51,6 +51,8 @@ model Tenant {
   usuarios               Usuarios[]
   seguros                Seguro[]
   pacientes              Paciente[]
+  catalogosConocioClinica CatalogoConocioClinica[]
+  catalogosDecisionPaciente CatalogoDecisionPaciente[]
   pacienteArchivos       PacienteArchivo[]
   profesiones            Profesion[]
   servicios              Servicio[]
@@ -334,6 +336,8 @@ model Paciente {
   correo          String?         @db.VarChar(150)
   direccion       String?         @db.VarChar(255)
   conocioClinica  ConocioClinica?
+  conocioClinicaCatalogoId String? @db.VarChar(36)
+  decisionAgendarCatalogoId String? @db.VarChar(36)
 
   seguroId String? @db.VarChar(36)
   seguro   Seguro? @relation(fields: [seguroId], references: [id])
@@ -354,10 +358,46 @@ model Paciente {
   honorariosMedicos  HonorarioMedico[]
   expedienteClinico  ExpedienteClinicoPaciente?
   archivos           PacienteArchivo[]
+  conocioClinicaCatalogo CatalogoConocioClinica? @relation(fields: [conocioClinicaCatalogoId], references: [id], onDelete: SetNull)
+  decisionAgendarCatalogo CatalogoDecisionPaciente? @relation(fields: [decisionAgendarCatalogoId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, identidad])
   @@index([tenantId])
   @@index([seguroId])
+  @@index([conocioClinicaCatalogoId])
+  @@index([decisionAgendarCatalogoId])
+}
+
+model CatalogoConocioClinica {
+  id       String  @id @default(uuid()) @db.VarChar(36)
+  tenantId String? @db.VarChar(36)
+  nombre   String  @db.VarChar(100)
+  activo   Boolean @default(true) @db.Bit(1)
+  sistema  Boolean @default(false) @db.Bit(1)
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pacientes Paciente[]
+
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
+}
+
+model CatalogoDecisionPaciente {
+  id       String  @id @default(uuid()) @db.VarChar(36)
+  tenantId String? @db.VarChar(36)
+  nombre   String  @db.VarChar(120)
+  activo   Boolean @default(true) @db.Bit(1)
+  sistema  Boolean @default(false) @db.Bit(1)
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pacientes Paciente[]
+
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
 }
 
 enum ConocioClinica {
