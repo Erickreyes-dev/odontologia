@@ -4,7 +4,7 @@ import HeaderComponent from "@/components/HeaderComponent";
 import NoAcceso from "@/components/noAccess";
 import { Pencil } from "lucide-react";
 import { redirect } from "next/navigation";
-import { getPacienteById } from "../../actions";
+import { getPacienteById, getCatalogosPaciente } from "../../actions";
 import { PacienteFormulario } from "../../components/Form";
 import { getSegurosActivos } from "@/app/(protected)/seguros/actions";
 
@@ -20,7 +20,7 @@ export default async function EditSeguro({
 
     // Obtener el seguro por su ID
     const paciente = await getPacienteById(params.id);
-    const seguros = await getSegurosActivos();
+    const [seguros, catalogos] = await Promise.all([getSegurosActivos(), getCatalogosPaciente()]);
 
     if (!paciente) {
         redirect("/seguros"); // Redirige si no se encuentra el seguro
@@ -38,6 +38,8 @@ export default async function EditSeguro({
         direccion: paciente.direccion,
         seguroId: paciente.seguroId,
         conocioClinica: paciente.conocioClinica ?? null,
+        conocioClinicaCatalogoId: paciente.conocioClinicaCatalogoId ?? null,
+        decisionAgendarCatalogoId: paciente.decisionAgendarCatalogoId ?? null,
     }
 
 
@@ -53,6 +55,7 @@ export default async function EditSeguro({
                 isUpdate={true}
                 initialData={pacienteEdit}
                 seguros={seguros}
+                catalogos={catalogos}
             />
         </div>
     );

@@ -36,6 +36,7 @@ type DashboardData = {
     genero: string | null;
     direccion: string | null;
     fechaNacimiento: string | null;
+    conocioClinica: string | null;
   }[];
   consultas: {
     fecha: string;
@@ -185,6 +186,18 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   }, [consultasPorEdadSeleccionada]);
 
   const direcciones = data.pacientes.filter((p) => Boolean(p.direccion?.trim())).length;
+
+  const conocioClinicaPieData = useMemo(() => {
+    const map = data.pacientes.reduce<Record<string, number>>((acc, paciente) => {
+      const key = paciente.conocioClinica?.trim() || "Sin especificar";
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(map)
+      .map(([name, cantidad]) => ({ name, cantidad }))
+      .sort((a, b) => b.cantidad - a.cantidad);
+  }, [data.pacientes]);
 
   const descargarExcelCuotas = () => {
     const rows = data.cuotasPendientes.map((item) => ({
@@ -339,6 +352,34 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                   labelLine={false}
                 >
                   {serviciosPieData.map((entry, index) => (
+                    <Cell key={entry.name} fill={`hsl(var(--chart-${(index % 5) + 1}))`} />
+                  ))}
+                </Pie>
+                <Legend layout="vertical" align="right" verticalAlign="middle" />
+              </PieChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>¿Cómo conocieron la clínica?</CardTitle>
+            <p className="text-sm text-muted-foreground">Distribución basada en el catálogo seleccionado en pacientes.</p>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={pieChartConfig} className="h-[260px] w-full">
+              <PieChart>
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Pie
+                  data={conocioClinicaPieData}
+                  dataKey="cantidad"
+                  nameKey="name"
+                  outerRadius={80}
+                  cx="40%"
+                  label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
+                >
+                  {conocioClinicaPieData.map((entry, index) => (
                     <Cell key={entry.name} fill={`hsl(var(--chart-${(index % 5) + 1}))`} />
                   ))}
                 </Pie>

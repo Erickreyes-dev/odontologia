@@ -129,6 +129,7 @@ async function writeAuditLog({
   result: unknown;
 }) {
   if (model === "AuditLog" || !WRITE_OPERATIONS.has(operation)) return;
+  if (["TipoIngreso", "TipoEgreso", "DescripcionEgreso", "CatalogoConocioClinica", "CatalogoDecisionPaciente"].includes(model) && ["upsert", "update", "updateMany"].includes(operation)) return;
 
   const session = await getCurrentSession();
   const resultArray = Array.isArray(result) ? result : null;

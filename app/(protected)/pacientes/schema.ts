@@ -28,6 +28,8 @@ export const PacienteSchema = z.object({
         .enum(["REDES_SOCIALES", "AMIGOS", "MEDIO_COMUNICACION", "OTROS"])
         .optional()
         .nullable(),
+    conocioClinicaCatalogoId: z.string().optional().nullable(),
+    decisionAgendarCatalogoId: z.string().optional().nullable(),
     seguroId: z.string().optional(),
     activo: z.boolean(),
 });

@@ -17,7 +17,7 @@ function normalizeOptionalEmail(value?: string | null): string | null {
     return normalized === "" ? null : normalized;
 }
 
-function normalizeOptionalSeguroId(value?: string | null): string | null {
+function normalizeOptionalId(value?: string | null): string | null {
     if (value == null) return null;
     const normalized = value.trim();
     return normalized === "" ? null : normalized;
@@ -57,6 +57,8 @@ export async function getPacientes({
       direccion: r.direccion,
       seguroId: r.seguroId || "",
       conocioClinica: r.conocioClinica,
+      conocioClinicaCatalogoId: r.conocioClinicaCatalogoId,
+      decisionAgendarCatalogoId: r.decisionAgendarCatalogoId,
       activo: r.activo,
     }));
 
@@ -97,6 +99,8 @@ export async function getPacientesActivos(): Promise<Paciente[]> {
             direccion: r.direccion,
             seguroId: r.seguroId || "",
             conocioClinica: r.conocioClinica,
+            conocioClinicaCatalogoId: r.conocioClinicaCatalogoId,
+            decisionAgendarCatalogoId: r.decisionAgendarCatalogoId,
             activo: r.activo,
         }));
     } catch (error) {
@@ -151,6 +155,8 @@ export async function getPacienteById(id: string): Promise<Paciente | null> {
             direccion: r.direccion,
             seguroId: r.seguroId || "",
             conocioClinica: r.conocioClinica,
+            conocioClinicaCatalogoId: r.conocioClinicaCatalogoId,
+            decisionAgendarCatalogoId: r.decisionAgendarCatalogoId,
             activo: r.activo,
         };
     } catch (error) {
@@ -185,8 +191,10 @@ export async function createPaciente(data: Paciente): Promise<{ success: true; d
                 telefono: validatedData.telefono,
                 correo: normalizeOptionalEmail(validatedData.correo),
                 direccion: validatedData.direccion,
-                seguroId: normalizeOptionalSeguroId(validatedData.seguroId),
+                seguroId: normalizeOptionalId(validatedData.seguroId),
                 conocioClinica: validatedData.conocioClinica ?? null,
+                conocioClinicaCatalogoId: normalizeOptionalId(validatedData.conocioClinicaCatalogoId),
+                decisionAgendarCatalogoId: normalizeOptionalId(validatedData.decisionAgendarCatalogoId),
                 activo: validatedData.activo,
             }),
         });
@@ -203,6 +211,8 @@ export async function createPaciente(data: Paciente): Promise<{ success: true; d
             direccion: r.direccion,
             seguroId: r.seguroId || "",
             conocioClinica: r.conocioClinica,
+            conocioClinicaCatalogoId: r.conocioClinicaCatalogoId,
+            decisionAgendarCatalogoId: r.decisionAgendarCatalogoId,
             activo: r.activo,
         };
 
@@ -247,8 +257,10 @@ export async function updatePaciente(id: string, data: Partial<Paciente>): Promi
                 ...(validatedData.telefono !== undefined && { telefono: validatedData.telefono }),
                 ...(validatedData.correo !== undefined && { correo: normalizeOptionalEmail(validatedData.correo) }),
                 ...(validatedData.direccion !== undefined && { direccion: validatedData.direccion }),
-                ...(validatedData.seguroId !== undefined && { seguroId: normalizeOptionalSeguroId(validatedData.seguroId) }),
+                ...(validatedData.seguroId !== undefined && { seguroId: normalizeOptionalId(validatedData.seguroId) }),
                 ...(validatedData.conocioClinica !== undefined && { conocioClinica: validatedData.conocioClinica }),
+                ...(validatedData.conocioClinicaCatalogoId !== undefined && { conocioClinicaCatalogoId: normalizeOptionalId(validatedData.conocioClinicaCatalogoId) }),
+                ...(validatedData.decisionAgendarCatalogoId !== undefined && { decisionAgendarCatalogoId: normalizeOptionalId(validatedData.decisionAgendarCatalogoId) }),
                 ...(validatedData.activo !== undefined && { activo: validatedData.activo }),
             },
         });
@@ -265,6 +277,8 @@ export async function updatePaciente(id: string, data: Partial<Paciente>): Promi
             direccion: r.direccion,
             seguroId: r.seguroId || "",
             conocioClinica: r.conocioClinica,
+            conocioClinicaCatalogoId: r.conocioClinicaCatalogoId,
+            decisionAgendarCatalogoId: r.decisionAgendarCatalogoId,
             activo: r.activo,
         };
 
@@ -650,4 +664,35 @@ export async function eliminarArchivoPaciente(id: string) {
   } catch (error) {
     return { success: false as const, error: error instanceof Error ? error.message : "No se pudo eliminar el archivo" };
   }
+}
+
+
+export async function getCatalogosPaciente() {
+    const [conocioClinica, decisionAgendar] = await Promise.all([
+        prisma.catalogoConocioClinica.findMany({ where: await tenantWhere<Prisma.CatalogoConocioClinicaWhereInput>({ activo: true }), orderBy: { nombre: "asc" } }),
+        prisma.catalogoDecisionPaciente.findMany({ where: await tenantWhere<Prisma.CatalogoDecisionPacienteWhereInput>({ activo: true }), orderBy: { nombre: "asc" } }),
+    ]);
+
+    return {
+        conocioClinica: conocioClinica.map((item) => ({ id: item.id, nombre: item.nombre })),
+        decisionAgendar: decisionAgendar.map((item) => ({ id: item.id, nombre: item.nombre })),
+    };
+}
+
+export async function createCatalogoConocioClinica(nombre: string) {
+    const value = nombre.trim();
+    if (!value) return { ok: false, message: "Debe escribir una opción." };
+    await prisma.catalogoConocioClinica.create({ data: await withTenantData({ id: randomUUID(), nombre: value, activo: true }) });
+    revalidatePath('/mantenimiento/catalogos');
+    revalidatePath('/pacientes/create');
+    return { ok: true };
+}
+
+export async function createCatalogoDecisionPaciente(nombre: string) {
+    const value = nombre.trim();
+    if (!value) return { ok: false, message: "Debe escribir una opción." };
+    await prisma.catalogoDecisionPaciente.create({ data: await withTenantData({ id: randomUUID(), nombre: value, activo: true }) });
+    revalidatePath('/mantenimiento/catalogos');
+    revalidatePath('/pacientes/create');
+    return { ok: true };
 }
