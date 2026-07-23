@@ -8,6 +8,7 @@ import { columns } from "./components/columns";
 import InventarioListMobile from "./components/inventario-list-mobile";
 import InventarioHistorial from "./components/inventario-historial";
 import { HistorialDateRangeFilter } from "./components/historial-date-range-filter";
+import { SincronizarInventarioButton } from "./components/sincronizar-inventario-button";
 
 export default async function InventarioPage({
 
@@ -38,7 +39,10 @@ export default async function InventarioPage({
         description="Listado de productos en inventario"
       />
 
-      <HistorialDateRangeFilter defaultDesde={params?.desde} defaultHasta={params?.hasta} />
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <HistorialDateRangeFilter defaultDesde={params?.desde} defaultHasta={params?.hasta} />
+        <SincronizarInventarioButton />
+      </div>
 
       <InventarioHistorial data={historial} />
 
