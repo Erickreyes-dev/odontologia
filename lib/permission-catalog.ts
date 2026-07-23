@@ -71,6 +71,7 @@ export const TENANT_PERMISSIONS: PermissionSeed[] = [
   { nombre: "ver_catalogos_contables", descripcion: "Permiso para ver catálogos contables" },
   { nombre: "editar_catalogos_contables", descripcion: "Permiso para editar catálogos contables" },
   { nombre: "ver_equipos_instrumentos", descripcion: "Permiso para ver equipos e instrumentos" },
+  { nombre: "ver_reporteria", descripcion: "Permiso para ver reportería y bitácora de auditoría" },
   { nombre: "editar_equipos_instrumentos", descripcion: "Permiso para editar equipos e instrumentos" },
 ];
 
