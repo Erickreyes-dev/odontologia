@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { Producto } from "./schema";
 import { Prisma } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
+import { createAuditLog } from "@/lib/audit-log";
 
 export async function getProductos(): Promise<Producto[]> {
   const productos = await prisma.producto.findMany({
@@ -46,7 +47,7 @@ export async function getProductoById(id: string): Promise<Producto | null> {
 }
 
 export async function postProducto(data: Producto) {
-  return prisma.producto.create({
+  const producto = await prisma.producto.create({
     data: await withTenantData({
       id: randomUUID(),
       nombre: data.nombre,
@@ -59,13 +60,24 @@ export async function postProducto(data: Producto) {
       activo: data.activo ?? true,
     }),
   });
+
+  await createAuditLog({
+    accion: "CREAR",
+    entidad: "Producto",
+    entidadId: producto.id,
+    resumen: `Producto creado: ${producto.nombre}`,
+    detalle: "Registro de inventario creado desde el módulo de inventario.",
+    valoresDespues: producto,
+  });
+
+  return producto;
 }
 
 export async function putProducto(data: Producto) {
   const existing = await prisma.producto.findFirst({ where: await tenantWhere<Prisma.ProductoWhereInput>({ id: data.id! }) });
   if (!existing) throw new Error("Producto no encontrado en la clínica");
 
-  return prisma.producto.update({
+  const producto = await prisma.producto.update({
     where: { id: existing.id },
     data: {
       nombre: data.nombre,
@@ -78,6 +90,18 @@ export async function putProducto(data: Producto) {
       activo: data.activo,
     },
   });
+
+  await createAuditLog({
+    accion: "MODIFICAR",
+    entidad: "Producto",
+    entidadId: producto.id,
+    resumen: `Producto modificado: ${producto.nombre}`,
+    detalle: "Registro de inventario modificado desde el módulo de inventario.",
+    valoresAntes: existing,
+    valoresDespues: producto,
+  });
+
+  return producto;
 }
 
 

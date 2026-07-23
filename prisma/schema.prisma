@@ -88,6 +88,7 @@ model Tenant {
   solicitudesCitaPublica SolicitudCitaPublica[]
   tenantInvoices         TenantInvoice[]
   whatsappConnections    WhatsappConnection[]
+  auditLogs              AuditLog[]
   paquete                Paquete?                    @relation(fields: [paqueteId], references: [id])
 
   @@index([paqueteId])
@@ -274,6 +275,7 @@ model Usuarios {
   rol                 Rol                  @relation(fields: [rol_id], references: [id])
   PasswordResetToken  PasswordResetToken[]
   recibosEmitidos     Recibo[]             @relation("ReciboEmitidoPor")
+  auditLogs           AuditLog[]
 
   @@unique([tenantId, usuario])
   @@index([tenantId])
@@ -1311,4 +1313,32 @@ model ConstanciaMedica {
   @@index([tenantId])
   @@index([pacienteId])
   @@index([medicoId])
+}
+
+
+model AuditLog {
+  id             String   @id @default(uuid()) @db.VarChar(36)
+  tenantId       String   @db.VarChar(36)
+  usuarioId      String?  @db.VarChar(36)
+  usuarioNombre  String?  @db.VarChar(150)
+  accion         String   @db.VarChar(30)
+  entidad        String   @db.VarChar(80)
+  entidadId      String?  @db.VarChar(36)
+  resumen        String   @db.VarChar(255)
+  detalle        String?  @db.LongText
+  valoresAntes   Json?
+  valoresDespues Json?
+  cambios        Json?
+  metadata       Json?
+  ip             String?  @db.VarChar(45)
+  userAgent      String?  @db.VarChar(255)
+  createAt       DateTime @default(now())
+
+  tenant  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  usuario Usuarios? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createAt])
+  @@index([tenantId, entidad, entidadId])
+  @@index([tenantId, accion])
+  @@index([usuarioId])
 }
