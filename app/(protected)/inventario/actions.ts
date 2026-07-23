@@ -5,6 +5,8 @@ import { randomUUID } from "crypto";
 import { Producto } from "./schema";
 import { Prisma } from "@/lib/generated/prisma";
 import { tenantWhere, withTenantData } from "@/lib/tenant-query";
+import { getTenantContext } from "@/lib/tenant";
+import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/audit-log";
 
 export async function getProductos(): Promise<Producto[]> {
@@ -157,4 +159,81 @@ export async function getInventarioHistorial(fechaInicio?: Date, fechaFin?: Date
   });
 
   return Array.from(byProducto.values()).sort((a, b) => b.totalUsado - a.totalUsado);
+}
+
+
+export async function sincronizarStockInventario(formData: FormData) {
+  const fechaInicioValue = String(formData.get("fechaInicio") ?? "");
+  const fechaFinValue = String(formData.get("fechaFin") ?? "");
+
+  if (!fechaInicioValue || !fechaFinValue) {
+    return { success: false, error: "Seleccione un rango de fechas para sincronizar." };
+  }
+
+  const fechaInicio = new Date(`${fechaInicioValue}T00:00:00`);
+  const fechaFin = new Date(`${fechaFinValue}T23:59:59`);
+
+  if (Number.isNaN(fechaInicio.getTime()) || Number.isNaN(fechaFin.getTime())) {
+    return { success: false, error: "El rango de fechas no es válido." };
+  }
+
+  if (fechaInicio > fechaFin) {
+    return { success: false, error: "La fecha inicial no puede ser mayor que la fecha final." };
+  }
+
+  const { tenantId } = await getTenantContext();
+
+  const resumen = await prisma.$transaction(async (tx) => {
+    const usos = await tx.consultaProducto.groupBy({
+      by: ["productoId"],
+      where: {
+        tenantId,
+        consulta: {
+          fechaConsulta: { gte: fechaInicio, lte: fechaFin },
+        },
+      },
+      _sum: { cantidad: true },
+    });
+
+    if (!usos.length) {
+      return { productosActualizados: 0, totalDescontado: 0, detalle: [] as unknown[] };
+    }
+
+    const productos = await tx.producto.findMany({
+      where: { tenantId, id: { in: usos.map((uso) => uso.productoId) } },
+      select: { id: true, nombre: true, stock: true },
+    });
+    const productoMap = new Map(productos.map((producto) => [producto.id, producto]));
+    const detalle: { productoId: string; nombre: string; stockAntes: number; cantidadUsada: number; stockDespues: number }[] = [];
+
+    for (const uso of usos) {
+      const producto = productoMap.get(uso.productoId);
+      const cantidadUsada = uso._sum.cantidad ?? 0;
+      if (!producto || cantidadUsada <= 0) continue;
+
+      const stockDespues = Math.max(producto.stock - cantidadUsada, 0);
+      await tx.producto.update({ where: { id: producto.id }, data: { stock: stockDespues } });
+      detalle.push({ productoId: producto.id, nombre: producto.nombre, stockAntes: producto.stock, cantidadUsada, stockDespues });
+    }
+
+    return {
+      productosActualizados: detalle.length,
+      totalDescontado: detalle.reduce((acc, item) => acc + item.cantidadUsada, 0),
+      detalle,
+    };
+  });
+
+  await createAuditLog({
+    accion: "MODIFICAR",
+    entidad: "Inventario",
+    resumen: `Sincronización de stock: ${resumen.productosActualizados} productos`,
+    detalle: `Se sincronizó el inventario con los productos usados en consultas del ${fechaInicioValue} al ${fechaFinValue}.`,
+    valoresDespues: resumen.detalle,
+    metadata: { fechaInicio: fechaInicioValue, fechaFin: fechaFinValue, totalDescontado: resumen.totalDescontado },
+  });
+
+  revalidatePath("/inventario");
+  revalidatePath("/reporteria");
+
+  return { success: true, productosActualizados: resumen.productosActualizados, totalDescontado: resumen.totalDescontado };
 }
