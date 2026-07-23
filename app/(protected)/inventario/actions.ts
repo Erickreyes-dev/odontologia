@@ -113,7 +113,7 @@ export async function getInventarioHistorial(fechaInicio?: Date, fechaFin?: Date
 
   const usos = await prisma.consultaProducto.findMany({
     where: await tenantWhere<Prisma.ConsultaProductoWhereInput>({
-      createAt: { gte: start, lte: end },
+      consulta: { fechaConsulta: { gte: start, lte: end } },
     }),
     include: {
       producto: { select: { id: true, nombre: true } },
@@ -162,78 +162,104 @@ export async function getInventarioHistorial(fechaInicio?: Date, fechaFin?: Date
 }
 
 
-export async function sincronizarStockInventario(formData: FormData) {
+
+export async function sincronizarStockProducto(formData: FormData) {
+  const productoId = String(formData.get("productoId") ?? "");
   const fechaInicioValue = String(formData.get("fechaInicio") ?? "");
   const fechaFinValue = String(formData.get("fechaFin") ?? "");
+  const inventarioInicialValue = String(formData.get("inventarioInicial") ?? "");
 
+  if (!productoId) {
+    return { success: false, error: "Seleccione el producto que desea sincronizar." };
+  }
   if (!fechaInicioValue || !fechaFinValue) {
     return { success: false, error: "Seleccione un rango de fechas para sincronizar." };
   }
 
   const fechaInicio = new Date(`${fechaInicioValue}T00:00:00`);
   const fechaFin = new Date(`${fechaFinValue}T23:59:59`);
+  const inventarioInicial = Number(inventarioInicialValue);
 
   if (Number.isNaN(fechaInicio.getTime()) || Number.isNaN(fechaFin.getTime())) {
     return { success: false, error: "El rango de fechas no es válido." };
   }
-
   if (fechaInicio > fechaFin) {
     return { success: false, error: "La fecha inicial no puede ser mayor que la fecha final." };
+  }
+  if (!Number.isInteger(inventarioInicial) || inventarioInicial < 0) {
+    return { success: false, error: "El inventario inicial debe ser un número entero mayor o igual a cero." };
   }
 
   const { tenantId } = await getTenantContext();
 
   const resumen = await prisma.$transaction(async (tx) => {
-    const usos = await tx.consultaProducto.groupBy({
-      by: ["productoId"],
-      where: {
-        tenantId,
-        consulta: {
-          fechaConsulta: { gte: fechaInicio, lte: fechaFin },
-        },
-      },
-      _sum: { cantidad: true },
-    });
-
-    if (!usos.length) {
-      return { productosActualizados: 0, totalDescontado: 0, detalle: [] as unknown[] };
-    }
-
-    const productos = await tx.producto.findMany({
-      where: { tenantId, id: { in: usos.map((uso) => uso.productoId) } },
+    const producto = await tx.producto.findFirst({
+      where: { id: productoId, tenantId },
       select: { id: true, nombre: true, stock: true },
     });
-    const productoMap = new Map(productos.map((producto) => [producto.id, producto]));
-    const detalle: { productoId: string; nombre: string; stockAntes: number; cantidadUsada: number; stockDespues: number }[] = [];
 
-    for (const uso of usos) {
-      const producto = productoMap.get(uso.productoId);
-      const cantidadUsada = uso._sum.cantidad ?? 0;
-      if (!producto || cantidadUsada <= 0) continue;
-
-      const stockDespues = Math.max(producto.stock - cantidadUsada, 0);
-      await tx.producto.update({ where: { id: producto.id }, data: { stock: stockDespues } });
-      detalle.push({ productoId: producto.id, nombre: producto.nombre, stockAntes: producto.stock, cantidadUsada, stockDespues });
+    if (!producto) {
+      throw new Error("Producto no encontrado en la clínica.");
     }
 
+    const usos = await tx.consultaProducto.findMany({
+      where: {
+        tenantId,
+        productoId: producto.id,
+        consulta: { fechaConsulta: { gte: fechaInicio, lte: fechaFin } },
+      },
+      include: {
+        consulta: {
+          select: {
+            id: true,
+            fechaConsulta: true,
+            detalles: { select: { servicio: { select: { nombre: true } } } },
+          },
+        },
+      },
+      orderBy: { consulta: { fechaConsulta: "asc" } },
+    });
+
+    const cantidadUsada = usos.reduce((acc, uso) => acc + uso.cantidad, 0);
+    const stockDespues = Math.max(inventarioInicial - cantidadUsada, 0);
+    const servicios = usos.reduce<Record<string, { registros: number; cantidad: number }>>((acc, uso) => {
+      const nombres = uso.consulta.detalles.map((detalle) => detalle.servicio.nombre);
+      const unicos = nombres.length ? Array.from(new Set(nombres)) : ["Sin servicio asociado"];
+      unicos.forEach((servicio) => {
+        acc[servicio] = acc[servicio] ?? { registros: 0, cantidad: 0 };
+        acc[servicio].registros += 1;
+        acc[servicio].cantidad += uso.cantidad;
+      });
+      return acc;
+    }, {});
+
+    await tx.producto.update({ where: { id: producto.id }, data: { stock: stockDespues } });
+
     return {
-      productosActualizados: detalle.length,
-      totalDescontado: detalle.reduce((acc, item) => acc + item.cantidadUsada, 0),
-      detalle,
+      productoId: producto.id,
+      nombre: producto.nombre,
+      stockAntes: producto.stock,
+      inventarioInicial,
+      cantidadUsada,
+      registros: usos.length,
+      stockDespues,
+      servicios,
     };
   });
 
   await createAuditLog({
     accion: "MODIFICAR",
-    entidad: "Inventario",
-    resumen: `Sincronización de stock: ${resumen.productosActualizados} productos`,
-    detalle: `Se sincronizó el inventario con los productos usados en consultas del ${fechaInicioValue} al ${fechaFinValue}.`,
-    valoresDespues: resumen.detalle,
-    metadata: { fechaInicio: fechaInicioValue, fechaFin: fechaFinValue, totalDescontado: resumen.totalDescontado },
+    entidad: "Producto",
+    entidadId: resumen.productoId,
+    resumen: `Sincronización de stock: ${resumen.nombre}`,
+    detalle: `Se sincronizó ${resumen.nombre} del ${fechaInicioValue} al ${fechaFinValue} usando inventario inicial ${resumen.inventarioInicial} y ${resumen.cantidadUsada} unidades registradas en ${resumen.registros} registros de consulta.`,
+    valoresAntes: { stock: resumen.stockAntes },
+    valoresDespues: resumen,
+    metadata: { fechaInicio: fechaInicioValue, fechaFin: fechaFinValue },
   });
 
   revalidatePath("/inventario");
   revalidatePath("/reporteria");
 
-  return { success: true, productosActualizados: resumen.productosActualizados, totalDescontado: resumen.totalDescontado };
+  return { success: true, ...resumen };
 }
