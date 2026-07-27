@@ -154,6 +154,7 @@ export async function updateHonorario(id: string, input: unknown) {
   const comision = n(h.totalServicio) * (data.porcentaje / 100);
   await prisma.honorarioMedico.update({ where: { id }, data: { porcentaje: data.porcentaje, comision, comentario: data.comentario } });
   revalidatePath("/contabilidad/honorarios");
+  revalidatePath("/contabilidad/estado-resultados");
 }
 
 export async function updateHonorarioEstado(input: unknown) {
@@ -180,6 +181,7 @@ export async function updateHonorarioEstado(input: unknown) {
   }
   revalidatePath("/contabilidad/honorarios");
   revalidatePath("/contabilidad/egresos");
+  revalidatePath("/contabilidad/estado-resultados");
   return { ok: true };
 }
 
@@ -246,6 +248,7 @@ export async function createEgreso(input: unknown) {
     return egreso;
   });
   revalidatePath("/contabilidad/egresos");
+  revalidatePath("/contabilidad/estado-resultados");
   revalidatePath("/contabilidad/honorarios");
   return { ok: true, egreso };
 }
@@ -264,6 +267,7 @@ export async function updateEgreso(id: string, input: unknown) {
     for (const consultaId of consultaIds) await regenerateHonorariosForConsulta(consultaId, tx);
   });
   revalidatePath("/contabilidad/egresos");
+  revalidatePath("/contabilidad/estado-resultados");
   revalidatePath("/contabilidad/honorarios");
   return { ok: true };
 }
@@ -277,6 +281,7 @@ export async function deleteEgreso(id: string) {
     if (existing.consultaId) await regenerateHonorariosForConsulta(existing.consultaId, tx);
   });
   revalidatePath("/contabilidad/egresos");
+  revalidatePath("/contabilidad/estado-resultados");
   revalidatePath("/contabilidad/honorarios");
   return { ok: true };
 }
@@ -320,7 +325,13 @@ export async function getEstadoResultados(year: number, month: number) {
   const to = endOfMonth(year, month);
   const [ingresos, egresos, honorarios, pacientesAtendidos] = await Promise.all([
     prisma.ingreso.findMany({ where: await tenantWhere<Prisma.IngresoWhereInput>({ fecha: { gte: from, lte: to } }), include: { tipoIngreso: true } }),
-    prisma.egreso.findMany({ where: await tenantWhere<Prisma.EgresoWhereInput>({ fecha: { gte: from, lte: to }, referenciaTipo: { not: "HONORARIO" } }), include: { tipoEgreso: true } }),
+    prisma.egreso.findMany({
+      where: await tenantWhere<Prisma.EgresoWhereInput>({
+        fecha: { gte: from, lte: to },
+        OR: [{ referenciaTipo: null }, { referenciaTipo: { not: "HONORARIO" } }],
+      }),
+      include: { tipoEgreso: true },
+    }),
     prisma.honorarioMedico.findMany({
       where: await tenantWhere<Prisma.HonorarioMedicoWhereInput>({ estado: "LIQUIDADO", ingreso: { pago: { fechaPago: { gte: from, lte: to } } } }),
       select: { comision: true },
