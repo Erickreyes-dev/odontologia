@@ -8,7 +8,7 @@ import { tenantWhere, withTenantData } from "@/lib/tenant-query";
 import { getTenantContext } from "@/lib/tenant";
 import { ensureAccountingCatalogs } from "@/lib/accounting/catalogs";
 import { regenerateHonorariosForConsulta, regenerateHonorariosForIngreso, syncIngresoFromPago } from "@/lib/accounting/sync";
-import { DescripcionEgresoSchema, EgresoSchema, EquipoInstrumentoSchema, HonorarioEstadoSchema, HonorarioUpdateSchema, IngresoSchema, TipoEgresoSchema, TipoIngresoSchema } from "./schema";
+import { DescripcionEgresoSchema, EgresoSchema, EquipoInstrumentoSchema, EstadoResultadosImpuestoSchema, HonorarioEstadoSchema, HonorarioUpdateSchema, IngresoSchema, TipoEgresoSchema, TipoIngresoSchema } from "./schema";
 
 const startOfMonth = (year: number, month: number) => new Date(year, month - 1, 1);
 const endOfMonth = (year: number, month: number) => new Date(year, month, 0, 23, 59, 59, 999);
@@ -320,10 +320,37 @@ export async function upsertEquipoInstrumento(input: unknown) {
   revalidatePath("/contabilidad/equipos-instrumentos");
 }
 
+export async function updateEstadoResultadosImpuesto(input: unknown) {
+  const parsed = EstadoResultadosImpuestoSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.errors[0]?.message ?? "Datos inválidos" };
+  const { tenantId } = await getTenantContext();
+  const data = parsed.data;
+  await prisma.tenant.update({
+    where: { id: tenantId },
+    data: {
+      estadoResultadosImpuestoActivo: data.activo,
+      estadoResultadosImpuestoNombre: data.nombre,
+      estadoResultadosImpuestoTasa: data.tasa,
+    },
+  });
+  revalidatePath("/contabilidad/estado-resultados");
+  revalidatePath("/contabilidad/dashboard-financiero");
+  return { ok: true };
+}
+
 export async function getEstadoResultados(year: number, month: number) {
   const from = startOfMonth(year, month);
   const to = endOfMonth(year, month);
-  const [ingresos, egresos, honorarios, pacientesAtendidos] = await Promise.all([
+  const { tenantId } = await getTenantContext();
+  const [tenant, ingresos, egresos, honorarios, pacientesAtendidos] = await Promise.all([
+    prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        estadoResultadosImpuestoActivo: true,
+        estadoResultadosImpuestoNombre: true,
+        estadoResultadosImpuestoTasa: true,
+      },
+    }),
     prisma.ingreso.findMany({ where: await tenantWhere<Prisma.IngresoWhereInput>({ fecha: { gte: from, lte: to } }), include: { tipoIngreso: true } }),
     prisma.egreso.findMany({
       where: await tenantWhere<Prisma.EgresoWhereInput>({
@@ -353,11 +380,18 @@ export async function getEstadoResultados(year: number, month: number) {
   const costos = honorariosMedicos + totalPorTipo(costosPorTipo);
   const gastosOperacion = totalPorTipo(gastosOperacionPorTipo);
   const gastosFinancieros = totalPorTipo(gastosFinancierosPorTipo);
-  const impuestos = totalPorTipo(impuestosPorTipo);
+  const impuestosRegistrados = totalPorTipo(impuestosPorTipo);
   const utilidadBruta = totalIngresos - costos;
   const utilidadOperativa = utilidadBruta - gastosOperacion;
   const utilidadAntesImpuestos = utilidadOperativa - gastosFinancieros;
+  const impuestoConfiguracion = {
+    activo: tenant?.estadoResultadosImpuestoActivo ?? false,
+    nombre: tenant?.estadoResultadosImpuestoNombre ?? "Impuesto ISV",
+    tasa: n(tenant?.estadoResultadosImpuestoTasa ?? 15),
+  };
+  const impuestoCalculado = impuestoConfiguracion.activo ? Math.max(utilidadAntesImpuestos, 0) * (impuestoConfiguracion.tasa / 100) : 0;
+  const impuestos = impuestosRegistrados + impuestoCalculado;
   const utilidadNeta = utilidadAntesImpuestos - impuestos;
   const pct = (v: number) => totalIngresos ? (v / totalIngresos) * 100 : 0;
-  return { month, year, ingresosServicios, otrosIngresos, totalIngresos, honorariosMedicos, materiales, laboratorio, costos, utilidadBruta, gastosOperacion, utilidadOperativa, gastosFinancieros, utilidadAntesImpuestos, impuestos, utilidadNeta, pacientesAtendidos, ticketPromedio: pacientesAtendidos ? totalIngresos / pacientesAtendidos : 0, indicadores: { margenBruto: pct(utilidadBruta), margenOperativo: pct(utilidadOperativa), margenNeto: pct(utilidadNeta), costoVentas: pct(costos), indiceHonorarios: pct(honorariosMedicos), costoMateriales: pct(materiales), costoLaboratorio: pct(laboratorio), gastosOperativos: pct(gastosOperacion) }, costosPorTipo, gastosOperacionPorTipo, gastosFinancierosPorTipo, impuestosPorTipo };
+  return { month, year, ingresosServicios, otrosIngresos, totalIngresos, honorariosMedicos, materiales, laboratorio, costos, utilidadBruta, gastosOperacion, utilidadOperativa, gastosFinancieros, utilidadAntesImpuestos, impuestosRegistrados, impuestoConfiguracion, impuestoCalculado, impuestos, utilidadNeta, pacientesAtendidos, ticketPromedio: pacientesAtendidos ? totalIngresos / pacientesAtendidos : 0, indicadores: { margenBruto: pct(utilidadBruta), margenOperativo: pct(utilidadOperativa), margenNeto: pct(utilidadNeta), costoVentas: pct(costos), indiceHonorarios: pct(honorariosMedicos), costoMateriales: pct(materiales), costoLaboratorio: pct(laboratorio), gastosOperativos: pct(gastosOperacion) }, costosPorTipo, gastosOperacionPorTipo, gastosFinancierosPorTipo, impuestosPorTipo };
 }

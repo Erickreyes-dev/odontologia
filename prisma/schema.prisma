@@ -41,8 +41,11 @@ model Tenant {
   trialEndsAt      DateTime? @db.DateTime(3)
   fechaExpiracion  DateTime? @db.DateTime(3)
   estado           String    @default("vigente") @db.VarChar(20)
-  paypalCustomerId String?   @db.VarChar(120)
-  createAt         DateTime  @default(now())
+  paypalCustomerId                String?  @db.VarChar(120)
+  estadoResultadosImpuestoActivo Boolean  @default(false) @db.Bit(1)
+  estadoResultadosImpuestoNombre String   @default("Impuesto ISV") @db.VarChar(80)
+  estadoResultadosImpuestoTasa   Decimal  @default(15.00) @db.Decimal(5, 2)
+  createAt                       DateTime @default(now())
   updateAt         DateTime  @updatedAt
 
   roles                  Rol[]
