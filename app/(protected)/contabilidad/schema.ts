@@ -61,6 +61,13 @@ export const EgresoSchema = z.object({
   path: ["descripcionManual"],
 });
 
+
+export const EstadoResultadosImpuestoSchema = z.object({
+  activo: z.boolean().default(false),
+  nombre: z.string().min(1, "El nombre del impuesto es requerido").max(80),
+  tasa: z.number().min(0).max(100),
+});
+
 export const EquipoInstrumentoSchema = z.object({
   id: z.string().optional(),
   nombre: z.string().min(1).max(150),
@@ -73,3 +80,4 @@ export const EquipoInstrumentoSchema = z.object({
 export type IngresoInput = z.infer<typeof IngresoSchema>;
 export type EgresoInput = z.infer<typeof EgresoSchema>;
 export type EquipoInstrumentoInput = z.infer<typeof EquipoInstrumentoSchema>;
+export type EstadoResultadosImpuestoInput = z.infer<typeof EstadoResultadosImpuestoSchema>;
