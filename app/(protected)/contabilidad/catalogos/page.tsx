@@ -1,3 +1,30 @@
 import { getAccountingCatalogs } from "../actions";
-import { DescripcionEgresoForm, TipoEgresoForm, TipoIngresoForm } from "./components/catalogos-forms";
-export default async function CatalogosPage(){const c=await getAccountingCatalogs();return <div className="space-y-6 p-4"><h1 className="text-2xl font-bold">Catálogos contables</h1><section><h2 className="font-semibold">Tipos de ingreso</h2><TipoIngresoForm/><ul className="list-disc pl-5">{c.tiposIngreso.map(t=><li key={t.id}>{t.nombre}</li>)}</ul></section><section><h2 className="font-semibold">Tipos de egreso</h2><TipoEgresoForm/><ul className="list-disc pl-5">{c.tiposEgreso.map(t=><li key={t.id}>{t.nombre} <span className="text-muted-foreground">({t.categoriaEstadoResultados})</span></li>)}</ul></section><section><h2 className="font-semibold">Descripciones de egreso</h2><DescripcionEgresoForm tiposEgreso={c.tiposEgreso}/></section></div>}
+import { DescripcionEgresoForm, ImpuestoEstadoResultadosForm, TipoEgresoForm, TipoIngresoForm } from "./components/catalogos-forms";
+
+export default async function CatalogosPage() {
+  const c = await getAccountingCatalogs();
+
+  return (
+    <div className="space-y-6 p-4">
+      <h1 className="text-2xl font-bold">Catálogos contables</h1>
+      <section>
+        <h2 className="font-semibold">Tipos de ingreso</h2>
+        <TipoIngresoForm />
+        <ul className="list-disc pl-5">{c.tiposIngreso.map((t) => <li key={t.id}>{t.nombre}</li>)}</ul>
+      </section>
+      <section>
+        <h2 className="font-semibold">Tipos de egreso</h2>
+        <TipoEgresoForm />
+        <ul className="list-disc pl-5">{c.tiposEgreso.map((t) => <li key={t.id}>{t.nombre} <span className="text-muted-foreground">({t.categoriaEstadoResultados})</span></li>)}</ul>
+      </section>
+      <section>
+        <h2 className="font-semibold">Descripciones de egreso</h2>
+        <DescripcionEgresoForm tiposEgreso={c.tiposEgreso} />
+      </section>
+      <section>
+        <h2 className="font-semibold">Impuesto del estado de resultados</h2>
+        <ImpuestoEstadoResultadosForm impuesto={c.impuestoEstadoResultados} />
+      </section>
+    </div>
+  );
+}

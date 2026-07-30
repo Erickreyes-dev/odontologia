@@ -23,7 +23,15 @@ export async function bootstrapAccountingCatalogs() {
 export async function getAccountingCatalogs() {
   const { tenantId } = await getTenantContext();
   await ensureAccountingCatalogs(tenantId);
-  const [tiposIngreso, tiposEgreso, pacientes, medicos, productos, serviciosLaboratorio, equipos, consultasLaboratorio] = await Promise.all([
+  const [tenant, tiposIngreso, tiposEgreso, pacientes, medicos, productos, serviciosLaboratorio, equipos, consultasLaboratorio] = await Promise.all([
+    prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        estadoResultadosImpuestoActivo: true,
+        estadoResultadosImpuestoNombre: true,
+        estadoResultadosImpuestoTasa: true,
+      },
+    }),
     prisma.tipoIngreso.findMany({ where: await tenantWhere<Prisma.TipoIngresoWhereInput>({ activo: true }), orderBy: { nombre: "asc" } }),
     prisma.tipoEgreso.findMany({ where: await tenantWhere<Prisma.TipoEgresoWhereInput>({ activo: true }), include: { descripciones: { where: { activo: true }, orderBy: { nombre: "asc" } } }, orderBy: { nombre: "asc" } }),
     prisma.paciente.findMany({ where: await tenantWhere<Prisma.PacienteWhereInput>({ activo: true }), orderBy: [{ nombre: "asc" }, { apellido: "asc" }] }),
@@ -43,7 +51,21 @@ export async function getAccountingCatalogs() {
       orderBy: { fechaConsulta: "desc" },
     }),
   ]);
-  return { tiposIngreso, tiposEgreso, pacientes, medicos, productos, serviciosLaboratorio, equipos, consultasLaboratorio };
+  return {
+    tiposIngreso,
+    tiposEgreso,
+    pacientes,
+    medicos,
+    productos,
+    serviciosLaboratorio,
+    equipos,
+    consultasLaboratorio,
+    impuestoEstadoResultados: {
+      activo: tenant?.estadoResultadosImpuestoActivo ?? false,
+      nombre: tenant?.estadoResultadosImpuestoNombre ?? "Impuesto ISV",
+      tasa: n(tenant?.estadoResultadosImpuestoTasa ?? 15),
+    },
+  };
 }
 
 export async function getIngresos() {
@@ -333,6 +355,7 @@ export async function updateEstadoResultadosImpuesto(input: unknown) {
       estadoResultadosImpuestoTasa: data.tasa,
     },
   });
+  revalidatePath("/contabilidad/catalogos");
   revalidatePath("/contabilidad/estado-resultados");
   revalidatePath("/contabilidad/dashboard-financiero");
   return { ok: true };

@@ -1,4 +1,4 @@
-import { getEstadoResultados, updateEstadoResultadosImpuesto } from "../actions";
+import { getEstadoResultados } from "../actions";
 import { MonthYearFilter } from "../components/month-year-filter";
 import { EstadoResultadosPdfButton } from "./components/estado-resultados-pdf-button";
 
@@ -19,15 +19,6 @@ export default async function EstadoResultadosPage({ searchParams }: { searchPar
   const month = Number(searchParams.month ?? d.getMonth() + 1);
   const year = Number(searchParams.year ?? d.getFullYear());
   const r = await getEstadoResultados(year, month);
-  const saveTaxConfig = async (formData: FormData) => {
-    "use server";
-    await updateEstadoResultadosImpuesto({
-      activo: formData.get("activo") === "1",
-      nombre: String(formData.get("nombre") ?? "Impuesto ISV"),
-      tasa: Number(formData.get("tasa") ?? 15),
-    });
-  };
-
   return (
     <div className="space-y-4 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -35,26 +26,6 @@ export default async function EstadoResultadosPage({ searchParams }: { searchPar
         <EstadoResultadosPdfButton data={r} />
       </div>
       <MonthYearFilter month={month} year={year} />
-      <form action={saveTaxConfig} className="max-w-2xl rounded-lg border bg-white p-4 text-sm shadow-sm">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex items-center gap-2 font-medium">
-            <input name="activo" type="checkbox" value="1" defaultChecked={r.impuestoConfiguracion.activo} className="h-4 w-4" />
-            Aplicar impuesto guardado al estado de resultados
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-muted-foreground">Nombre del impuesto</span>
-            <input name="nombre" required maxLength={80} defaultValue={r.impuestoConfiguracion.nombre} className="w-44 rounded-md border p-2" />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-muted-foreground">Tasa (%)</span>
-            <input name="tasa" type="number" min="0" max="100" step="0.01" defaultValue={r.impuestoConfiguracion.tasa} className="w-28 rounded-md border p-2" />
-          </label>
-          <button className="rounded-md border px-4 py-2">Guardar configuración</button>
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Esta configuración queda guardada para el tenant y se calcula sobre la utilidad antes de impuestos.
-        </p>
-      </form>
       <div className="max-w-2xl rounded-lg border bg-green-50 p-4 text-sm text-green-950">
         <details open><summary className="cursor-pointer font-bold">Ingresos</summary><Row l="Ingreso por servicios" v={r.ingresosServicios} /><Row l="Otros ingresos" v={r.otrosIngresos} /></details>
         <Row l="Total de ingresos" v={r.totalIngresos} b />
