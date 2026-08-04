@@ -30,15 +30,15 @@ export function CitaTable({ initialData, from, to }: CitaTableProps) {
     setPageCount(initialData.pageCount);
   }, [initialData]);
 
-  const handlePageChange = async (newPage: number) => {
-    if (newPage < 1 || newPage > pageCount) return;
+  const handlePageChange = React.useCallback(async (newPage: number, search?: string) => {
+    if (newPage < 1) return;
 
-    const res = await getCitas({ page: newPage, pageSize, from, to });
+    const res = await getCitas({ page: newPage, pageSize, from, to, search });
 
     setData(res.data);
     setPage(res.page);
     setPageCount(res.pageCount);
-  };
+  }, [from, pageSize, to]);
 
   return (
     <DataTable

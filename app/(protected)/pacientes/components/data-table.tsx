@@ -10,7 +10,6 @@ import {
   ColumnFiltersState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -35,7 +34,7 @@ interface DataTableProps<TData, TValue> {
   page: number;            // página actual (1,2,3...)
   pageSize: number;        // tamaño de página
   pageCount: number;       // total de páginas (viene del backend)
-  onPageChange: (page: number) => void;
+  onPageChange: (page: number, search?: string, filters?: ColumnFiltersState) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -60,6 +59,14 @@ export function DataTable<TData, TValue>({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
 
+  React.useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      onPageChange(1, globalFilter, columnFilters);
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [globalFilter, columnFilters, onPageChange]);
+
   const table = useReactTable({
     data,
     columns,
@@ -83,7 +90,7 @@ export function DataTable<TData, TValue>({
           : updater;
 
       // volver a 1-based para tu backend
-      onPageChange(next.pageIndex + 1);
+      onPageChange(next.pageIndex + 1, globalFilter, columnFilters);
     },
 
     onSortingChange: setSorting,
@@ -91,15 +98,7 @@ export function DataTable<TData, TValue>({
 
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-
-    // filtro global simple por texto
-    globalFilterFn: (row) => {
-      const values = Object.values(row.original as any);
-      return values.some((value) =>
-        String(value).toLowerCase().includes(globalFilter.toLowerCase())
-      );
-    },
+    manualFiltering: true,
   });
 
   const visibleRows = table.getRowModel().rows;
@@ -189,7 +188,7 @@ export function DataTable<TData, TValue>({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onPageChange(page - 1)}
+          onClick={() => onPageChange(page - 1, globalFilter, columnFilters)}
           disabled={page <= 1}
         >
           Anterior
@@ -202,7 +201,7 @@ export function DataTable<TData, TValue>({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onPageChange(page + 1)}
+          onClick={() => onPageChange(page + 1, globalFilter, columnFilters)}
           disabled={page >= pageCount}
         >
           Siguiente
