@@ -22,14 +22,16 @@ export async function getCitas({
   pageSize = 10,
   from,
   to,
+  search,
 }: {
   page?: number;
   pageSize?: number;
   from?: string;
   to?: string;
+  search?: string;
 }) {
   try {
-    const where = await tenantWhere<Prisma.CitaWhereInput>(buildFechaRangeFilter(from, to));
+    const where = await tenantWhere<Prisma.CitaWhereInput>(buildCitaWhere(from, to, search));
     const result = await paginate<any, Prisma.CitaWhereInput>({
       model: prisma.cita,
       page,
@@ -104,6 +106,31 @@ export async function getCitas({
       pageCount: 0,
     };
   }
+}
+
+function buildCitaWhere(from?: string, to?: string, search?: string): Prisma.CitaWhereInput {
+  const and: Prisma.CitaWhereInput[] = [];
+  const dateFilter = buildFechaRangeFilter(from, to);
+  if (dateFilter) and.push(dateFilter);
+
+  const term = search?.trim();
+  if (term) {
+    and.push({
+      OR: [
+        { estado: { contains: term } },
+        { motivo: { contains: term } },
+        { observacion: { contains: term } },
+        { paciente: { nombre: { contains: term } } },
+        { paciente: { apellido: { contains: term } } },
+        { paciente: { identidad: { contains: term } } },
+        { consultorio: { nombre: { contains: term } } },
+        { medico: { empleado: { nombre: { contains: term } } } },
+        { medico: { empleado: { apellido: { contains: term } } } },
+      ],
+    });
+  }
+
+  return and.length ? { AND: and } : {};
 }
 
 function buildFechaRangeFilter(

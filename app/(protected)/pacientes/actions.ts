@@ -29,16 +29,21 @@ function normalizeOptionalId(value?: string | null): string | null {
 export async function getPacientes({
   page = 1,
   pageSize = 10,
+  search,
+  filters,
 }: {
   page?: number;
   pageSize?: number;
+  search?: string;
+  filters?: Partial<Record<"identidad" | "nombre" | "telefono" | "fechaNacimiento" | "correo" | "genero" | "activo", string>>;
 }) {
   try {
+    const where = await buildPacienteWhere(search, filters);
     const result = await paginate<Paciente, Prisma.PacienteWhereInput>({
       model: prisma.paciente,
       page,
       pageSize,
-      where: await tenantWhere<Prisma.PacienteWhereInput>(),
+      where,
       orderBy: { nombre: "asc" },
     });
 
@@ -76,9 +81,68 @@ export async function getPacientes({
       total: 0,
       page,
       pageSize,
-      pageCount: 0, // 👈 aquí también usamos pageCount
+      pageCount: 0,
     };
   }
+}
+
+
+function buildBooleanFilter(term: string): boolean | undefined {
+  const normalized = term.toLowerCase().trim();
+  if (["activo", "activa", "si", "sí", "true", "1"].includes(normalized)) return true;
+  if (["inactivo", "inactiva", "no", "false", "0"].includes(normalized)) return false;
+  return undefined;
+}
+
+async function buildPacienteWhere(
+  search?: string,
+  filters?: Partial<Record<"identidad" | "nombre" | "telefono" | "fechaNacimiento" | "correo" | "genero" | "activo", string>>
+): Promise<Prisma.PacienteWhereInput> {
+  const and: Prisma.PacienteWhereInput[] = [];
+  const normalizedSearch = search?.trim();
+
+  if (normalizedSearch) {
+    const activeValue = buildBooleanFilter(normalizedSearch);
+    and.push({
+      OR: [
+        { identidad: { contains: normalizedSearch } },
+        { nombre: { contains: normalizedSearch } },
+        { apellido: { contains: normalizedSearch } },
+        { telefono: { contains: normalizedSearch } },
+        { correo: { contains: normalizedSearch } },
+        { genero: { contains: normalizedSearch } },
+        ...(activeValue === undefined ? [] : [{ activo: activeValue }]),
+      ],
+    });
+  }
+
+  const addContains = (field: "identidad" | "telefono" | "correo" | "genero", value?: string) => {
+    const term = value?.trim();
+    if (term) and.push({ [field]: { contains: term } });
+  };
+
+  addContains("identidad", filters?.identidad);
+  addContains("telefono", filters?.telefono);
+  addContains("correo", filters?.correo);
+  addContains("genero", filters?.genero);
+
+  const nameTerm = filters?.nombre?.trim();
+  if (nameTerm) {
+    and.push({ OR: [{ nombre: { contains: nameTerm } }, { apellido: { contains: nameTerm } }] });
+  }
+
+  const activeTerm = filters?.activo?.trim();
+  if (activeTerm) {
+    const activeValue = buildBooleanFilter(activeTerm);
+    if (activeValue !== undefined) and.push({ activo: activeValue });
+  }
+
+  const dateTerm = filters?.fechaNacimiento?.trim();
+  if (dateTerm && /^\d{4}-\d{2}-\d{2}$/.test(dateTerm)) {
+    and.push({ fechaNacimiento: { gte: new Date(`${dateTerm}T00:00:00.000`), lt: new Date(`${dateTerm}T23:59:59.999`) } });
+  }
+
+  return tenantWhere<Prisma.PacienteWhereInput>(and.length ? { AND: and } : {});
 }
 
 /**

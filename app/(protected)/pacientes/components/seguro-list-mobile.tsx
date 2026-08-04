@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getPacientes } from "../actions";
 import { Paciente } from "../schema";
 import { calcularEdad } from "@/lib/utils";
@@ -25,24 +25,25 @@ export default function PacienteListMobile({ initialData, initialPage, initialPa
   const [loading, setLoading] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
 
-  const filteredPacientes = pacientes.filter(
-    (p) =>
-      p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.identidad?.toLowerCase() ?? "").includes(searchTerm.toLowerCase())
-  );
-
-  const handlePageChange = async (newPage: number) => {
-    if (newPage < 1 || newPage > pageCount) return;
+  const handlePageChange = useCallback(async (newPage: number, search = searchTerm) => {
+    if (newPage < 1) return;
     setLoading(true);
 
-    const res = await getPacientes({ page: newPage, pageSize: 10 });
+    const res = await getPacientes({ page: newPage, pageSize: 10, search });
     setPacientes(res.data);
     setPage(res.page);
     setPageCount(res.pageCount);
 
     setLoading(false);
-  };
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      handlePageChange(1, searchTerm);
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [handlePageChange, searchTerm]);
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
@@ -69,8 +70,8 @@ export default function PacienteListMobile({ initialData, initialPage, initialPa
 
       {/* Lista de pacientes */}
       <div className="space-y-3">
-        {filteredPacientes.length > 0 ? (
-          filteredPacientes.map((p) => {
+        {pacientes.length > 0 ? (
+          pacientes.map((p) => {
             const edad = p.fechaNacimiento ? calcularEdad(new Date(p.fechaNacimiento)) : null;
             return (
               <Card key={p.id}>

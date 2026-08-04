@@ -5,6 +5,7 @@ import { DataTable } from "./data-table";
 import { getPacientes } from "../actions";
 import { columns } from "./columns";
 import { Paciente } from "../schema";
+import { ColumnFiltersState } from "@tanstack/react-table";
 
 interface PacienteTableProps {
   initialData: {
@@ -23,17 +24,20 @@ export function PacienteTable({ initialData }: PacienteTableProps) {
   const [pageCount, setPageCount] = React.useState(initialData.pageCount);
   const [, setLoading] = React.useState(false);
 
-  const handlePageChange = async (newPage: number) => {
-    if (newPage < 1 || newPage > pageCount) return;
+  const handlePageChange = React.useCallback(async (newPage: number, search?: string, columnFilters?: ColumnFiltersState) => {
+    if (newPage < 1) return;
     setLoading(true);
 
-    const res = await getPacientes({ page: newPage, pageSize });
+    const filters = Object.fromEntries(
+      (columnFilters ?? []).map((filter) => [filter.id, String(filter.value ?? "")])
+    );
+    const res = await getPacientes({ page: newPage, pageSize, search, filters });
 
     setData(res.data);
     setPage(res.page);
     setPageCount(res.pageCount);
     setLoading(false);
-  };
+  }, [pageSize]);
 
   return (
     <DataTable
