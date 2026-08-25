@@ -23,22 +23,32 @@ export async function regenerateHonorariosForIngreso(ingresoId: string, tx: Pris
   if (!ingreso?.tenantId || !ingreso.consulta) return;
 
   const medicoId = ingreso.medicoId || ingreso.consulta.cita.medicoId;
+  const detallesPorServicio = new Map<string, { servicio: typeof ingreso.consulta.detalles[number]["servicio"]; totalBruto: number }>();
   for (const detalle of ingreso.consulta.detalles) {
+    const existente = detallesPorServicio.get(detalle.servicioId);
+    detallesPorServicio.set(detalle.servicioId, {
+      servicio: detalle.servicio,
+      // El precio de una consulta puede modificarse, por lo que el honorario
+      // siempre debe calcularse desde el detalle y no desde el precio base.
+      totalBruto: (existente?.totalBruto ?? 0) + money(detalle.precioAplicado) * detalle.cantidad,
+    });
+  }
+
+  for (const [servicioId, detalle] of detallesPorServicio) {
     const relacion = detalle.servicio.medicosServicios.find((ms) => ms.medicoId === medicoId);
     const porcentaje = money(relacion?.porcentajeHonorario);
-    const totalServicioBruto = money(detalle.precioAplicado) * detalle.cantidad;
     const costoLaboratorio = ingreso.consulta.egresos
-      .filter((egreso) => egreso.servicioId === detalle.servicioId)
+      .filter((egreso) => egreso.servicioId === servicioId)
       .reduce((total, egreso) => total + money(egreso.monto), 0);
-    const totalServicio = Math.max(totalServicioBruto - costoLaboratorio, 0);
+    const totalServicio = Math.max(detalle.totalBruto - costoLaboratorio, 0);
     const comision = totalServicio * (porcentaje / 100);
 
     const honorario = await tx.honorarioMedico.upsert({
-      where: { ingresoId_medicoId_servicioId: { ingresoId: ingreso.id, medicoId, servicioId: detalle.servicioId } },
+      where: { ingresoId_medicoId_servicioId: { ingresoId: ingreso.id, medicoId, servicioId } },
       update: { totalServicio, porcentaje, comision, pacienteId: ingreso.pacienteId, consultaId: ingreso.consultaId },
       create: {
         id: randomUUID(), tenantId: ingreso.tenantId, ingresoId: ingreso.id, medicoId,
-        pacienteId: ingreso.pacienteId, consultaId: ingreso.consultaId, servicioId: detalle.servicioId,
+        pacienteId: ingreso.pacienteId, consultaId: ingreso.consultaId, servicioId,
         totalServicio, porcentaje, comision, estado: "PENDIENTE",
       },
     });

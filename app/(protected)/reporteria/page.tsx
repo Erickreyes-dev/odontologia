@@ -6,6 +6,9 @@ import { getAuditLogs } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { fromZonedTime } from "date-fns-tz";
+
+const CENTRAL_AMERICA_TIME_ZONE = "America/Tegucigalpa";
 
 function JsonBlock({ value }: { value: unknown }) {
   if (!value) return <span className="text-muted-foreground">Sin detalle</span>;
@@ -28,8 +31,8 @@ export default async function ReporteriaPage({
     usuario: params.usuario,
     ip: params.ip,
     texto: params.texto,
-    desde: params.desde ? new Date(`${params.desde}T00:00:00`) : undefined,
-    hasta: params.hasta ? new Date(`${params.hasta}T23:59:59`) : undefined,
+    desde: params.desde ? fromZonedTime(`${params.desde}T00:00:00`, CENTRAL_AMERICA_TIME_ZONE) : undefined,
+    hasta: params.hasta ? fromZonedTime(`${params.hasta}T23:59:59.999`, CENTRAL_AMERICA_TIME_ZONE) : undefined,
   });
 
   return (
@@ -62,7 +65,7 @@ export default async function ReporteriaPage({
             <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
               <div>
                 <div className="font-semibold">{log.resumen}</div>
-                <div className="text-sm text-muted-foreground">{log.fecha.toLocaleString("es-HN")} · {log.usuario} · {log.ip || "IP no disponible"}</div>
+                <div className="text-sm text-muted-foreground">{log.fecha.toLocaleString("es-HN", { timeZone: CENTRAL_AMERICA_TIME_ZONE })} · {log.usuario} · {log.ip || "IP no disponible"}</div>
               </div>
               <div className="flex gap-2 text-xs">
                 <span className="rounded-full bg-muted px-2 py-1">{log.accion}</span>
