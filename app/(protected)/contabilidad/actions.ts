@@ -162,6 +162,42 @@ export async function createTipoIngreso(input: unknown) {
 }
 
 export async function getHonorarios() {
+  // Actualiza registros creados antes de que el total se obtuviera desde los
+  // detalles de la consulta, sin reemplazar el porcentaje que el usuario haya
+  // ajustado manualmente para un honorario.
+  const honorarios = await prisma.honorarioMedico.findMany({
+    where: await tenantWhere<Prisma.HonorarioMedicoWhereInput>(),
+    select: {
+      id: true,
+      servicioId: true,
+      porcentaje: true,
+      totalServicio: true,
+      comision: true,
+      consulta: {
+        select: {
+          detalles: { select: { servicioId: true, precioAplicado: true, cantidad: true } },
+          egresos: { where: { servicioId: { not: null } }, select: { servicioId: true, monto: true } },
+        },
+      },
+    },
+  });
+  const actualizaciones = honorarios.flatMap((honorario) => {
+    if (!honorario.servicioId || !honorario.consulta) return [];
+    const totalBruto = honorario.consulta.detalles
+      .filter((detalle) => detalle.servicioId === honorario.servicioId)
+      .reduce((total, detalle) => total + n(detalle.precioAplicado) * detalle.cantidad, 0);
+    const costoLaboratorio = honorario.consulta.egresos
+      .filter((egreso) => egreso.servicioId === honorario.servicioId)
+      .reduce((total, egreso) => total + n(egreso.monto), 0);
+    const totalServicio = Math.max(totalBruto - costoLaboratorio, 0);
+    const comision = totalServicio * (n(honorario.porcentaje) / 100);
+
+    return n(honorario.totalServicio) === totalServicio && n(honorario.comision) === comision
+      ? []
+      : [prisma.honorarioMedico.update({ where: { id: honorario.id }, data: { totalServicio, comision } })];
+  });
+  if (actualizaciones.length) await prisma.$transaction(actualizaciones);
+
   return prisma.honorarioMedico.findMany({
     where: await tenantWhere<Prisma.HonorarioMedicoWhereInput>(),
     include: { medico: { include: { empleado: true } }, paciente: true, consulta: true, servicio: true, ingreso: { include: { pago: true } } },

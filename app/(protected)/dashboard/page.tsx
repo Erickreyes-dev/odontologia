@@ -21,6 +21,7 @@ export default async function DashboardPage() {
         apellido: true,
         genero: true,
         direccion: true,
+        createAt: true,
         fechaNacimiento: true,
         conocioClinicaCatalogo: { select: { nombre: true } },
         conocioClinica: true,
@@ -105,6 +106,7 @@ export default async function DashboardPage() {
         pacientes: pacientes.map((p) => ({
           ...p,
           fechaNacimiento: p.fechaNacimiento ? p.fechaNacimiento.toISOString() : null,
+          fechaRegistro: p.createAt.toISOString(),
           conocioClinica: p.conocioClinicaCatalogo?.nombre ?? p.conocioClinica ?? null,
         })),
         consultas: consultas.map((consulta) => ({

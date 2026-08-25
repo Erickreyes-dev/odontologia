@@ -36,6 +36,7 @@ type DashboardData = {
     genero: string | null;
     direccion: string | null;
     fechaNacimiento: string | null;
+    fechaRegistro: string;
     conocioClinica: string | null;
   }[];
   consultas: {
@@ -188,16 +189,29 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   const direcciones = data.pacientes.filter((p) => Boolean(p.direccion?.trim())).length;
 
   const conocioClinicaPieData = useMemo(() => {
+    const from = range?.from ? startOfDay(range.from) : null;
+    const to = range?.from ? endOfDay(range.to ?? range.from) : null;
     const map = data.pacientes.reduce<Record<string, number>>((acc, paciente) => {
-      const key = paciente.conocioClinica?.trim() || "Sin especificar";
+      const fechaRegistro = new Date(paciente.fechaRegistro);
+      if (from && to && (fechaRegistro < from || fechaRegistro > to)) return acc;
+
+      const key = paciente.conocioClinica
+        ?.trim()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[\s_]+/g, " ")
+        .toLocaleUpperCase("es-HN") || "SIN ESPECIFICAR";
       acc[key] = (acc[key] ?? 0) + 1;
       return acc;
     }, {});
 
     return Object.entries(map)
-      .map(([name, cantidad]) => ({ name, cantidad }))
+      .map(([name, cantidad]) => ({
+        name: name === "SIN ESPECIFICAR" ? "Sin especificar" : name.charAt(0) + name.slice(1).toLocaleLowerCase("es-HN"),
+        cantidad,
+      }))
       .sort((a, b) => b.cantidad - a.cantidad);
-  }, [data.pacientes]);
+  }, [data.pacientes, range]);
 
   const descargarExcelCuotas = () => {
     const rows = data.cuotasPendientes.map((item) => ({
@@ -364,7 +378,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         <Card>
           <CardHeader>
             <CardTitle>¿Cómo conocieron la clínica?</CardTitle>
-            <p className="text-sm text-muted-foreground">Distribución basada en el catálogo seleccionado en pacientes.</p>
+            <p className="text-sm text-muted-foreground">Distribución de pacientes registrados en el rango de fecha seleccionado.</p>
           </CardHeader>
           <CardContent>
             <ChartContainer config={pieChartConfig} className="h-[260px] w-full">
