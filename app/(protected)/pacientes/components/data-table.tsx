@@ -35,6 +35,7 @@ interface DataTableProps<TData, TValue> {
   pageSize: number;        // tamaño de página
   pageCount: number;       // total de páginas (viene del backend)
   onPageChange: (page: number, search?: string, filters?: ColumnFiltersState) => void;
+  onExport: (search?: string, filters?: ColumnFiltersState) => Promise<TData[]>;
 }
 
 export function DataTable<TData, TValue>({
@@ -44,6 +45,7 @@ export function DataTable<TData, TValue>({
   pageSize,
   pageCount,
   onPageChange,
+  onExport,
 }: DataTableProps<TData, TValue>) {
   const filterLabels: Record<string, string> = {
     identidad: "identidad",
@@ -120,7 +122,11 @@ export function DataTable<TData, TValue>({
             <Plus className="h-4 w-4" />
           </Button>
         </Link>
-        <ExportExcelButton data={data as Record<string, unknown>[]} fileName="pacientes" />
+        <ExportExcelButton
+          data={data as Record<string, unknown>[]}
+          fileName="pacientes"
+          getData={() => onExport(globalFilter, columnFilters).then((rows) => rows as Record<string, unknown>[])}
+        />
       </div>
 
 

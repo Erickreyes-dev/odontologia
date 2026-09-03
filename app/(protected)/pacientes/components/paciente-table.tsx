@@ -2,14 +2,14 @@
 
 import * as React from "react";
 import { DataTable } from "./data-table";
-import { getPacientes } from "../actions";
+import { getPacientes, getPacientesParaExportar } from "../actions";
 import { columns } from "./columns";
-import { Paciente } from "../schema";
+import { PacienteConUltimaConsulta } from "../schema";
 import { ColumnFiltersState } from "@tanstack/react-table";
 
 interface PacienteTableProps {
   initialData: {
-    data: Paciente[];
+    data: PacienteConUltimaConsulta[];
     total: number;
     page: number;
     pageSize: number;
@@ -39,6 +39,13 @@ export function PacienteTable({ initialData }: PacienteTableProps) {
     setLoading(false);
   }, [pageSize]);
 
+  const handleExport = React.useCallback(async (search?: string, columnFilters?: ColumnFiltersState) => {
+    const filters = Object.fromEntries(
+      (columnFilters ?? []).map((filter) => [filter.id, String(filter.value ?? "")])
+    );
+    return getPacientesParaExportar({ search, filters });
+  }, []);
+
   return (
     <DataTable
       columns={columns}
@@ -47,6 +54,7 @@ export function PacienteTable({ initialData }: PacienteTableProps) {
       pageSize={pageSize}
       pageCount={pageCount}
       onPageChange={handlePageChange}
+      onExport={handleExport}
     />
   );
 }
