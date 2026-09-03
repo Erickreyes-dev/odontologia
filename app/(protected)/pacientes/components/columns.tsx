@@ -27,11 +27,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import Link from "next/link";
-import { Paciente } from "../schema";
+import { Paciente, PacienteConUltimaConsulta } from "../schema";
 import { deletePaciente } from "../actions";
 import { calcularEdad } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-export const columns: ColumnDef<Paciente>[] = [
+export const columns: ColumnDef<PacienteConUltimaConsulta>[] = [
   {
     accessorKey: "identidad",
     header: ({ column }) => (
@@ -149,6 +150,40 @@ export const columns: ColumnDef<Paciente>[] = [
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
+  },
+  {
+    accessorKey: "ultimaFechaVisita",
+    enableColumnFilter: false,
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="text-center"
+      >
+        Última visita
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const fecha = row.original.ultimaFechaVisita;
+      const tratamiento = row.original.ultimoTratamiento;
+      if (!fecha) return <div>-</div>;
+
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-help underline decoration-dotted underline-offset-4">
+                {new Date(fecha).toLocaleDateString("es-HN")}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="max-w-xs">Último tratamiento: {tratamiento ?? "No registrado"}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    },
   },
 
 
