@@ -39,7 +39,7 @@ export async function getPacientes({
 }) {
   try {
     const where = await buildPacienteWhere(search, filters);
-    const result = await paginate<Paciente, Prisma.PacienteWhereInput>({
+    const result = await paginate<PacienteListadoRecord, Prisma.PacienteWhereInput>({
       model: prisma.paciente,
       page,
       pageSize,
