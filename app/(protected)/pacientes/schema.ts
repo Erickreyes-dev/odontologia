@@ -35,3 +35,8 @@ export const PacienteSchema = z.object({
 });
 
 export type Paciente = z.infer<typeof PacienteSchema>;
+
+export type PacienteConUltimaConsulta = Paciente & {
+    ultimaFechaVisita: Date | null;
+    ultimoTratamiento: string | null;
+};

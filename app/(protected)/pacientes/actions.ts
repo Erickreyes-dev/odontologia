@@ -4,7 +4,7 @@ import { deleteTenantFileFromS3 } from "@/lib/s3";
 import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
-import { Paciente, PacienteSchema } from './schema';
+import { Paciente, PacienteConUltimaConsulta, PacienteSchema } from './schema';
 import { paginate } from '@/app/type';
 import { Prisma } from '@/lib/generated/prisma';
 import { tenantWhere, withTenantData } from '@/lib/tenant-query';
@@ -39,33 +39,16 @@ export async function getPacientes({
 }) {
   try {
     const where = await buildPacienteWhere(search, filters);
-    const result = await paginate<Paciente, Prisma.PacienteWhereInput>({
+    const result = await paginate<PacienteListadoRecord, Prisma.PacienteWhereInput>({
       model: prisma.paciente,
       page,
       pageSize,
       where,
       orderBy: { nombre: "asc" },
+      select: pacienteListadoSelect,
     });
 
-    // Mapeo igual al que ya tenías antes
-    const pacientes: Paciente[] = result.data.map((r) => ({
-      id: r.id,
-      nombre: r.nombre,
-      apellido: r.apellido,
-      identidad: r.identidad,
-      fechaNacimiento: r.fechaNacimiento
-        ? new Date(r.fechaNacimiento)
-        : null,
-      genero: r.genero,
-      telefono: r.telefono,
-      correo: r.correo,
-      direccion: r.direccion,
-      seguroId: r.seguroId || "",
-      conocioClinica: r.conocioClinica,
-      conocioClinicaCatalogoId: r.conocioClinicaCatalogoId,
-      decisionAgendarCatalogoId: r.decisionAgendarCatalogoId,
-      activo: r.activo,
-    }));
+    const pacientes = result.data.map(mapPacienteListado);
 
     return {
       data: pacientes,
@@ -77,12 +60,93 @@ export async function getPacientes({
   } catch (error) {
     console.error("Error al obtener los pacientes:", error);
     return {
-      data: [] as Paciente[],
+      data: [] as PacienteConUltimaConsulta[],
       total: 0,
       page,
       pageSize,
       pageCount: 0,
     };
+  }
+}
+
+const pacienteListadoSelect = {
+  id: true,
+  nombre: true,
+  apellido: true,
+  identidad: true,
+  fechaNacimiento: true,
+  genero: true,
+  telefono: true,
+  correo: true,
+  direccion: true,
+  seguroId: true,
+  conocioClinica: true,
+  conocioClinicaCatalogoId: true,
+  decisionAgendarCatalogoId: true,
+  activo: true,
+  citas: {
+    where: { consulta: { is: { fechaConsulta: { not: null } } } },
+    orderBy: { consulta: { fechaConsulta: "desc" as const } },
+    take: 1,
+    select: {
+      consulta: {
+        select: {
+          fechaConsulta: true,
+          diagnostico: true,
+          detalles: { select: { cantidad: true, servicio: { select: { nombre: true } } } },
+        },
+      },
+    },
+  },
+} satisfies Prisma.PacienteSelect;
+
+type PacienteListadoRecord = Prisma.PacienteGetPayload<{ select: typeof pacienteListadoSelect }>;
+
+function mapPacienteListado(r: PacienteListadoRecord): PacienteConUltimaConsulta {
+  const consulta = r.citas[0]?.consulta;
+  const servicios = consulta?.detalles
+    .map(({ servicio, cantidad }) => `${servicio.nombre}${cantidad > 1 ? ` (${cantidad})` : ""}`)
+    .join(", ");
+
+  return {
+    id: r.id,
+    nombre: r.nombre,
+    apellido: r.apellido,
+    identidad: r.identidad,
+    fechaNacimiento: r.fechaNacimiento ? new Date(r.fechaNacimiento) : null,
+    genero: r.genero,
+    telefono: r.telefono,
+    correo: r.correo,
+    direccion: r.direccion,
+    seguroId: r.seguroId || "",
+    conocioClinica: r.conocioClinica,
+    conocioClinicaCatalogoId: r.conocioClinicaCatalogoId,
+    decisionAgendarCatalogoId: r.decisionAgendarCatalogoId,
+    activo: r.activo,
+    ultimaFechaVisita: consulta?.fechaConsulta ?? null,
+    ultimoTratamiento: servicios || consulta?.diagnostico || null,
+  };
+}
+
+/** Obtiene todos los pacientes que coinciden con los filtros para exportarlos. */
+export async function getPacientesParaExportar({
+  search,
+  filters,
+}: {
+  search?: string;
+  filters?: Partial<Record<"identidad" | "nombre" | "telefono" | "fechaNacimiento" | "correo" | "genero" | "activo", string>>;
+} = {}): Promise<PacienteConUltimaConsulta[]> {
+  try {
+    const where = await buildPacienteWhere(search, filters);
+    const records = await prisma.paciente.findMany({
+      where,
+      orderBy: { nombre: "asc" },
+      select: pacienteListadoSelect,
+    });
+    return records.map(mapPacienteListado);
+  } catch (error) {
+    console.error("Error al obtener pacientes para exportar:", error);
+    return [];
   }
 }
 
