@@ -56,6 +56,8 @@ import { FinanciamientoCard } from "@/app/(protected)/pagos/components/Financiam
 import { PacienteOdontogramaResumen } from "./PacienteOdontogramaResumen";
 import { ArchivoUploader } from "@/components/archivo-uploader";
 import { eliminarArchivoPaciente, registrarArchivoPaciente } from "@/app/(protected)/pacientes/actions";
+import type { ConsultaResumen } from "@/app/(protected)/pacientes/actions";
+import { ConsultaResumenDialog } from "./consulta-resumen-dialog";
 
 interface PacientePerfilProps {
   paciente: Paciente;
@@ -75,6 +77,7 @@ interface PacientePerfilProps {
   archivosPaciente: { id: string; nombre: string; key: string; mimeType: string | null; size: number | null; createAt: Date }[];
   odontogramaDetalleHistorico: { toothId: number; surface: "M" | "D" | "V" | "L" | "O" | "FULL"; state?: "bueno" | "malo"; treatmentId: string; treatmentName: string; category: string; color: string; icon: string }[];
   seguroNombre?: string;
+  consultas: ConsultaResumen[];
 }
 
 const getEstadoBadge = (estado: string) => {
@@ -262,6 +265,7 @@ export function PacientePerfil({
   seguroNombre,
   archivosPaciente,
   clinicInfo,
+  consultas,
 }: PacientePerfilProps) {
   const initials = `${paciente.nombre?.charAt(0) ?? ""}${paciente.apellido?.charAt(0) ?? ""}`;
   const edad = paciente.fechaNacimiento
@@ -271,6 +275,7 @@ export function PacientePerfil({
   const citasProgramadas = citas.filter((c) => c.estado === "programada");
   const citasAtendidas = citas.filter((c) => c.estado === "atendida");
   const citasCanceladas = citas.filter((c) => c.estado === "cancelada");
+  const consultaPorCita = new Map(consultas.map((consulta) => [consulta.citaId, consulta]));
 
   // Calcular totales de cotizaciones
 
@@ -780,11 +785,19 @@ export function PacientePerfil({
                         </TableCell>
                         <TableCell>{getEstadoBadge(cita.estado)}</TableCell>
                         <TableCell>
-                          <Link href={`/citas/${cita.id}/edit`}>
-                            <Button variant="ghost" size="sm">
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                          <div className="flex items-center gap-1">
+                            <ConsultaResumenDialog
+                              fechaCita={cita.fechaHora ?? null}
+                              medicoNombre={cita.medico?.empleado ? `${cita.medico.empleado.nombre} ${cita.medico.empleado.apellido}` : null}
+                              consulta={cita.id ? consultaPorCita.get(cita.id) : undefined}
+                              triggerSize="sm"
+                            />
+                            <Link href={`/citas/${cita.id}/edit`}>
+                              <Button variant="ghost" size="sm" title="Editar cita">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -829,11 +842,19 @@ export function PacientePerfil({
                             </p>
                           )}
                         </div>
-                        <Link href={`/citas/${cita.id}/edit`}>
-                          <Button variant="ghost" size="icon">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                        <div className="flex items-center gap-1">
+                          <ConsultaResumenDialog
+                            fechaCita={cita.fechaHora ?? null}
+                            medicoNombre={cita.medico?.empleado ? `${cita.medico.empleado.nombre} ${cita.medico.empleado.apellido}` : null}
+                            consulta={cita.id ? consultaPorCita.get(cita.id) : undefined}
+                            triggerSize="icon"
+                          />
+                          <Link href={`/citas/${cita.id}/edit`}>
+                            <Button variant="ghost" size="icon" title="Editar cita">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
