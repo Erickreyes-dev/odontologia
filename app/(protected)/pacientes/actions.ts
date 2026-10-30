@@ -568,6 +568,71 @@ export async function getConstanciasMedicasByPaciente(pacienteId: string): Promi
     }
 }
 
+export type ConsultaResumen = {
+    id: string;
+    citaId: string;
+    fechaConsulta: Date | null;
+    diagnostico: string | null;
+    observacionesClinicas: string | null;
+    notas: string | null;
+    piezasTratadas: number[];
+    total: number;
+    descuento: number | null;
+    servicios: { id: string; nombre: string; cantidad: number; precioAplicado: number }[];
+    productos: { id: string; nombre: string; cantidad: number }[];
+};
+
+function parsePiezasTratadas(value: string | null): number[] {
+    if (!value) return [];
+    try {
+        const parsed = JSON.parse(value);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter((item): item is number => typeof item === "number").sort((a, b) => a - b);
+    } catch {
+        return [];
+    }
+}
+
+export async function getConsultasResumenByPaciente(pacienteId: string): Promise<ConsultaResumen[]> {
+    try {
+        if (!pacienteId) return [];
+
+        const records = await prisma.consulta.findMany({
+            where: await tenantWhere<Prisma.ConsultaWhereInput>({ cita: { pacienteId } }),
+            include: {
+                detalles: { include: { servicio: { select: { nombre: true } } } },
+                productos: { include: { producto: { select: { nombre: true } } } },
+            },
+        });
+
+        return records.map((record) => ({
+            id: record.id,
+            citaId: record.citaId,
+            fechaConsulta: record.fechaConsulta,
+            diagnostico: record.diagnostico,
+            observacionesClinicas: record.observacionesClinicas,
+            notas: record.notas,
+            piezasTratadas: parsePiezasTratadas(record.piezasTratadas),
+            total: Number(record.total),
+            descuento: record.descuento !== null ? Number(record.descuento) : null,
+            servicios: record.detalles.map((detalle) => ({
+                id: detalle.id,
+                nombre: detalle.servicio.nombre,
+                cantidad: detalle.cantidad,
+                precioAplicado: Number(detalle.precioAplicado),
+            })),
+            productos: record.productos.map((producto) => ({
+                id: producto.id,
+                nombre: producto.producto.nombre,
+                cantidad: producto.cantidad,
+            })),
+        }));
+    } catch (error) {
+        console.error("Error al obtener consultas del paciente:", error);
+        return [];
+    }
+}
+
 export async function updateConstanciaMedica({
     constanciaId,
     motivo,
